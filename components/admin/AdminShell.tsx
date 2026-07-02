@@ -5,6 +5,7 @@ import {
   Bike,
   CalendarClock,
   Flower2,
+  Home,
   IdCard,
   LineChart,
   ListOrdered,
@@ -29,9 +30,11 @@ import { EntregasPage } from "./EntregasPage";
 import { ReportesPage } from "./ReportesPage";
 import { ConfiguracionPage } from "./ConfiguracionPage";
 import { UsuariosPage } from "./UsuariosPage";
+import { DashboardPage } from "./DashboardPage";
 import { AdminIntro } from "./AdminIntro";
 
 type Section =
+  | "inicio"
   | "nuevoPedido"
   | "pedidos"
   | "agenda"
@@ -60,7 +63,7 @@ const NAV: NavDef[] = [
 ];
 
 export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
-  const [section, setSection] = useState<Section>("nuevoPedido");
+  const [section, setSection] = useState<Section>("inicio");
   const [drawer, setDrawer] = useState(false);
 
   const go = (s: Section) => {
@@ -70,6 +73,8 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
 
   const page = () => {
     switch (section) {
+      case "inicio":
+        return <DashboardPage />;
       case "nuevoPedido":
         return <NewOrderPage onDone={() => go("pedidos")} />;
       case "pedidos":
@@ -186,6 +191,7 @@ function Sidebar({
       </div>
       <div className="mt-4 flex-1 overflow-y-auto px-3">
         <div className="flex flex-col gap-0.5">
+          {item({ s: "inicio", icon: <Home size={19} />, label: "Inicio" })}
           {item({ s: "nuevoPedido", icon: <PlusSquare size={19} />, label: "Nuevo Pedido" })}
           {NAV.map((n) => item(n))}
         </div>

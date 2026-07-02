@@ -4,11 +4,22 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { Order, OrderStatus, seedOrders } from "@/lib/adminData";
+import { Order, OrderStatus } from "@/lib/adminData";
+import {
+  apiCreateOrder,
+  apiDeleteOrder,
+  apiEmployeeLogin,
+  apiEmployeeLogout,
+  apiEmployeeMe,
+  apiListOrders,
+  apiPatchStatus,
+  orderToPayload,
+} from "@/lib/ordersClient";
 import {
   Product,
   kProducts,
@@ -55,7 +66,8 @@ interface AuthApi {
   role: string;
   email: string;
   error: string | null;
-  login: (email: string, pass: string) => boolean;
+  /** Inicia sesión contra la base de datos; fija la cookie de empleado. */
+  login: (email: string, pass: string) => Promise<boolean>;
   register: (data: RegisterData) => boolean;
   logout: () => void;
 }
@@ -167,60 +179,69 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     };
   }, [cartState, qty, add, change, remove, clear]);
 
-  // ---------- Auth ----------
-  interface UserRec {
-    name: string;
-    email: string;
-    pass: string;
-    role: string;
-  }
-  // Usuarios registrados (en memoria — se reemplazará por el backend).
-  const usersRef = useRef<UserRec[]>([
-    {
-      name: "Ana Gómez",
-      email: "ana@floresonline.com",
-      pass: "demo1234",
-      role: "Vendedora",
-    },
-  ]);
-
+  // ---------- Auth (sesión de empleado contra la BD) ----------
   const [authState, setAuthState] = useState({
     loggedIn: false,
-    name: "Ana Gómez",
-    role: "Vendedora",
-    email: "ana@floresonline.com",
+    name: "",
+    role: "",
+    email: "",
     error: null as string | null,
   });
 
-  const login = useCallback((email: string, pass: string): boolean => {
-    const mail = email.trim().toLowerCase();
-    if (mail === "" || pass === "") {
-      setAuthState((s) => ({ ...s, error: "Ingresa tu correo y contraseña." }));
-      return false;
-    }
-    // Si el correo está registrado, la contraseña debe coincidir.
-    const u = usersRef.current.find((x) => x.email.toLowerCase() === mail);
-    if (u && u.pass !== pass) {
-      setAuthState((s) => ({ ...s, error: "Contraseña incorrecta." }));
-      return false;
-    }
-    setAuthState((s) => ({
-      ...s,
-      email: email.trim(),
-      role: u?.role ?? s.role,
-      name:
-        u?.name ??
-        (mail.startsWith("ana") ? "Ana Gómez" : "Empleado FloresOnline"),
-      error: null,
-      loggedIn: true,
-    }));
-    return true;
+  // Restaura la sesión si ya existe la cookie de empleado (recarga de página).
+  useEffect(() => {
+    let alive = true;
+    apiEmployeeMe().then((user) => {
+      if (alive && user) {
+        setAuthState({
+          loggedIn: true,
+          name: user.name,
+          role: user.role,
+          email: user.email,
+          error: null,
+        });
+      }
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
 
+  const login = useCallback(
+    async (email: string, pass: string): Promise<boolean> => {
+      if (email.trim() === "" || pass === "") {
+        setAuthState((s) => ({
+          ...s,
+          error: "Ingresa tu correo y contraseña.",
+        }));
+        return false;
+      }
+      try {
+        const user = await apiEmployeeLogin(email.trim(), pass);
+        setAuthState({
+          loggedIn: true,
+          name: user.name,
+          role: user.role,
+          email: user.email,
+          error: null,
+        });
+        return true;
+      } catch (e) {
+        setAuthState((s) => ({
+          ...s,
+          error: e instanceof Error ? e.message : "No se pudo iniciar sesión.",
+        }));
+        return false;
+      }
+    },
+    []
+  );
+
+  // El registro de empleados se gestiona desde el panel (Usuarios); aquí solo
+  // validamos el formulario para la demo.
   const register = useCallback((data: RegisterData): boolean => {
     const name = data.name.trim();
     const email = data.email.trim();
-    const mail = email.toLowerCase();
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     const setErr = (error: string) => {
       setAuthState((s) => ({ ...s, error }));
@@ -228,29 +249,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     };
     if (name === "") return setErr("Ingresa tu nombre completo.");
     if (!emailOk) return setErr("Ingresa un correo válido.");
-    if (usersRef.current.some((u) => u.email.toLowerCase() === mail))
-      return setErr("Ese correo ya está registrado.");
     if (data.pass.length < 6)
       return setErr("La contraseña debe tener al menos 6 caracteres.");
     if (data.pass !== data.confirm)
       return setErr("Las contraseñas no coinciden.");
-
-    const role = data.role?.trim() || "Vendedora";
-    usersRef.current.push({ name, email, pass: data.pass, role });
-    // Registro exitoso: inicia sesión automáticamente.
-    setAuthState((s) => ({
-      ...s,
-      name,
-      email,
-      role,
-      error: null,
-      loggedIn: true,
-    }));
-    return true;
+    return setErr(
+      "El registro de nuevos empleados aún no está habilitado. Ingresa con una cuenta existente."
+    );
   }, []);
 
   const logout = useCallback(() => {
-    setAuthState((s) => ({ ...s, loggedIn: false }));
+    apiEmployeeLogout();
+    setAuthState({
+      loggedIn: false,
+      name: "",
+      role: "",
+      email: "",
+      error: null,
+    });
   }, []);
 
   const auth: AuthApi = useMemo(
@@ -336,26 +352,66 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [products, skuExists, searchProductsCb, addProduct, updateProduct, removeProduct]
   );
 
-  // ---------- Pedidos ----------
-  const [orders, setOrders] = useState<Order[]>(() => seedOrders());
-  const seqRef = useRef(1043);
+  // ---------- Pedidos (respaldados por la base de datos) ----------
+  const [orders, setOrders] = useState<Order[]>([]);
 
-  const nextCode = useCallback(
-    () => `PED-${(seqRef.current + 1).toString().padStart(4, "0")}`,
-    []
-  );
-
-  const addOrder = useCallback((o: Order) => {
-    seqRef.current++;
-    setOrders((os) => [o, ...os]);
+  const refreshOrders = useCallback(async () => {
+    try {
+      setOrders(await apiListOrders());
+    } catch {
+      // Sin sesión o BD no disponible: deja la lista como está.
+    }
   }, []);
 
+  // Carga los pedidos de la BD al iniciar sesión y los limpia al salir.
+  // Mientras la sesión está activa, refresca en vivo para que las ventas
+  // hechas desde la tienda web aparezcan en el panel sin recargar la página:
+  //   · sondeo periódico cada 10 s
+  //   · al volver el foco / la pestaña a primer plano
+  useEffect(() => {
+    if (!authState.loggedIn) {
+      setOrders([]);
+      return;
+    }
+    refreshOrders();
+    const interval = setInterval(refreshOrders, 10_000);
+    const onFocus = () => refreshOrders();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refreshOrders();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [authState.loggedIn, refreshOrders]);
+
+  // Código provisional para la vista optimista; la BD asigna el definitivo.
+  const nextCode = useCallback(() => "PED-nuevo", []);
+
+  const addOrder = useCallback(
+    (o: Order) => {
+      // Optimista: muéstralo de inmediato y persiste en la BD.
+      setOrders((os) => [o, ...os]);
+      apiCreateOrder(orderToPayload(o))
+        .then(() => refreshOrders())
+        .catch(() => refreshOrders());
+    },
+    [refreshOrders]
+  );
+
   const setStatus = useCallback((o: Order, s: OrderStatus) => {
-    setOrders((os) => os.map((x) => (x === o ? { ...x, status: s } : x)));
+    setOrders((os) =>
+      os.map((x) => (x.code === o.code ? { ...x, status: s } : x))
+    );
+    apiPatchStatus(o.code, s).catch(() => {});
   }, []);
 
   const removeOrder = useCallback((o: Order) => {
-    setOrders((os) => os.filter((x) => x !== o));
+    setOrders((os) => os.filter((x) => x.code !== o.code));
+    apiDeleteOrder(o.code).catch(() => {});
   }, []);
 
   const countByStatus = useCallback(

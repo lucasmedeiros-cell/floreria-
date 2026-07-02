@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   AlertCircle,
   ArrowLeft,
-  CheckCircle2,
+  Check,
+  Clock,
   Eye,
   EyeOff,
   Info,
@@ -24,8 +26,8 @@ type Mode = "login" | "register";
 export function AdminLogin() {
   const [mode, setMode] = useState<Mode>("login");
   return (
-    <div className="min-h-screen bg-bg lg:grid lg:grid-cols-2">
-      <SidePanel />
+    <div className="min-h-screen bg-bg lg:grid lg:grid-cols-[1fr_1.05fr]">
+      <BrandPanel />
       {mode === "login" ? (
         <LoginForm onRegister={() => setMode("register")} />
       ) : (
@@ -40,86 +42,80 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
   const auth = useAuth();
   const [email, setEmail] = useState("ana@floresonline.com");
   const [pass, setPass] = useState("demo1234");
-  const [obscure, setObscure] = useState(true);
+  const [obscure, setObscure] = useState(false);
 
-  const submit = () => auth.login(email, pass);
+  const [busy, setBusy] = useState(false);
+  const canSubmit = email.trim() !== "" && pass !== "" && !busy;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    setBusy(true);
+    await auth.login(email, pass);
+    setBusy(false);
+  };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-7 py-7">
-      <div className="w-full max-w-[380px]">
-        <div className="mb-4 flex justify-center lg:hidden">
-          <FlowerMark size={52} />
-        </div>
-        <p className="eyebrow text-[12px] font-semibold text-pink">Panel de gestión</p>
-        <h1 className="mt-2 text-[34px] font-semibold text-ink">
-          Iniciar sesión
-        </h1>
-        <p className="mt-2 text-[13.5px] text-ink2">
-          Accede para crear y gestionar pedidos.
-        </p>
+    <FormShell>
+      <Header
+        title="Iniciar sesión"
+        subtitle="Accede para crear y gestionar pedidos."
+      />
 
-        <label className="mb-1.5 mt-6 block text-[12.5px] font-medium text-ink2">
-          Correo
-        </label>
-        <FieldWrap icon={<Mail size={19} />}>
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="tucorreo@floresonline.com"
-            className="w-full bg-transparent text-[14px] text-ink outline-none placeholder:text-faint"
-          />
-        </FieldWrap>
+      <form onSubmit={submit} noValidate className="mt-6">
+        <Field
+          id="login-email"
+          label="Correo"
+          icon={<Mail size={19} />}
+          type="email"
+          autoComplete="username"
+          autoFocus
+          value={email}
+          onChange={setEmail}
+          placeholder="tucorreo@floresonline.com"
+        />
 
-        <label className="mb-1.5 mt-4 block text-[12.5px] font-medium text-ink2">
-          Contraseña
-        </label>
-        <FieldWrap
+        <Field
+          id="login-pass"
+          label="Contraseña"
           icon={<Lock size={19} />}
-          suffix={
-            <button onClick={() => setObscure((o) => !o)} className="text-faint">
-              {obscure ? <EyeOff size={19} /> : <Eye size={19} />}
-            </button>
-          }
-        >
-          <input
-            value={pass}
-            onChange={(e) => setPass(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submit()}
-            type={obscure ? "password" : "text"}
-            placeholder="••••••••"
-            className="w-full bg-transparent text-[14px] text-ink outline-none placeholder:text-faint"
-          />
-        </FieldWrap>
+          type={obscure ? "text" : "password"}
+          autoComplete="current-password"
+          value={pass}
+          onChange={setPass}
+          placeholder="••••••••"
+          className="mt-4"
+          suffix={<RevealToggle obscure={obscure} onToggle={() => setObscure((o) => !o)} />}
+        />
 
-        {auth.error && <ErrorLine msg={auth.error} />}
+        {auth.error && <ErrorBanner msg={auth.error} />}
 
         <div className="mt-6">
           <PrimaryButton
-            label="Ingresar al panel"
+            type="submit"
+            label={busy ? "Ingresando…" : "Ingresar al panel"}
             icon={<LogIn size={18} />}
             expand
-            onClick={submit}
+            disabled={!canSubmit}
           />
         </div>
+      </form>
 
-        <button
-          onClick={onRegister}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-line bg-surface px-[26px] py-[13px] text-[13px] font-semibold text-ink shadow-soft transition-all duration-100 active:translate-y-[2px]"
-        >
-          <UserPlus size={18} className="text-pink" />
-          Crear una cuenta nueva
-        </button>
+      <GhostButton
+        icon={<UserPlus size={18} className="text-pink" />}
+        label="Crear una cuenta nueva"
+        onClick={onRegister}
+      />
 
-        <div className="mt-4 flex items-center gap-2 rounded-xl border border-line bg-surface2 p-3">
-          <Info size={16} className="text-pink" />
-          <span className="text-[11.5px] text-ink2">
-            Demo: los datos ya están cargados, solo toca “Ingresar”.
-          </span>
-        </div>
-
-        <BackToStore />
+      <div className="mt-4 flex items-start gap-2 rounded-xl border border-line bg-surface2 p-3">
+        <Info size={16} className="mt-px shrink-0 text-pink" />
+        <span className="text-[11.5px] leading-relaxed text-ink2">
+          Demo: los datos ya están cargados, solo toca “Ingresar al panel”.
+        </span>
       </div>
-    </div>
+
+      <BackToStore />
+    </FormShell>
   );
 }
 
@@ -130,151 +126,330 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [obscure, setObscure] = useState(true);
+  const [obscure, setObscure] = useState(false);
 
-  const submit = () => auth.register({ name, email, pass, confirm });
+  const passOk = pass.length >= 6;
+  const matchOk = confirm !== "" && confirm === pass;
+  const canSubmit =
+    name.trim() !== "" && email.trim() !== "" && passOk && matchOk;
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (canSubmit) auth.register({ name, email, pass, confirm });
+  };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-7 py-7">
-      <div className="w-full max-w-[380px]">
-        <div className="mb-4 flex justify-center lg:hidden">
-          <FlowerMark size={52} />
-        </div>
-        <p className="eyebrow text-[12px] font-semibold text-pink">Panel de gestión</p>
-        <h1 className="mt-2 text-[34px] font-semibold text-ink">
-          Crear cuenta
-        </h1>
-        <p className="mt-2 text-[13.5px] text-ink2">
-          Registra un nuevo miembro del equipo para gestionar pedidos.
-        </p>
+    <FormShell>
+      <Header
+        title="Crear cuenta"
+        subtitle="Registra un nuevo miembro del equipo para gestionar pedidos."
+      />
 
-        <label className="mb-1.5 mt-6 block text-[12.5px] font-medium text-ink2">
-          Nombre completo
-        </label>
-        <FieldWrap icon={<User size={19} />}>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Nombre y apellido"
-            className="w-full bg-transparent text-[14px] text-ink outline-none placeholder:text-faint"
-          />
-        </FieldWrap>
+      <form onSubmit={submit} noValidate className="mt-6">
+        <Field
+          id="reg-name"
+          label="Nombre completo"
+          icon={<User size={19} />}
+          autoComplete="name"
+          autoFocus
+          value={name}
+          onChange={setName}
+          placeholder="Nombre y apellido"
+        />
 
-        <label className="mb-1.5 mt-4 block text-[12.5px] font-medium text-ink2">
-          Correo
-        </label>
-        <FieldWrap icon={<Mail size={19} />}>
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="tucorreo@floresonline.com"
-            className="w-full bg-transparent text-[14px] text-ink outline-none placeholder:text-faint"
-          />
-        </FieldWrap>
+        <Field
+          id="reg-email"
+          label="Correo"
+          icon={<Mail size={19} />}
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={setEmail}
+          placeholder="tucorreo@floresonline.com"
+          className="mt-4"
+        />
 
-        <label className="mb-1.5 mt-4 block text-[12.5px] font-medium text-ink2">
-          Contraseña
-        </label>
-        <FieldWrap
+        <Field
+          id="reg-pass"
+          label="Contraseña"
           icon={<Lock size={19} />}
-          suffix={
-            <button onClick={() => setObscure((o) => !o)} className="text-faint">
-              {obscure ? <EyeOff size={19} /> : <Eye size={19} />}
-            </button>
+          type={obscure ? "text" : "password"}
+          autoComplete="new-password"
+          value={pass}
+          onChange={setPass}
+          placeholder="Mínimo 6 caracteres"
+          className="mt-4"
+          suffix={<RevealToggle obscure={obscure} onToggle={() => setObscure((o) => !o)} />}
+          hint={
+            pass !== "" && !passOk
+              ? { tone: "warn", text: "Usa al menos 6 caracteres." }
+              : undefined
           }
-        >
-          <input
-            value={pass}
-            onChange={(e) => setPass(e.target.value)}
-            type={obscure ? "password" : "text"}
-            placeholder="Mínimo 6 caracteres"
-            className="w-full bg-transparent text-[14px] text-ink outline-none placeholder:text-faint"
-          />
-        </FieldWrap>
+        />
 
-        <label className="mb-1.5 mt-4 block text-[12.5px] font-medium text-ink2">
-          Confirmar contraseña
-        </label>
-        <FieldWrap icon={<Lock size={19} />}>
-          <input
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submit()}
-            type={obscure ? "password" : "text"}
-            placeholder="Repite la contraseña"
-            className="w-full bg-transparent text-[14px] text-ink outline-none placeholder:text-faint"
-          />
-        </FieldWrap>
+        <Field
+          id="reg-confirm"
+          label="Confirmar contraseña"
+          icon={<Lock size={19} />}
+          type={obscure ? "text" : "password"}
+          autoComplete="new-password"
+          value={confirm}
+          onChange={setConfirm}
+          placeholder="Repite la contraseña"
+          className="mt-4"
+          suffix={
+            matchOk ? <Check size={18} className="text-success" /> : undefined
+          }
+          hint={
+            confirm !== "" && !matchOk
+              ? { tone: "warn", text: "Las contraseñas no coinciden." }
+              : undefined
+          }
+        />
 
-        {auth.error && <ErrorLine msg={auth.error} />}
+        {auth.error && <ErrorBanner msg={auth.error} />}
 
         <div className="mt-6">
           <PrimaryButton
+            type="submit"
             label="Crear cuenta e ingresar"
             icon={<UserPlus size={18} />}
             expand
-            onClick={submit}
+            disabled={!canSubmit}
           />
         </div>
+      </form>
 
-        <button
-          onClick={onLogin}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-line bg-surface px-[26px] py-[13px] text-[13px] font-semibold text-ink shadow-soft transition-all duration-100 active:translate-y-[2px]"
-        >
-          <LogIn size={18} className="text-pink" />
-          Ya tengo una cuenta
-        </button>
+      <GhostButton
+        icon={<LogIn size={18} className="text-pink" />}
+        label="Ya tengo una cuenta"
+        onClick={onLogin}
+      />
 
-        <BackToStore />
-      </div>
-    </div>
+      <BackToStore />
+    </FormShell>
   );
 }
 
 // ===================== Compartidos =====================
-function SidePanel() {
+function FormShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="hidden bg-pinkHero p-12 lg:flex lg:flex-col">
-      <div className="flex items-center gap-3">
-        <FlowerMark size={44} />
-        <Wordmark />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-5 py-10 sm:px-7">
+      {/* Fondo rosa oscuro con imagen floral */}
+      <Image
+        src="/images/hero.jpg"
+        alt=""
+        fill
+        priority
+        sizes="55vw"
+        className="object-cover"
+      />
+      <div className="absolute inset-0 bg-gradient-to-br from-pinkDeep/95 via-pink/85 to-pinkDeep/90" />
+
+      {/* Tarjeta del formulario */}
+      <div className="relative w-full max-w-[420px] rounded-[26px] border border-white/60 bg-white p-7 shadow-[0_30px_70px_-20px_rgba(140,10,50,0.55)] sm:p-9">
+        <div className="mb-5 flex justify-center lg:hidden">
+          <FlowerMark size={52} />
+        </div>
+        {children}
       </div>
-      <div className="flex-1" />
-      <p className="text-[.72rem] font-semibold tracking-[3px] text-pink">
-        PEDIDOS Y ENTREGAS
-      </p>
-      <h2 className="mt-3.5 whitespace-pre-line text-[40px] font-medium leading-tight text-ink">
-        Gestiona cada pedido{"\n"}con simplicidad.
-      </h2>
-      <p className="mt-4 max-w-[360px] text-[14px] leading-relaxed text-ink2">
-        Crea pedidos para tus clientes, agenda entregas y hazles seguimiento desde
-        un solo lugar.
-      </p>
-      <div className="mt-7 flex flex-col gap-3">
-        {[
-          "Registra el pedido con fecha, hora y ubicación",
-          "Asigna un repartidor y una prioridad",
-          "Controla el estado hasta la entrega",
-        ].map((t) => (
-          <div key={t} className="flex items-start gap-2.5">
-            <CheckCircle2 size={18} className="text-pink" />
-            <span className="text-[13px] text-ink2">{t}</span>
-          </div>
-        ))}
-      </div>
-      <div className="flex-1" />
-      <p className="text-[11.5px] text-faint">
-        © 2026 FloresOnline · Arte floral en cada detalle
-      </p>
     </div>
   );
 }
 
-function ErrorLine({ msg }: { msg: string }) {
+function Header({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div className="mt-3 flex items-center gap-1.5 text-[#C0334E]">
-      <AlertCircle size={16} />
-      <span className="text-[12.5px]">{msg}</span>
+    <>
+      <p className="text-[.72rem] font-semibold tracking-[3px] text-pink">
+        PANEL DE GESTIÓN
+      </p>
+      <h1 className="mt-2 text-[32px] font-semibold leading-tight text-ink">
+        {title}
+      </h1>
+      <p className="mt-2 text-[13.5px] text-ink2">{subtitle}</p>
+    </>
+  );
+}
+
+function BrandPanel() {
+  return (
+    <div className="relative hidden overflow-hidden bg-pinkHero lg:flex lg:flex-col lg:justify-between lg:p-12">
+      {/* Halos decorativos suaves */}
+      <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-pink/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-28 right-0 h-72 w-72 rounded-full bg-pinkDeep/10 blur-3xl" />
+
+      {/* Marca */}
+      <div className="relative flex items-center gap-3">
+        <FlowerMark size={44} />
+        <Wordmark />
+      </div>
+
+      {/* Tarjeta de muestra */}
+      <div className="relative my-8 max-w-[300px] rounded-[18px] border border-line bg-white p-4 shadow-soft">
+        <div className="flex items-center justify-between">
+          <span className="text-[10.5px] font-semibold tracking-[2px] text-pink">
+            PED-1043
+          </span>
+          <span className="rounded-full bg-pinkSoft px-2.5 py-0.5 text-[10.5px] font-semibold text-pink">
+            Programado
+          </span>
+        </div>
+        <p className="mt-2 text-[17px] font-semibold text-ink">María Fernández</p>
+        <div className="mt-1.5 flex items-center gap-1.5 text-[12px] text-ink2">
+          <Clock size={13} /> Hoy · 15:00 · 2 ítems
+        </div>
+        <div className="mt-3 flex items-center justify-between border-t border-line pt-2.5">
+          <span className="text-[11.5px] text-ink2">Total</span>
+          <span className="text-[15px] font-bold text-pink">Bs 185,00</span>
+        </div>
+      </div>
+
+      <div className="relative">
+        <p className="text-[.72rem] font-semibold tracking-[3px] text-pink">
+          PEDIDOS Y ENTREGAS
+        </p>
+        <h2 className="mt-3 whitespace-pre-line text-[38px] font-semibold leading-[1.1] text-ink">
+          Gestiona cada pedido{"\n"}con simplicidad.
+        </h2>
+        <div className="mt-6 flex flex-col gap-2.5">
+          {[
+            "Registra el pedido con fecha, hora y ubicación",
+            "Asigna un repartidor y una prioridad",
+            "Controla el estado hasta la entrega",
+          ].map((t) => (
+            <div key={t} className="flex items-start gap-2.5">
+              <span className="mt-0.5 grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-pink">
+                <Check size={12} className="text-white" />
+              </span>
+              <span className="text-[13px] text-ink2">{t}</span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-9 text-[11.5px] text-faint">
+          © 2026 FloresOnline · Arte floral en cada detalle
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ---- Campo de formulario reutilizable ----
+function Field({
+  id,
+  label,
+  icon,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+  autoComplete,
+  autoFocus,
+  suffix,
+  hint,
+  className = "",
+}: {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: string;
+  autoComplete?: string;
+  autoFocus?: boolean;
+  suffix?: React.ReactNode;
+  hint?: { tone: "warn"; text: string };
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <label
+        htmlFor={id}
+        className="mb-1.5 block text-[12.5px] font-medium text-ink2"
+      >
+        {label}
+      </label>
+      <div
+        className={`flex items-center gap-2.5 rounded-xl border bg-surface px-4 py-3.5 transition-colors focus-within:ring-2 focus-within:ring-pink/20 ${
+          hint ? "border-[#C0334E]/50" : "border-line focus-within:border-pink"
+        }`}
+      >
+        <span className="text-faint">{icon}</span>
+        <input
+          id={id}
+          type={type}
+          value={value}
+          autoComplete={autoComplete}
+          autoFocus={autoFocus}
+          aria-invalid={hint ? true : undefined}
+          aria-describedby={hint ? `${id}-hint` : undefined}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full bg-transparent text-[14px] text-ink outline-none placeholder:text-faint"
+        />
+        {suffix}
+      </div>
+      {hint && (
+        <p
+          id={`${id}-hint`}
+          className="mt-1.5 flex items-center gap-1 text-[11.5px] text-[#C0334E]"
+        >
+          <AlertCircle size={13} /> {hint.text}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function RevealToggle({
+  obscure,
+  onToggle,
+}: {
+  obscure: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={obscure ? "Mostrar contraseña" : "Ocultar contraseña"}
+      aria-pressed={obscure}
+      className="text-faint transition-colors hover:text-ink2"
+    >
+      {obscure ? <Eye size={19} /> : <EyeOff size={19} />}
+    </button>
+  );
+}
+
+function GhostButton({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-line bg-surface px-[26px] py-[13px] text-[13px] font-semibold text-ink transition-colors hover:border-pink hover:text-pink"
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function ErrorBanner({ msg }: { msg: string }) {
+  return (
+    <div
+      role="alert"
+      className="mt-4 flex items-center gap-2 rounded-xl border border-[#C0334E]/25 bg-[#C0334E]/10 px-3.5 py-2.5 text-[#C0334E]"
+    >
+      <AlertCircle size={16} className="shrink-0" />
+      <span className="text-[12.5px] font-medium">{msg}</span>
     </div>
   );
 }
@@ -282,27 +457,12 @@ function ErrorLine({ msg }: { msg: string }) {
 function BackToStore() {
   return (
     <div className="mt-5 flex justify-center">
-      <Link href="/" className="flex items-center gap-1.5 text-[12.5px] text-ink2">
+      <Link
+        href="/"
+        className="flex items-center gap-1.5 text-[12.5px] text-ink2 transition-colors hover:text-pink"
+      >
         <ArrowLeft size={16} /> Volver a la tienda
       </Link>
-    </div>
-  );
-}
-
-function FieldWrap({
-  icon,
-  suffix,
-  children,
-}: {
-  icon: React.ReactNode;
-  suffix?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center gap-2.5 rounded-xl border border-line bg-surface px-4 py-3.5 focus-within:border-pink">
-      <span className="text-faint">{icon}</span>
-      {children}
-      {suffix}
     </div>
   );
 }

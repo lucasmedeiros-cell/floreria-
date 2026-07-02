@@ -42,3 +42,13 @@ export const PATCH = handler(async (req: NextRequest, { params }: Params) => {
   );
   return row ? ok(row) : notFound("Pedido no encontrado");
 });
+
+// DELETE /api/orders/[code]  (empleados) — elimina el pedido y sus ítems.
+export const DELETE = handler(async (_req: NextRequest, { params }: Params) => {
+  if (!getSession("employee")) return unauthorized();
+  const row = await queryOne(
+    `DELETE FROM orders WHERE code = $1 RETURNING code`,
+    [params.code]
+  );
+  return row ? ok({ code: row.code }) : notFound("Pedido no encontrado");
+});

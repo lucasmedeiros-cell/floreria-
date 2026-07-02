@@ -11,6 +11,7 @@ export function PrimaryButton({
   expand = false,
   disabled = false,
   colors,
+  type = "button",
 }: {
   label: string;
   onClick?: () => void;
@@ -18,11 +19,12 @@ export function PrimaryButton({
   expand?: boolean;
   disabled?: boolean;
   colors?: [string, string];
+  type?: "button" | "submit";
 }) {
   const bg = colors ? colors[0] : "#E8366B";
   return (
     <button
-      type="button"
+      type={type}
       onClick={onClick}
       disabled={disabled}
       className={`inline-flex items-center justify-center gap-2.5 rounded-full px-7 py-[14px] text-[13.5px] font-semibold tracking-wide text-white transition-colors hover:opacity-90 disabled:opacity-50 ${

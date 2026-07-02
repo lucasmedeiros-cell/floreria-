@@ -114,7 +114,7 @@ export function Storefront() {
     <div className="min-h-screen bg-white">
       {/* ===================== HEADER ===================== */}
       <header className="sticky top-0 z-40 bg-white">
-        <div className="mx-auto max-w-[1080px] px-6 pt-[22px]">
+        <div className="mx-auto w-[92%] max-w-[1760px] px-6 pt-[22px]">
           <div className="flex items-center gap-6">
             <button onClick={goTop} className="flex items-center gap-2.5">
               <PinkMark size={42} />
@@ -192,7 +192,7 @@ export function Storefront() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1080px] px-6">
+      <main className="mx-auto w-[92%] max-w-[1760px] px-6">
         {/* ===================== HERO ===================== */}
         <section className="mt-[30px] grid grid-cols-1 items-center gap-8 rounded-[6px] bg-pinkHero px-7 py-9 md:grid-cols-2 md:px-14 md:py-[50px]">
           <div className="order-2 md:order-1">
@@ -324,7 +324,7 @@ export function Storefront() {
 
       {/* ===================== FOOTER ===================== */}
       <footer ref={contactoRef} className="bg-[#1d1d1d]">
-        <div className="mx-auto max-w-[1080px] px-6 pb-7 pt-12">
+        <div className="mx-auto w-[92%] max-w-[1760px] px-6 pb-7 pt-12">
           <div className="flex flex-wrap gap-x-10 gap-y-8">
             <div className="w-full md:w-[290px]">
               <div className="flex items-center gap-2.5">
