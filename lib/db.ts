@@ -4,7 +4,10 @@ import { Pool, type QueryResultRow } from "pg";
  * Pool de conexiones PostgreSQL compartido.
  * Usa DATABASE_URL; en desarrollo se reutiliza entre recargas (HMR).
  */
-const globalForPg = globalThis as unknown as { pgPool?: Pool };
+const globalForPg = globalThis as unknown as {
+  pgPool?: Pool;
+  pgPoolErrorBound?: boolean;
+};
 
 function makePool(): Pool {
   const connectionString =
@@ -24,6 +27,17 @@ function makePool(): Pool {
 
 export const pool: Pool = globalForPg.pgPool ?? makePool();
 if (process.env.NODE_ENV !== "production") globalForPg.pgPool = pool;
+
+// Sin este listener, si una conexión inactiva del pool se cae (Postgres se
+// reinicia, la máquina se suspende, etc.) el evento 'error' del pool queda sin
+// manejar y puede tumbar el proceso. Con el listener, el pool simplemente
+// descarta la conexión rota y abre una nueva en la próxima consulta.
+if (!globalForPg.pgPoolErrorBound) {
+  pool.on("error", (err) => {
+    console.error("[db] conexión inactiva del pool falló:", err.message);
+  });
+  globalForPg.pgPoolErrorBound = true;
+}
 
 /** Helper tipado: ejecuta una consulta y devuelve las filas. */
 export async function query<T extends QueryResultRow = QueryResultRow>(

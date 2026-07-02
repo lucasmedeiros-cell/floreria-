@@ -379,15 +379,17 @@ export function Storefront() {
 
           <div className="mt-8 h-px bg-white/10" />
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <span className="text-[.75rem] text-white/40">
-              © 2026 FloresOnline · Arte floral en cada detalle
-            </span>
+            {/* El enlace va a la IZQUIERDA para no quedar debajo del botón
+                flotante de WhatsApp (fijo abajo-derecha), que le robaba el clic. */}
             <Link
               href="/admin"
-              className="flex items-center gap-1.5 text-[.75rem] font-semibold text-pink"
+              className="relative z-10 flex items-center gap-1.5 text-[.75rem] font-semibold text-pink"
             >
               <Lock size={13} /> Acceso empleados
             </Link>
+            <span className="text-[.75rem] text-white/40">
+              © 2026 FloresOnline · Arte floral en cada detalle
+            </span>
           </div>
         </div>
       </footer>

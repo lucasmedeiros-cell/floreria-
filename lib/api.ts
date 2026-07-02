@@ -21,8 +21,21 @@ export function handler<T extends unknown[]>(
       return await fn(...args);
     } catch (err) {
       console.error("[api] error:", err);
-      const msg = err instanceof Error ? err.message : "Error interno";
-      return NextResponse.json({ error: msg }, { status: 500 });
+      const raw = err instanceof Error ? err.message : "Error interno";
+      // Errores de conexión a la base de datos → mensaje claro para el usuario.
+      const code = (err as { code?: string } | null)?.code;
+      const isDbDown =
+        code === "ECONNREFUSED" ||
+        code === "ETIMEDOUT" ||
+        code === "ENOTFOUND" ||
+        code === "57P01" || // admin_shutdown
+        /ECONNREFUSED|ETIMEDOUT|ENOTFOUND|terminating connection|connection terminated/i.test(
+          raw
+        );
+      const msg = isDbDown
+        ? "No se pudo conectar con la base de datos. Verifica que el servidor esté activo e inténtalo de nuevo."
+        : raw;
+      return NextResponse.json({ error: msg }, { status: isDbDown ? 503 : 500 });
     }
   };
 }
