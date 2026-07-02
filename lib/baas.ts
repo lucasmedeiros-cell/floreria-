@@ -3,19 +3,31 @@
 //  El servidor le pide al BaaS que genere un QR de monto fijo y
 //  luego consulta si fue pagado.
 //
-//  Toda la identidad y las credenciales se leen del entorno (.env.local),
-//  nunca van en el código:
-//    BAAS_BASE_URL, BAAS_USER, BAAS_PASS, QR_BUSINESS_CODE, QR_IDNODE
-//
-//  QR_BUSINESS_CODE / QR_IDNODE identifican a qué comercio se acreditan
-//  los pagos: deben ser los de FloresOnline.
+//  La identidad/credenciales del comercio (usuario, clave y códigos)
+//  se leen del entorno (.env.local) y nunca van en el código:
+//    BAAS_USER, BAAS_PASS, QR_BUSINESS_CODE, QR_IDNODE
+//  El dominio del BaaS (no es secreto) tiene un valor por defecto para
+//  que la URL nunca quede relativa (evita "Failed to parse URL").
 // ============================================================
 
-const BAAS_BASE_URL = process.env.BAAS_BASE_URL ?? "";
+const BAAS_BASE_URL =
+  process.env.BAAS_BASE_URL || "https://baas-bcp.petroboxinc.com";
 const BAAS_USER = process.env.BAAS_USER ?? "";
 const BAAS_PASS = process.env.BAAS_PASS ?? "";
 const QR_BUSINESS_CODE = process.env.QR_BUSINESS_CODE ?? "";
 const QR_IDNODE = process.env.QR_IDNODE ?? "";
+
+/** Faltan credenciales del comercio → no se puede cobrar por QR. */
+function configError(): string | null {
+  const faltan: string[] = [];
+  if (!BAAS_USER) faltan.push("BAAS_USER");
+  if (!BAAS_PASS) faltan.push("BAAS_PASS");
+  if (!QR_BUSINESS_CODE) faltan.push("QR_BUSINESS_CODE");
+  if (!QR_IDNODE) faltan.push("QR_IDNODE");
+  return faltan.length
+    ? `Pago QR no configurado (faltan: ${faltan.join(", ")}).`
+    : null;
+}
 
 function authHeader(): string {
   const basic = Buffer.from(`${BAAS_USER}:${BAAS_PASS}`).toString("base64");
@@ -37,6 +49,8 @@ export async function generarQR(
   amount: number,
   gloss: string
 ): Promise<QRGenerado> {
+  const cfg = configError();
+  if (cfg) return { ok: false, error: cfg };
   try {
     const res = await fetch(`${BAAS_BASE_URL}/api/qr_dinamico/generar`, {
       method: "POST",
