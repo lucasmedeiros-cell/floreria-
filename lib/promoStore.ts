@@ -9,13 +9,21 @@ const KEY = "promo";
  * landing funciona incluso antes de que el admin la edite por primera vez.
  */
 export async function readPromoConfig(): Promise<PromoConfig> {
-  const row = await queryOne<{ value: PromoConfig }>(
-    `SELECT value FROM settings WHERE key = $1`,
-    [KEY]
-  );
-  if (!row) return defaultPromoConfig;
-  // Merge sobre los defaults para tolerar configs viejas sin algún campo.
-  return { ...defaultPromoConfig, ...row.value };
+  try {
+    const row = await queryOne<{ value: PromoConfig }>(
+      `SELECT value FROM settings WHERE key = $1`,
+      [KEY]
+    );
+    if (!row) return defaultPromoConfig;
+    // Merge sobre los defaults para tolerar configs viejas sin algún campo.
+    return { ...defaultPromoConfig, ...row.value };
+  } catch (error) {
+    console.warn(
+      "No se pudo leer la configuración de la landing promocional; usando valores por defecto.",
+      error
+    );
+    return defaultPromoConfig;
+  }
 }
 
 /** Guarda (upsert) la config de la landing promocional. */
