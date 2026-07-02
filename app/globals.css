@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --shell: 1180px;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background: #f7f2ec;
+  color: #241a1e;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Eyebrow tracking-wide label */
+.eyebrow {
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+/* Scrollbar suave */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #e7ddd2;
+  border-radius: 8px;
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.reveal {
+  animation: reveal-up 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.pulse-soft {
+  animation: pulse-soft 1.4s ease-in-out infinite;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.pop-in {
+  animation: pop-in 0.48s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Intro web: el overlay se desvanece solo (CSS puro, nunca se queda colgado) */
+@keyframes web-intro-out {
+  0%,
+  62% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+/* Pétalo que cae de la rosa. --seat/--fall = transform inicial y final */
+@keyframes petal-fall {
+  0%,
+  12% {
+    transform: var(--seat);
+    opacity: 1;
+  }
+  100% {
+    transform: var(--fall);
+    opacity: 0;
+  }
+}
+
+/* Intro web: los pétalos brotan desde el centro y forman la rosa. --a = ángulo */
+@keyframes petal-form {
+  0% {
+    transform: rotate(var(--a)) translateY(0) scale(0.15);
+    opacity: 0;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--a)) translateY(-46px) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Pétalo que florece desde el centro (intro del admin). --a = ángulo del arm */
+@keyframes petal-bloom {
+  0% {
+    transform: rotate(var(--a)) translateY(0) scale(0.2);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--a)) translateY(-40px) scale(1);
+    opacity: 1;
+  }
+}
