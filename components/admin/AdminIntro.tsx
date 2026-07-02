@@ -58,7 +58,7 @@ export function AdminIntro({ enabled }: { enabled: boolean }) {
           })}
           {/* Corazón */}
           <span
-            className="pop-in absolute left-1/2 top-1/2 h-[38px] w-[38px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+            className="pop-in-center absolute left-1/2 top-1/2 h-[38px] w-[38px] rounded-full"
             style={{
               background: "radial-gradient(circle at 40% 35%,#F4C24A,#CBA869)",
               animationDelay: "350ms",
