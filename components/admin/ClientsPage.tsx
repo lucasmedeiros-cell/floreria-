@@ -17,7 +17,7 @@ export function ClientsPage({ onNew }: { onNew: () => void }) {
     <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
       <div className="flex items-start">
         <div className="flex-1">
-          <h1 className="font-serif text-[30px] font-semibold text-ink">Clientes</h1>
+          <h1 className="text-[30px] font-semibold text-ink">Clientes</h1>
           <p className="mt-1 text-[13px] text-ink2">
             {kClients.length} clientes registrados
           </p>
@@ -53,9 +53,9 @@ function ClientCard({ cl }: { cl: Client }) {
     .map((p) => p[0])
     .join("");
   return (
-    <div className="rounded-[18px] border border-line bg-surface p-[18px] shadow-card">
+    <div className="rounded-[18px] border border-line bg-surface p-[18px] shadow-soft">
       <div className="flex items-center gap-3">
-        <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full border border-line bg-surface2 font-serif text-[18px] font-bold text-rose">
+        <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full border border-line bg-surface2 text-[18px] font-bold text-pink">
           {initials}
         </span>
         <div className="min-w-0">

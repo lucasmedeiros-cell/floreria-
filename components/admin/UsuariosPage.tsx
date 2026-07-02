@@ -16,7 +16,7 @@ interface TeamUser {
 const ROLES = ["Administrador", "Vendedora", "Repartidor"];
 
 const roleColor = (r: string): string =>
-  (({ Administrador: "#B11E4B", Vendedora: "#3B6FD4", Repartidor: "#B8924A" } as Record<string, string>)[r] ?? "#6E6064");
+  (({ Administrador: "#E8366B", Vendedora: "#3B6FD4", Repartidor: "#F76F9C" } as Record<string, string>)[r] ?? "#6E6064");
 
 const SEED: TeamUser[] = [
   { id: "u1", name: "Ana Gómez", role: "Administrador", email: "ana@floresonline.com", active: true },
@@ -38,7 +38,7 @@ export function UsuariosPage() {
     <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
       <div className="flex items-start">
         <div className="flex-1">
-          <h1 className="font-serif text-[30px] font-semibold text-ink">Usuarios</h1>
+          <h1 className="text-[30px] font-semibold text-ink">Usuarios</h1>
           <p className="mt-1 text-[13px] text-ink2">{users.filter((u) => u.active).length} miembros activos · gestiona roles y accesos</p>
         </div>
         <PrimaryButton label="Invitar usuario" icon={<Plus size={18} />} onClick={() => setOpen(true)} />
@@ -46,8 +46,8 @@ export function UsuariosPage() {
 
       <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
         {users.map((u) => (
-          <div key={u.id} className="flex items-center gap-3.5 rounded-[18px] border border-line bg-surface p-[18px] shadow-card">
-            <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-gradient-to-b from-[#C9305F] to-[#8C153A] font-serif text-[18px] font-bold text-white">
+          <div key={u.id} className="flex items-center gap-3.5 rounded-[18px] border border-line bg-surface p-[18px] shadow-soft">
+            <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-gradient-to-b from-[#E8366B] to-[#D81B60] text-[18px] font-bold text-white">
               {initials(u.name)}
             </span>
             <div className="min-w-0 flex-1">
@@ -68,7 +68,7 @@ export function UsuariosPage() {
       </div>
 
       <div className="mt-4 flex items-start gap-2.5 rounded-[18px] border border-line bg-surface2 p-[18px]">
-        <ShieldCheck size={20} className="mt-0.5 shrink-0 text-gold" />
+        <ShieldCheck size={20} className="mt-0.5 shrink-0 text-pink" />
         <p className="text-[12.5px] leading-relaxed text-ink2">
           <span className="font-semibold text-ink">Roles y permisos:</span> el <b>Administrador</b> gestiona todo el panel; la <b>Vendedora</b> crea notas y clientes; el <b>Repartidor</b> solo ve su agenda y entregas asignadas.
         </p>
@@ -97,7 +97,7 @@ function InviteDialog({ onClose, onSave }: { onClose: () => void; onSave: (u: Te
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-5" onClick={onClose}>
       <div className="w-full max-w-[440px] rounded-[22px] bg-surface p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center">
-          <h2 className="font-serif text-[24px] font-semibold text-ink">Invitar usuario</h2>
+          <h2 className="text-[24px] font-semibold text-ink">Invitar usuario</h2>
           <button onClick={onClose} className="ml-auto text-ink2"><X size={22} /></button>
         </div>
         <div className="mt-4 flex flex-col gap-3">
@@ -105,7 +105,7 @@ function InviteDialog({ onClose, onSave }: { onClose: () => void; onSave: (u: Te
           <FieldRow label="Correo" value={email} onChange={setEmail} placeholder="correo@floresonline.com" type="email" />
           <label className="block">
             <span className="text-[12px] font-semibold text-ink2">Rol</span>
-            <select value={role} onChange={(e) => setRole(e.target.value)} className="mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none focus:border-rose">
+            <select value={role} onChange={(e) => setRole(e.target.value)} className="mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none focus:border-pink">
               {ROLES.map((r) => <option key={r}>{r}</option>)}
             </select>
           </label>
@@ -126,7 +126,7 @@ function FieldRow({ label, value, onChange, placeholder, type = "text" }: { labe
   return (
     <label className="block">
       <span className="text-[12px] font-semibold text-ink2">{label}</span>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none placeholder:text-faint focus:border-rose" />
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none placeholder:text-faint focus:border-pink" />
     </label>
   );
 }

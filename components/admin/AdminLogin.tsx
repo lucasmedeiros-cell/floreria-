@@ -50,8 +50,8 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
         <div className="mb-4 flex justify-center lg:hidden">
           <FlowerMark size={52} />
         </div>
-        <p className="eyebrow text-[12px] font-semibold text-gold">Panel de gestión</p>
-        <h1 className="mt-2 font-serif text-[34px] font-semibold text-ink">
+        <p className="eyebrow text-[12px] font-semibold text-pink">Panel de gestión</p>
+        <h1 className="mt-2 text-[34px] font-semibold text-ink">
           Iniciar sesión
         </h1>
         <p className="mt-2 text-[13.5px] text-ink2">
@@ -106,12 +106,12 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
           onClick={onRegister}
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-line bg-surface px-[26px] py-[13px] text-[13px] font-semibold text-ink shadow-soft transition-all duration-100 active:translate-y-[2px]"
         >
-          <UserPlus size={18} className="text-rose" />
+          <UserPlus size={18} className="text-pink" />
           Crear una cuenta nueva
         </button>
 
         <div className="mt-4 flex items-center gap-2 rounded-xl border border-line bg-surface2 p-3">
-          <Info size={16} className="text-gold" />
+          <Info size={16} className="text-pink" />
           <span className="text-[11.5px] text-ink2">
             Demo: los datos ya están cargados, solo toca “Ingresar”.
           </span>
@@ -140,8 +140,8 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
         <div className="mb-4 flex justify-center lg:hidden">
           <FlowerMark size={52} />
         </div>
-        <p className="eyebrow text-[12px] font-semibold text-gold">Panel de gestión</p>
-        <h1 className="mt-2 font-serif text-[34px] font-semibold text-ink">
+        <p className="eyebrow text-[12px] font-semibold text-pink">Panel de gestión</p>
+        <h1 className="mt-2 text-[34px] font-semibold text-ink">
           Crear cuenta
         </h1>
         <p className="mt-2 text-[13.5px] text-ink2">
@@ -221,7 +221,7 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
           onClick={onLogin}
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-line bg-surface px-[26px] py-[13px] text-[13px] font-semibold text-ink shadow-soft transition-all duration-100 active:translate-y-[2px]"
         >
-          <LogIn size={18} className="text-rose" />
+          <LogIn size={18} className="text-pink" />
           Ya tengo una cuenta
         </button>
 
@@ -234,19 +234,19 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
 // ===================== Compartidos =====================
 function SidePanel() {
   return (
-    <div className="hidden bg-dark p-12 lg:flex lg:flex-col">
+    <div className="hidden bg-pinkHero p-12 lg:flex lg:flex-col">
       <div className="flex items-center gap-3">
         <FlowerMark size={44} />
-        <Wordmark light />
+        <Wordmark />
       </div>
       <div className="flex-1" />
-      <p className="eyebrow text-[12px] font-semibold text-goldSoft">
-        Pedidos y entregas
+      <p className="text-[.72rem] font-semibold tracking-[3px] text-pink">
+        PEDIDOS Y ENTREGAS
       </p>
-      <h2 className="mt-3.5 whitespace-pre-line font-serif text-[40px] font-medium leading-tight text-white">
-        Gestiona cada pedido{"\n"}con elegancia.
+      <h2 className="mt-3.5 whitespace-pre-line text-[40px] font-medium leading-tight text-ink">
+        Gestiona cada pedido{"\n"}con simplicidad.
       </h2>
-      <p className="mt-4 max-w-[360px] text-[14px] leading-relaxed text-white/70">
+      <p className="mt-4 max-w-[360px] text-[14px] leading-relaxed text-ink2">
         Crea pedidos para tus clientes, agenda entregas y hazles seguimiento desde
         un solo lugar.
       </p>
@@ -257,13 +257,13 @@ function SidePanel() {
           "Controla el estado hasta la entrega",
         ].map((t) => (
           <div key={t} className="flex items-start gap-2.5">
-            <CheckCircle2 size={18} className="text-goldSoft" />
-            <span className="text-[13px] text-white/70">{t}</span>
+            <CheckCircle2 size={18} className="text-pink" />
+            <span className="text-[13px] text-ink2">{t}</span>
           </div>
         ))}
       </div>
       <div className="flex-1" />
-      <p className="text-[11.5px] text-white/40">
+      <p className="text-[11.5px] text-faint">
         © 2026 FloresOnline · Arte floral en cada detalle
       </p>
     </div>
@@ -299,7 +299,7 @@ function FieldWrap({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-xl border border-line bg-surface px-4 py-3.5 focus-within:border-rose">
+    <div className="flex items-center gap-2.5 rounded-xl border border-line bg-surface px-4 py-3.5 focus-within:border-pink">
       <span className="text-faint">{icon}</span>
       {children}
       {suffix}

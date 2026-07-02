@@ -17,7 +17,7 @@ export function FlowerMark({ size = 40 }: { size?: number }) {
         cy={0}
         rx={(R * 1.15) / 2}
         ry={(R * 0.72) / 2}
-        fill="#B11E4B"
+        fill="#E8366B"
         fillOpacity={0.92}
         transform={`translate(${cx} ${cy}) rotate(${(a * 180) / Math.PI})`}
       />
@@ -44,38 +44,34 @@ export function FlowerMark({ size = 40 }: { size?: number }) {
       <path d={leaf(0, true)} fill="#2F6B4F" fillOpacity={0.92} />
       <path d={leaf(0.1, false)} fill="#2F6B4F" fillOpacity={0.92} />
       {petals}
-      <circle cx={cx} cy={cy} r={R * 0.52} fill="#B8924A" />
+      <circle cx={cx} cy={cy} r={R * 0.52} fill="#F76F9C" />
     </svg>
   );
 }
 
 export function Wordmark({ light = false }: { light?: boolean }) {
-  const c = light ? "text-white" : "text-ink";
-  const sub = light ? "text-white/70" : "text-faint";
   return (
-    <div className="flex flex-col">
+    <span className="flex flex-col leading-none">
       <span
-        className={`font-serif text-[25px] font-semibold leading-none tracking-tight ${c}`}
+        className={`text-[1.55rem] font-semibold tracking-[-.5px] ${
+          light ? "text-white" : "text-ink"
+        }`}
       >
-        <span className="font-normal">Flores</span>Online
+        <b className="font-light">Flores</b>Online
       </span>
-      <span className={`eyebrow text-[6.5px] font-semibold ${sub}`}>
+      <span
+        className={`mt-[1px] text-[.52rem] font-medium tracking-[3px] ${
+          light ? "text-white/60" : "text-faint"
+        }`}
+      >
         ARTE FLORAL EN CADA DETALLE
       </span>
-    </div>
+    </span>
   );
 }
 
 export function GoldRule({ width = 54 }: { width?: number }) {
-  return (
-    <div
-      className="h-[2px] rounded-full"
-      style={{
-        width,
-        background: "linear-gradient(90deg,#B8924A,#CBA869)",
-      }}
-    />
-  );
+  return <div className="h-[3px] rounded-full bg-pink" style={{ width }} />;
 }
 
 export function SectionHeading({
@@ -93,9 +89,9 @@ export function SectionHeading({
 }) {
   return (
     <div className={`flex flex-col ${center ? "items-center text-center" : "items-start"}`}>
-      <span className="eyebrow text-[11px] font-semibold text-gold">{eyebrow}</span>
+      <span className="eyebrow text-[11px] font-semibold text-pink">{eyebrow}</span>
       <h2
-        className={`mt-2.5 font-serif text-[34px] font-semibold leading-tight ${
+        className={`mt-2.5 text-[34px] font-semibold leading-tight ${
           light ? "text-white" : "text-ink"
         }`}
       >

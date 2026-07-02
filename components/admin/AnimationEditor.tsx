@@ -58,9 +58,9 @@ export function AnimationEditor() {
   };
 
   return (
-    <div className="rounded-[18px] border border-line bg-surface p-5 shadow-card">
+    <div className="rounded-[18px] border border-line bg-surface p-5 shadow-soft">
       <h3 className="flex items-center gap-2 text-[15px] font-semibold text-ink">
-        <span className="text-gold">
+        <span className="text-pink">
           <Sparkles size={18} />
         </span>
         Animaciones de inicio
@@ -131,7 +131,7 @@ function ToggleRow({
         <p className="mt-0.5 text-[12px] text-ink2">{desc}</p>
         <button
           onClick={onPreview}
-          className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-rose"
+          className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-pink"
         >
           <Play size={13} /> Previsualizar
         </button>
@@ -140,7 +140,7 @@ function ToggleRow({
         type="checkbox"
         checked={checked}
         onChange={onChange}
-        className="mt-1 h-5 w-9 accent-rose"
+        className="mt-1 h-5 w-9 accent-pink"
         aria-label={title}
       />
     </div>

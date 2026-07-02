@@ -42,19 +42,19 @@ export function ReportesPage() {
 
   return (
     <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
-      <h1 className="font-serif text-[30px] font-semibold text-ink">Reportes</h1>
+      <h1 className="text-[30px] font-semibold text-ink">Reportes</h1>
       <p className="mt-1 text-[13px] text-ink2">Ventas, productos más vendidos y desempeño de entregas</p>
 
       {/* KPIs */}
       <div className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Kpi icon={<DollarSign size={22} />} label="Ventas acumuladas" value={bs2(totalSales)} color="#B11E4B" />
+        <Kpi icon={<DollarSign size={22} />} label="Ventas acumuladas" value={bs2(totalSales)} color="#E8366B" />
         <Kpi icon={<ReceiptText size={22} />} label="Notas totales" value={`${orders.length}`} color="#3B6FD4" />
         <Kpi icon={<PackageCheck size={22} />} label="Entregadas" value={`${delivered}`} color="#2EA66B" />
-        <Kpi icon={<Users size={22} />} label="Clientes" value={`${kClients.length}`} color="#B8924A" />
+        <Kpi icon={<Users size={22} />} label="Clientes" value={`${kClients.length}`} color="#F76F9C" />
       </div>
 
       {/* Ventas por mes */}
-      <div className="mt-4 rounded-[18px] border border-line bg-surface p-5 shadow-card">
+      <div className="mt-4 rounded-[18px] border border-line bg-surface p-5 shadow-soft">
         <h3 className="text-[15px] font-semibold text-ink">Ventas por mes</h3>
         <div className="mt-6 flex h-[200px] items-end gap-3">
           {monthly.map((m, i) => {
@@ -66,10 +66,10 @@ export function ReportesPage() {
                   className="mt-1.5 w-full rounded-t-lg"
                   style={{
                     height: `${Math.max(4, (m.value / maxMonthly) * 140)}px`,
-                    background: last ? "linear-gradient(180deg,#C9305F,#8C153A)" : "linear-gradient(180deg,#CBA869,#B8924A)",
+                    background: last ? "linear-gradient(180deg,#E8366B,#D81B60)" : "linear-gradient(180deg,#F9A8C4,#F76F9C)",
                   }}
                 />
-                <span className={`mt-2 text-[11.5px] ${last ? "font-bold text-rose" : "font-medium text-ink2"}`}>{m.label}</span>
+                <span className={`mt-2 text-[11.5px] ${last ? "font-bold text-pink" : "font-medium text-ink2"}`}>{m.label}</span>
               </div>
             );
           })}
@@ -82,7 +82,7 @@ export function ReportesPage() {
       </div>
 
       {/* Pedidos por estado */}
-      <div className="mt-4 rounded-[18px] border border-line bg-surface p-5 shadow-card">
+      <div className="mt-4 rounded-[18px] border border-line bg-surface p-5 shadow-soft">
         <h3 className="text-[15px] font-semibold text-ink">Pedidos por estado</h3>
         <div className="mt-3.5 flex flex-col gap-2.5">
           {orderStatuses.map((s) => {
@@ -108,11 +108,11 @@ export function ReportesPage() {
 
 function Kpi({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
   return (
-    <div className="flex flex-col items-center rounded-[18px] border border-line bg-surface p-5 text-center shadow-card">
+    <div className="flex flex-col items-center rounded-[18px] border border-line bg-surface p-5 text-center shadow-soft">
       <span className="flex h-14 w-14 items-center justify-center rounded-2xl text-white" style={{ background: `linear-gradient(140deg, ${color}, ${color}cc)`, boxShadow: `0 10px 20px ${color}44` }}>
         {icon}
       </span>
-      <p className="mt-3.5 font-serif text-[26px] font-bold leading-none text-ink">{value}</p>
+      <p className="mt-3.5 text-[26px] font-bold leading-none text-ink">{value}</p>
       <p className="mt-2 text-[12.5px] text-ink2">{label}</p>
     </div>
   );
@@ -120,7 +120,7 @@ function Kpi({ icon, label, value, color }: { icon: React.ReactNode; label: stri
 
 function RankCard({ title, rows }: { title: string; rows: { name: string; label: string; pct: number }[] }) {
   return (
-    <div className="rounded-[18px] border border-line bg-surface p-5 shadow-card">
+    <div className="rounded-[18px] border border-line bg-surface p-5 shadow-soft">
       <h3 className="text-[15px] font-semibold text-ink">{title}</h3>
       <div className="mt-3 flex flex-col gap-2.5">
         {rows.length === 0 ? (
@@ -130,10 +130,10 @@ function RankCard({ title, rows }: { title: string; rows: { name: string; label:
             <div key={r.name}>
               <div className="flex items-center justify-between">
                 <span className="truncate text-[13px] font-medium text-ink">{r.name}</span>
-                <span className="text-[13px] font-bold text-rose">{r.label}</span>
+                <span className="text-[13px] font-bold text-pink">{r.label}</span>
               </div>
               <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-line">
-                <div className="h-full rounded-full" style={{ width: `${r.pct * 100}%`, background: "linear-gradient(90deg,#B11E4B,#8C153A)" }} />
+                <div className="h-full rounded-full" style={{ width: `${r.pct * 100}%`, background: "linear-gradient(90deg,#E8366B,#D81B60)" }} />
               </div>
             </div>
           ))

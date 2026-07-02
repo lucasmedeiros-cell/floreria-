@@ -27,7 +27,7 @@ export function AgendaPage() {
 
   return (
     <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
-      <h1 className="font-serif text-[30px] font-semibold text-ink">Agenda</h1>
+      <h1 className="text-[30px] font-semibold text-ink">Agenda</h1>
       <p className="mt-1 text-[13px] text-ink2">Calendario de entregas del día por repartidor</p>
 
       {/* Selector de días */}
@@ -40,14 +40,14 @@ export function AgendaPage() {
               key={d.toISOString()}
               onClick={() => setSel(d)}
               className={`flex w-[76px] shrink-0 flex-col items-center rounded-[16px] border py-3 transition-colors ${
-                active ? "border-rose bg-rose text-white shadow-card" : "border-line bg-surface text-ink shadow-soft"
+                active ? "border-pink bg-pink text-white shadow-soft" : "border-line bg-surface text-ink shadow-soft"
               }`}
             >
               <span className={`text-[11px] font-semibold ${active ? "text-white/75" : "text-ink2"}`}>{WD[d.getDay()]}</span>
-              <span className="font-serif text-[24px] font-bold leading-tight">{d.getDate()}</span>
+              <span className="text-[24px] font-bold leading-tight">{d.getDate()}</span>
               <span
                 className="mt-1 rounded-full px-2 text-[10.5px] font-bold"
-                style={active ? { background: "rgba(255,255,255,.25)", color: "#fff" } : count ? { background: "#B11E4B1a", color: "#B11E4B" } : { color: "#9C9094" }}
+                style={active ? { background: "rgba(255,255,255,.25)", color: "#fff" } : count ? { background: "#E8366B1a", color: "#E8366B" } : { color: "#9C9094" }}
               >
                 {count || "—"}
               </span>
@@ -56,22 +56,22 @@ export function AgendaPage() {
         })}
       </div>
 
-      <h2 className="mt-6 font-serif text-[22px] font-semibold text-ink">
+      <h2 className="mt-6 text-[22px] font-semibold text-ink">
         {sel.getDate()} de {MF[sel.getMonth()]} de {sel.getFullYear()}
       </h2>
 
       {dayOrders.length === 0 ? (
-        <div className="mt-4 flex flex-col items-center rounded-[18px] border border-line bg-surface py-16 text-center shadow-card">
+        <div className="mt-4 flex flex-col items-center rounded-[18px] border border-line bg-surface py-16 text-center shadow-soft">
           <CalendarCheck size={40} className="text-faint" />
-          <h3 className="mt-3 font-serif text-[22px] font-semibold text-ink">Día libre</h3>
+          <h3 className="mt-3 text-[22px] font-semibold text-ink">Día libre</h3>
           <p className="mt-1.5 text-[13px] text-ink2">No hay entregas programadas para esta fecha.</p>
         </div>
       ) : (
         <div className="mt-4 flex flex-col gap-4">
           {Object.entries(byCourier).map(([courier, list]) => (
-            <div key={courier} className="rounded-[18px] border border-line bg-surface p-[18px] shadow-card">
+            <div key={courier} className="rounded-[18px] border border-line bg-surface p-[18px] shadow-soft">
               <div className="flex items-center gap-2">
-                <Bike size={18} className="text-gold" />
+                <Bike size={18} className="text-pink" />
                 <span className="text-[14px] font-semibold text-ink">{courier}</span>
                 <span className="ml-auto rounded-full bg-surface2 px-2.5 py-1 text-[11.5px] font-semibold text-ink2">
                   {list.length} entrega(s)
@@ -80,7 +80,7 @@ export function AgendaPage() {
               <div className="mt-2">
                 {list.map((o) => (
                   <div key={o.code} className="flex items-center gap-3 border-t border-line py-3 first:border-t-0">
-                    <span className="w-14 text-center font-serif text-[16px] font-bold text-rose">{o.deliveryTime}</span>
+                    <span className="w-14 text-center text-[16px] font-bold text-pink">{o.deliveryTime}</span>
                     <div className="h-9 w-px bg-line" />
                     <div className="min-w-0 flex-1">
                       <p className="text-[13.5px] font-semibold text-ink">{o.clientName}</p>

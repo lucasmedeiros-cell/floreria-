@@ -81,7 +81,7 @@ export function OrdersPage({ onNew }: { onNew: () => void }) {
     <div className="h-full overflow-y-auto px-6 pb-10 pt-6">
       <div className="flex items-start">
         <div className="flex-1">
-          <h1 className="font-serif text-[30px] font-semibold text-ink">
+          <h1 className="text-[30px] font-semibold text-ink">
             Notas de venta
           </h1>
           <p className="mt-1 text-[13px] text-ink2">{all.length} notas en total</p>
@@ -102,7 +102,7 @@ export function OrdersPage({ onNew }: { onNew: () => void }) {
         <OutlineButton
           label="Exportar PDF"
           icon={<FileDown size={18} />}
-          color="#B11E4B"
+          color="#E8366B"
           onClick={() => doExport("pdf")}
         />
         <OutlineButton
@@ -141,7 +141,7 @@ export function OrdersPage({ onNew }: { onNew: () => void }) {
       {items.length === 0 ? (
         <div className="flex flex-col items-center py-16 text-center">
           <ReceiptText size={40} className="text-faint" />
-          <h3 className="mt-3 font-serif text-[22px] font-semibold text-ink">
+          <h3 className="mt-3 text-[22px] font-semibold text-ink">
             No hay pedidos aquí
           </h3>
           <p className="mt-1.5 text-[13px] text-ink2">
@@ -232,8 +232,8 @@ function OrderCard({
 }) {
   return (
     <div
-      className={`rounded-[18px] border bg-surface p-[18px] text-left shadow-card ${
-        checked ? "border-rose" : "border-line"
+      className={`rounded-[18px] border bg-surface p-[18px] text-left shadow-soft ${
+        checked ? "border-pink" : "border-line"
       }`}
     >
       <div className="flex items-center">
@@ -242,17 +242,17 @@ function OrderCard({
           checked={checked}
           onChange={onToggle}
           title="Seleccionar para exportar"
-          className="mr-2 h-4 w-4 shrink-0 accent-rose"
+          className="mr-2 h-4 w-4 shrink-0 accent-pink"
         />
         <button onClick={onClick} className="flex flex-1 items-center text-left">
-          <span className="eyebrow text-[10.5px] font-semibold text-gold">{o.code}</span>
+          <span className="eyebrow text-[10.5px] font-semibold text-pink">{o.code}</span>
           <span className="ml-auto">
             <StatusChip s={o.status} />
           </span>
         </button>
       </div>
       <button onClick={onClick} className="w-full text-left">
-      <h3 className="mt-2.5 truncate font-serif text-[20px] font-semibold text-ink">
+      <h3 className="mt-2.5 truncate text-[20px] font-semibold text-ink">
         {o.clientName}
       </h3>
       <div className="mt-1 flex items-center gap-1.5">
@@ -267,7 +267,7 @@ function OrderCard({
         <span className="ml-1.5 text-[12.5px] text-ink2">
           {orderItemCount(o)} ítems
         </span>
-        <span className="ml-auto font-serif text-[19px] font-bold text-rose">
+        <span className="ml-auto text-[19px] font-bold text-pink">
           {bs2(orderTotal(o))}
         </span>
       </div>
@@ -287,10 +287,10 @@ function DetailDialog({ o, onClose }: { o: Order; onClose: () => void }) {
       <div className="flex max-h-[720px] w-full max-w-[520px] flex-col rounded-[22px] bg-surface">
         <div className="flex items-start px-6 pb-2 pt-5">
           <div>
-            <span className="eyebrow text-[10.5px] font-semibold text-gold">
+            <span className="eyebrow text-[10.5px] font-semibold text-pink">
               {o.code}
             </span>
-            <h2 className="mt-1 font-serif text-[24px] font-semibold text-ink">
+            <h2 className="mt-1 text-[24px] font-semibold text-ink">
               {o.clientName}
             </h2>
           </div>
@@ -330,7 +330,7 @@ function DetailDialog({ o, onClose }: { o: Order; onClose: () => void }) {
           <div className="my-2 h-px bg-line" />
           <div className="flex items-center">
             <span className="flex-1 text-[14px] font-semibold text-ink">Total</span>
-            <span className="font-serif text-[22px] font-bold text-rose">
+            <span className="text-[22px] font-bold text-pink">
               {bs2(orderTotal(o))}
             </span>
           </div>
@@ -362,7 +362,7 @@ function DetailDialog({ o, onClose }: { o: Order; onClose: () => void }) {
           <OutlineButton
             label="Descargar nota PDF"
             icon={<FileDown size={18} />}
-            color="#B11E4B"
+            color="#E8366B"
             onClick={() => exportNotaPDF(o)}
           />
           <div className="min-w-[160px] flex-1">

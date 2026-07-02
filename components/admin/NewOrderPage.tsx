@@ -145,10 +145,10 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
       <div className="border-b border-line bg-bg px-6 pb-4 pt-5">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex-1">
-            <span className="eyebrow text-[10.5px] font-semibold text-gold">
+            <span className="eyebrow text-[10.5px] font-semibold text-pink">
               Pedidos › Nuevo Pedido
             </span>
-            <h1 className="mt-1 font-serif text-[28px] font-semibold text-ink">
+            <h1 className="mt-1 text-[28px] font-semibold text-ink">
               Nuevo Pedido
             </h1>
           </div>
@@ -157,7 +157,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
             <OutlineButton
               label="Guardar borrador"
               icon={<Save size={18} />}
-              color="#B11E4B"
+              color="#E8366B"
               onClick={() => save("borrador")}
             />
             <PrimaryButton
@@ -183,7 +183,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
                     onChange={(e) =>
                       fillFrom(kClients.find((c) => c.name === e.target.value) ?? null)
                     }
-                    className="flex-1 rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none focus:border-rose"
+                    className="flex-1 rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none focus:border-pink"
                   >
                     <option value="">Buscar / seleccionar cliente…</option>
                     {kClients.map((c) => (
@@ -195,7 +195,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
                   <button
                     onClick={newClient}
                     title="Nuevo cliente"
-                    className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose text-white"
+                    className="flex h-12 w-12 items-center justify-center rounded-xl bg-pink text-white"
                   >
                     <UserPlus size={20} />
                   </button>
@@ -221,7 +221,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
                 <Field label="Ubicación (lat, lng)" value={location} onChange={setLocation} placeholder="-17.7833, -63.1821" />
                 <div>
                   <Label>Mapa</Label>
-                  <OutlineButton label="Ver en mapa" icon={<MapPin size={18} />} color="#B11E4B" full onClick={openMap} />
+                  <OutlineButton label="Ver en mapa" icon={<MapPin size={18} />} color="#E8366B" full onClick={openMap} />
                 </div>
               </TwoCol>
               <Field label="Notas del cliente" value={clientNotes} onChange={setClientNotes} placeholder="Preferencias, horarios, etc." />
@@ -253,7 +253,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
                 <OutlineButton
                   label="Agregar producto / servicio"
                   icon={<Plus size={18} />}
-                  color="#B11E4B"
+                  color="#E8366B"
                   onClick={() => setSheet(true)}
                 />
               </div>
@@ -267,7 +267,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
                 onChange={(e) => setOrderNotes(e.target.value)}
                 rows={3}
                 placeholder="Ej. Llamar antes de entregar. Dejar con la portera si no hay nadie."
-                className="w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none focus:border-rose"
+                className="w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none focus:border-pink"
               />
             </Card>
           </div>
@@ -282,7 +282,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none focus:border-rose"
+                    className="w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none focus:border-pink"
                   />
                 </div>
                 <div>
@@ -291,7 +291,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
                     type="time"
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
-                    className="w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none focus:border-rose"
+                    className="w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none focus:border-pink"
                   />
                 </div>
               </TwoCol>
@@ -366,8 +366,8 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
 // ---------- Subcomponentes ----------
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-[18px] border border-line bg-surface p-5 shadow-card">
-      <h2 className="mb-4 font-serif text-[19px] font-semibold text-ink">{title}</h2>
+    <div className="rounded-[18px] border border-line bg-surface p-5 shadow-soft">
+      <h2 className="mb-4 text-[19px] font-semibold text-ink">{title}</h2>
       <div className="flex flex-col gap-3.5">{children}</div>
     </div>
   );
@@ -397,7 +397,7 @@ function Field({
   return (
     <div>
       {label && <Label>{label}</Label>}
-      <div className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3.5 py-3 focus-within:border-rose">
+      <div className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3.5 py-3 focus-within:border-pink">
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -423,7 +423,7 @@ function Select({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none focus:border-rose"
+      className="w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none focus:border-pink"
     >
       {options.map((o) => (
         <option key={o} value={o}>
@@ -486,7 +486,7 @@ function History({
       </div>
       <button
         onClick={() => showToast("Historial completo — próximamente")}
-        className="mt-2.5 text-[12.5px] font-semibold text-rose"
+        className="mt-2.5 text-[12.5px] font-semibold text-pink"
       >
         Ver historial completo →
       </button>
@@ -519,7 +519,7 @@ function ItemRow({
           {it.image ? (
             <Image src={it.image} alt={it.name} fill sizes="48px" className="object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-rose/10 text-rose">
+            <div className="flex h-full w-full items-center justify-center bg-pink/10 text-pink">
               🌿
             </div>
           )}
@@ -552,7 +552,7 @@ function ItemRow({
         </div>
         <div className="flex flex-col items-end">
           <span className="text-[10px] text-faint">Total</span>
-          <span className="text-[13px] font-bold text-rose">{bs2(itemTotal(it))}</span>
+          <span className="text-[13px] font-bold text-pink">{bs2(itemTotal(it))}</span>
         </div>
       </div>
     </div>
@@ -597,7 +597,7 @@ function NumField({
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value.replace(",", ".")) || 0)}
         inputMode="decimal"
-        className="mt-0.5 h-[38px] w-full rounded-[10px] border border-line bg-surface px-2.5 text-[13px] font-semibold text-ink outline-none focus:border-rose"
+        className="mt-0.5 h-[38px] w-full rounded-[10px] border border-line bg-surface px-2.5 text-[13px] font-semibold text-ink outline-none focus:border-pink"
       />
     </div>
   );
@@ -624,7 +624,7 @@ function Totals({
       <span
         className={
           big
-            ? "font-serif text-[22px] font-bold text-rose"
+            ? "text-[22px] font-bold text-pink"
             : "text-[13px] font-semibold text-ink"
         }
       >
@@ -668,11 +668,11 @@ function AddSheet({
         className="max-h-[85vh] w-full max-w-[560px] overflow-y-auto rounded-t-[24px] bg-bg p-5"
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line" />
-        <h3 className="font-serif text-[20px] font-semibold text-ink">
+        <h3 className="text-[20px] font-semibold text-ink">
           Buscar en el catálogo
         </h3>
 
-        <div className="mt-3 flex h-[46px] items-center gap-2.5 rounded-xl border border-line bg-surface px-4 focus-within:border-rose">
+        <div className="mt-3 flex h-[46px] items-center gap-2.5 rounded-xl border border-line bg-surface px-4 focus-within:border-pink">
           <Search size={19} className="text-faint" />
           <input
             autoFocus
@@ -703,7 +703,7 @@ function AddSheet({
                   {p.image ? (
                     <Image src={p.image} alt={p.name} fill sizes="52px" className="object-cover" />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-rose">
+                    <div className="flex h-full w-full items-center justify-center text-pink">
                       🌿
                     </div>
                   )}
@@ -726,7 +726,7 @@ function AddSheet({
                       image: p.image,
                     })
                   }
-                  className="p-3 text-rose"
+                  className="p-3 text-pink"
                 >
                   <PlusCircle size={24} />
                 </button>
@@ -735,7 +735,7 @@ function AddSheet({
           )}
         </div>
 
-        <h3 className="mt-5 font-serif text-[18px] font-semibold text-ink">
+        <h3 className="mt-5 text-[18px] font-semibold text-ink">
           O crea un producto / servicio
         </h3>
         <div className="mt-3 flex flex-col gap-2.5">
@@ -782,7 +782,7 @@ function SheetInput({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none placeholder:text-faint focus:border-rose"
+      className="w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none placeholder:text-faint focus:border-pink"
     />
   );
 }

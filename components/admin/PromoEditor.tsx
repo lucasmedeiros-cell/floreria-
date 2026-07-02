@@ -79,7 +79,7 @@ export function PromoEditor() {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 rounded-[18px] border border-line bg-surface p-5 text-[13px] text-ink2 shadow-card">
+      <div className="flex items-center gap-2 rounded-[18px] border border-line bg-surface p-5 text-[13px] text-ink2 shadow-soft">
         <Loader2 size={16} className="animate-spin" /> Cargando configuración de la landing…
       </div>
     );
@@ -107,7 +107,7 @@ export function PromoEditor() {
           <select
             value={cfg.productId ?? ""}
             onChange={(e) => pickProduct(e.target.value)}
-            className="mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none focus:border-rose"
+            className="mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none focus:border-pink"
           >
             <option value="">— Personalizado (sin vincular) —</option>
             {kProducts.map((p) => (
@@ -146,7 +146,7 @@ export function PromoEditor() {
             type="datetime-local"
             value={dtLocal(cfg.validUntil)}
             onChange={(e) => set("validUntil", e.target.value || undefined)}
-            className="mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none focus:border-rose"
+            className="mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none focus:border-pink"
           />
         </label>
       </Card>
@@ -181,7 +181,7 @@ export function PromoEditor() {
           </a>
           <button
             onClick={reset}
-            className="inline-flex items-center gap-2 text-[12.5px] font-semibold text-ink2 hover:text-rose"
+            className="inline-flex items-center gap-2 text-[12.5px] font-semibold text-ink2 hover:text-pink"
           >
             <RotateCcw size={15} /> Restablecer
           </button>
@@ -196,9 +196,9 @@ export function PromoEditor() {
 
 function Card({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-[18px] border border-line bg-surface p-5 shadow-card">
+    <div className="rounded-[18px] border border-line bg-surface p-5 shadow-soft">
       <h3 className="flex items-center gap-2 text-[15px] font-semibold text-ink">
-        <span className="text-gold">{icon}</span>
+        <span className="text-pink">{icon}</span>
         {title}
       </h3>
       <div className="mt-4 flex flex-col gap-3">{children}</div>
@@ -220,7 +220,7 @@ function Field({
   rows?: number;
 }) {
   const cls =
-    "mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none placeholder:text-faint focus:border-rose";
+    "mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none placeholder:text-faint focus:border-pink";
   return (
     <label className="block">
       <span className="text-[12px] font-semibold text-ink2">{label}</span>
@@ -249,7 +249,7 @@ function NumberField({
         type="number"
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
-        className="mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none placeholder:text-faint focus:border-rose"
+        className="mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none placeholder:text-faint focus:border-pink"
       />
     </label>
   );
@@ -259,7 +259,7 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   return (
     <label className="flex cursor-pointer items-center justify-between py-1.5">
       <span className="text-[13.5px] text-ink">{label}</span>
-      <input type="checkbox" checked={checked} onChange={onChange} className="h-5 w-9 accent-rose" />
+      <input type="checkbox" checked={checked} onChange={onChange} className="h-5 w-9 accent-pink" />
     </label>
   );
 }

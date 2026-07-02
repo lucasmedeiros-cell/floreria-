@@ -112,12 +112,12 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* App bar (mobile) */}
-        <div className="flex items-center gap-3 bg-dark px-4 py-3 lg:hidden">
-          <button onClick={() => setDrawer(true)} className="text-white">
+        <div className="flex items-center gap-3 border-b border-line bg-white px-4 py-3 lg:hidden">
+          <button onClick={() => setDrawer(true)} className="text-ink">
             <Menu size={24} />
           </button>
           <FlowerMark size={28} />
-          <Wordmark light />
+          <Wordmark />
         </div>
         <div className="flex-1 overflow-hidden">{page()}</div>
       </div>
@@ -149,14 +149,14 @@ function Sidebar({
       <button
         key={n.s}
         onClick={() => onSelect(n.s)}
-        className={`flex w-full items-center gap-3 rounded-[11px] px-3 py-2.5 text-left ${
-          active ? "bg-white/10" : "hover:bg-white/5"
+        className={`flex w-full items-center gap-3 rounded-[11px] px-3 py-2.5 text-left transition-colors ${
+          active ? "bg-pinkSoft" : "hover:bg-surface2"
         }`}
       >
-        <span className={active ? "text-goldSoft" : "text-white/60"}>{n.icon}</span>
+        <span className={active ? "text-pink" : "text-faint"}>{n.icon}</span>
         <span
           className={`text-[13.5px] ${
-            active ? "font-semibold text-white" : "font-medium text-white/70"
+            active ? "font-semibold text-pink" : "font-medium text-ink2"
           }`}
         >
           {n.label}
@@ -166,12 +166,12 @@ function Sidebar({
   };
 
   return (
-    <div className="flex h-full w-64 flex-col bg-dark">
+    <div className="flex h-full w-64 flex-col border-r border-line bg-white">
       <div className="flex items-center gap-2.5 px-5 pb-4 pt-5">
         <FlowerMark size={38} />
-        <Wordmark light />
+        <Wordmark />
         {onClose && (
-          <button onClick={onClose} className="ml-auto text-white/70">
+          <button onClick={onClose} className="ml-auto text-ink2">
             <X size={20} />
           </button>
         )}
@@ -190,16 +190,16 @@ function Sidebar({
           {NAV.map((n) => item(n))}
         </div>
       </div>
-      <div className="h-px bg-white/10" />
+      <div className="h-px bg-line" />
       <div className="flex items-center gap-2.5 px-4 py-3.5">
-        <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-gradient-to-b from-[#C9305F] to-[#8C153A] text-[13px] font-bold text-white">
+        <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-pink text-[13px] font-bold text-white">
           {initials}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-white">{auth.name}</p>
-          <p className="text-[11px] text-white/50">{auth.role}</p>
+          <p className="truncate text-[13px] font-semibold text-ink">{auth.name}</p>
+          <p className="text-[11px] text-faint">{auth.role}</p>
         </div>
-        <button onClick={auth.logout} title="Cerrar sesión" className="text-white/70">
+        <button onClick={auth.logout} title="Cerrar sesión" className="text-ink2 hover:text-pink">
           <LogOut size={19} />
         </button>
       </div>

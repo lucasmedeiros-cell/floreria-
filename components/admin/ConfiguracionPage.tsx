@@ -31,7 +31,7 @@ export function ConfiguracionPage() {
     <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
       <div className="flex items-start">
         <div className="flex-1">
-          <h1 className="font-serif text-[30px] font-semibold text-ink">Configuración</h1>
+          <h1 className="text-[30px] font-semibold text-ink">Configuración</h1>
           <p className="mt-1 text-[13px] text-ink2">Datos del negocio, pagos, entregas y página pública</p>
         </div>
         <PrimaryButton label="Guardar cambios" icon={<Save size={18} />} onClick={save} />
@@ -70,9 +70,9 @@ export function ConfiguracionPage() {
 
 function Card({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-[18px] border border-line bg-surface p-5 shadow-card">
+    <div className="rounded-[18px] border border-line bg-surface p-5 shadow-soft">
       <h3 className="flex items-center gap-2 text-[15px] font-semibold text-ink">
-        <span className="text-gold">{icon}</span>
+        <span className="text-pink">{icon}</span>
         {title}
       </h3>
       <div className="mt-4 flex flex-col gap-3">{children}</div>
@@ -81,7 +81,7 @@ function Card({ icon, title, children }: { icon: React.ReactNode; title: string;
 }
 
 function Field({ label, value, onChange, placeholder, type = "text", rows }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; rows?: number }) {
-  const cls = "mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none placeholder:text-faint focus:border-rose";
+  const cls = "mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none placeholder:text-faint focus:border-pink";
   return (
     <label className="block">
       <span className="text-[12px] font-semibold text-ink2">{label}</span>
@@ -98,7 +98,7 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   return (
     <label className="flex cursor-pointer items-center justify-between py-1.5">
       <span className="text-[13.5px] text-ink">{label}</span>
-      <input type="checkbox" checked={checked} onChange={onChange} className="h-5 w-9 accent-rose" />
+      <input type="checkbox" checked={checked} onChange={onChange} className="h-5 w-9 accent-pink" />
     </label>
   );
 }

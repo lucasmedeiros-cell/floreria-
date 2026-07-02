@@ -28,7 +28,7 @@ export function AdminIntro({ enabled }: { enabled: boolean }) {
   return (
     <div
       aria-hidden
-      className={`fixed inset-0 z-[200] grid place-items-center bg-dark transition-opacity duration-[600ms] ${
+      className={`fixed inset-0 z-[200] grid place-items-center bg-pinkHero transition-opacity duration-[600ms] ${
         gone ? "pointer-events-none opacity-0" : "opacity-100"
       }`}
     >
@@ -60,19 +60,19 @@ export function AdminIntro({ enabled }: { enabled: boolean }) {
           <span
             className="pop-in-center absolute left-1/2 top-1/2 h-[38px] w-[38px] rounded-full"
             style={{
-              background: "radial-gradient(circle at 40% 35%,#F4C24A,#CBA869)",
+              background: "radial-gradient(circle at 40% 35%,#F9A8C4,#F9A8C4)",
               animationDelay: "350ms",
             }}
           />
         </div>
 
         <p
-          className="mt-4 text-[1.5rem] font-semibold leading-none tracking-[-0.5px] text-white"
+          className="mt-4 text-[1.5rem] font-semibold leading-none tracking-[-0.5px] text-ink"
           style={{ animation: "pop-in 0.6s ease 600ms both" }}
         >
           <span className="font-light">Flores</span>Online
         </p>
-        <p className="mt-1.5 text-[0.62rem] font-medium tracking-[3px] text-white/45">
+        <p className="mt-1.5 text-[0.62rem] font-medium tracking-[3px] text-faint">
           PANEL DE ADMINISTRACIÓN
         </p>
       </div>

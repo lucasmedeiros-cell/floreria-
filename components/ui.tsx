@@ -3,14 +3,14 @@
 import { Minus, Plus } from "lucide-react";
 import React from "react";
 
-/** Botón primario "3D": gradiente vertical, sombra de color. */
+/** Botón primario plano rosa, igual que la tienda. */
 export function PrimaryButton({
   label,
   onClick,
   icon,
   expand = false,
   disabled = false,
-  colors = ["#C9305F", "#8C153A"],
+  colors,
 }: {
   label: string;
   onClick?: () => void;
@@ -19,21 +19,16 @@ export function PrimaryButton({
   disabled?: boolean;
   colors?: [string, string];
 }) {
-  const deep = colors[1];
+  const bg = colors ? colors[0] : "#E8366B";
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`group inline-flex items-center justify-center gap-2.5 rounded-full border border-white/20 px-[26px] py-[15px] text-[13.5px] font-semibold tracking-wide text-white transition-all duration-100 active:translate-y-[3px] disabled:opacity-50 ${
+      className={`inline-flex items-center justify-center gap-2.5 rounded-full px-7 py-[14px] text-[13.5px] font-semibold tracking-wide text-white transition-colors hover:opacity-90 disabled:opacity-50 ${
         expand ? "w-full" : ""
       }`}
-      style={{
-        background: `linear-gradient(180deg,${colors[0]},${colors[1]})`,
-        boxShadow: disabled
-          ? "none"
-          : `0 11px 20px ${deep}73, 0 3px 6px ${deep}47`,
-      }}
+      style={{ background: bg }}
     >
       {icon}
       {label}
@@ -41,7 +36,7 @@ export function PrimaryButton({
   );
 }
 
-/** Botón secundario: superficie blanca elevada. */
+/** Botón secundario: borde fino, se rellena al pasar el cursor. */
 export function OutlineButton({
   label,
   onClick,
@@ -59,10 +54,12 @@ export function OutlineButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center justify-center gap-2.5 rounded-full border bg-surface px-[26px] py-[14px] text-[13px] font-semibold tracking-wide shadow-soft transition-all duration-100 active:translate-y-[2px] ${
+      className={`inline-flex items-center justify-center gap-2.5 rounded-full border bg-white px-7 py-[13px] text-[13px] font-semibold tracking-wide transition-colors hover:bg-[color:var(--btn)] hover:text-white ${
         full ? "w-full" : ""
       }`}
-      style={{ color, borderColor: `${color}47` }}
+      style={
+        { color, borderColor: color, "--btn": color } as React.CSSProperties
+      }
     >
       {icon}
       {label}
@@ -83,10 +80,10 @@ export function CategoryChip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-[22px] py-[11px] text-[12.5px] font-semibold tracking-wide transition-all duration-200 ${
+      className={`rounded-full border px-[22px] py-[11px] text-[12.5px] font-semibold tracking-wide transition-colors ${
         selected
-          ? "border-ink bg-ink text-white shadow-soft"
-          : "border-line bg-transparent text-ink2"
+          ? "border-pink bg-pink text-white"
+          : "border-line bg-transparent text-ink2 hover:border-pink hover:text-pink"
       }`}
     >
       {label}

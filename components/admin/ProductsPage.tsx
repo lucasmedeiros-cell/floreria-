@@ -27,10 +27,10 @@ export function ProductsPage() {
       <div className="border-b border-line bg-bg px-6 pb-4 pt-6">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex-1">
-            <span className="eyebrow text-[10.5px] font-semibold text-gold">
+            <span className="eyebrow text-[10.5px] font-semibold text-pink">
               Catálogo
             </span>
-            <h1 className="mt-1 font-serif text-[30px] font-semibold text-ink">
+            <h1 className="mt-1 text-[30px] font-semibold text-ink">
               Productos
             </h1>
             <p className="mt-1 text-[13px] text-ink2">
@@ -59,7 +59,7 @@ export function ProductsPage() {
         {list.length === 0 ? (
           <div className="flex flex-col items-center py-16 text-center">
             <Flower2 size={40} className="text-faint" />
-            <h3 className="mt-3 font-serif text-[22px] font-semibold text-ink">
+            <h3 className="mt-3 text-[22px] font-semibold text-ink">
               Sin resultados
             </h3>
             <p className="mt-1.5 text-[13px] text-ink2">
@@ -107,27 +107,27 @@ function ProductCardAdmin({
 }) {
   const active = (p.status ?? "activo") === "activo";
   return (
-    <div className="flex gap-3.5 rounded-[18px] border border-line bg-surface p-3.5 shadow-card">
+    <div className="flex gap-3.5 rounded-[18px] border border-line bg-surface p-3.5 shadow-soft">
       <div className="relative h-[86px] w-[86px] shrink-0 overflow-hidden rounded-[12px] bg-surface2">
         {p.image ? (
           <Image src={p.image} alt={p.name} fill sizes="86px" className="object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-rose">
+          <div className="flex h-full w-full items-center justify-center text-pink">
             🌿
           </div>
         )}
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="eyebrow text-[10.5px] font-semibold text-gold">{p.id}</span>
+          <span className="eyebrow text-[10.5px] font-semibold text-pink">{p.id}</span>
           <StatusPill active={active} />
         </div>
-        <h3 className="mt-0.5 truncate font-serif text-[18px] font-semibold text-ink">
+        <h3 className="mt-0.5 truncate text-[18px] font-semibold text-ink">
           {p.name}
         </h3>
         <p className="text-[11.5px] text-faint">{p.category}</p>
         <div className="mt-1.5 flex items-center gap-3">
-          <span className="font-serif text-[17px] font-bold text-rose">
+          <span className="text-[17px] font-bold text-pink">
             {bs2(p.price)}
           </span>
           <span className="text-[12px] text-ink2">Stock: {p.stock ?? 0}</span>
@@ -220,10 +220,10 @@ function ProductDialog({
       <div className="flex max-h-[88vh] w-full max-w-[520px] flex-col rounded-[22px] bg-surface">
         <div className="flex items-start px-6 pb-3 pt-5">
           <div>
-            <span className="eyebrow text-[10.5px] font-semibold text-gold">
+            <span className="eyebrow text-[10.5px] font-semibold text-pink">
               {isEdit ? "Editar producto" : "Nuevo producto"}
             </span>
-            <h2 className="mt-1 font-serif text-[23px] font-semibold text-ink">
+            <h2 className="mt-1 text-[23px] font-semibold text-ink">
               {isEdit ? product!.name : "Registrar producto"}
             </h2>
           </div>
@@ -241,7 +241,7 @@ function ProductDialog({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none focus:border-rose"
+                className="mt-1.5 w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none focus:border-pink"
               >
                 {kProductCategories.map((c) => (
                   <option key={c} value={c}>
@@ -260,7 +260,7 @@ function ProductDialog({
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as ProductStatus)}
-                className="mt-1.5 w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none focus:border-rose"
+                className="mt-1.5 w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none focus:border-pink"
               >
                 <option value="activo">{productStatusLabel("activo")}</option>
                 <option value="inactivo">{productStatusLabel("inactivo")}</option>
@@ -280,7 +280,7 @@ function ProductDialog({
               onChange={(e) => setDesc(e.target.value)}
               rows={2}
               placeholder="Palabras clave para el buscador (colores, ocasión, flores…)"
-              className="mt-1.5 w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none placeholder:text-faint focus:border-rose"
+              className="mt-1.5 w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none placeholder:text-faint focus:border-pink"
             />
           </div>
         </div>
@@ -325,7 +325,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-1.5 w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none placeholder:text-faint focus:border-rose"
+        className="mt-1.5 w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none placeholder:text-faint focus:border-pink"
       />
     </div>
   );
