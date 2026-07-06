@@ -97,7 +97,8 @@ export function Storefront() {
       `*Total: ${bs(cart.total)}*\n\n` +
       `¿Me ayudan a coordinar la entrega y el pago? 🌷`;
     openWhatsapp(msg, kWhatsapp);
-    cart.clear();
+    // No vaciamos el carrito: el pedido aún no está confirmado, sólo se está
+    // redactando el mensaje de WhatsApp. Si el cliente vuelve, no debe perderlo.
     closeCart();
   };
 
