@@ -456,13 +456,11 @@ function ErrorBanner({ msg }: { msg: string }) {
 
 function BackToStore() {
   return (
-    <div className="mt-5 flex justify-center">
-      <Link
-        href="/"
-        className="flex items-center gap-1.5 text-[12.5px] text-ink2 transition-colors hover:text-pink"
-      >
-        <ArrowLeft size={16} /> Volver a la tienda
-      </Link>
-    </div>
+    <Link
+      href="/"
+      className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-line bg-surface px-[26px] py-[13px] text-[13px] font-semibold text-ink transition-colors hover:border-pink hover:text-pink"
+    >
+      <ArrowLeft size={18} className="text-pink" /> Volver a la tienda
+    </Link>
   );
 }
