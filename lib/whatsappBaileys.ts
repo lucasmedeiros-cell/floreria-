@@ -14,9 +14,24 @@ import { handleIncoming, type Sender } from "./vendedorEngine";
  * librería ni abrir sockets salvo que se arranque explícitamente el bot.
  */
 
-type Status = "idle" | "connecting" | "qr" | "open" | "closed";
+type Status = "idle" | "connecting" | "qr" | "open" | "closed" | "unavailable";
 
-const AUTH_DIR = join(process.cwd(), ".wa-auth");
+// Carpeta de la sesión de WhatsApp. Configurable con WA_AUTH_DIR.
+const AUTH_DIR = join(process.env.WA_AUTH_DIR || process.cwd(), ".wa-auth");
+
+/**
+ * ¿Estamos en un entorno serverless con filesystem de solo lectura (Netlify /
+ * AWS Lambda)? Ahí Baileys NO puede correr (no puede persistir la sesión ni
+ * mantener el socket). Se detecta y se deshabilita limpiamente.
+ */
+function serverlessReadOnly(): boolean {
+  return !!(
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.LAMBDA_TASK_ROOT ||
+    process.env.NETLIFY ||
+    process.cwd() === "/var/task"
+  );
+}
 
 // Singleton entre recargas de módulo (HMR de Next.js en dev).
 const g = globalThis as unknown as { __waBaileys?: BaileysManager };
@@ -30,12 +45,16 @@ class BaileysManager {
   private lastError: string | null = null;
 
   getStatus() {
+    const available = !serverlessReadOnly();
     return {
-      status: this.status,
+      status: available ? this.status : ("unavailable" as Status),
       hasQr: !!this.qrDataUrl,
-      connected: this.status === "open",
+      connected: available && this.status === "open",
+      available,
       number: this.getNumber(),
-      error: this.lastError,
+      error: available
+        ? this.lastError
+        : "WhatsApp por Baileys no está disponible en este despliegue (serverless). Corré el vendedor en local o en bilbo.",
     };
   }
 
@@ -55,6 +74,7 @@ class BaileysManager {
     };
     const live = parse(this.sock?.user?.id);
     if (live) return live;
+    if (serverlessReadOnly()) return null;
     try {
       const creds = JSON.parse(readFileSync(join(AUTH_DIR, "creds.json"), "utf8"));
       return parse(creds?.me?.id);
@@ -106,6 +126,12 @@ class BaileysManager {
   }
 
   async start() {
+    if (serverlessReadOnly()) {
+      // Netlify/Lambda: FS de solo lectura, no se puede vincular WhatsApp aquí.
+      this.status = "unavailable";
+      this.lastError = null;
+      return;
+    }
     if (this.starting || this.status === "open") return;
     this.starting = true;
     this.lastError = null;

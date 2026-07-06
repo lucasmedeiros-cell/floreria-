@@ -22,8 +22,9 @@ interface Status {
 }
 
 interface BaileysStatus {
-  status: "idle" | "connecting" | "qr" | "open" | "closed";
+  status: "idle" | "connecting" | "qr" | "open" | "closed" | "unavailable";
   connected: boolean;
+  available?: boolean;
   qr: string | null;
   error?: string | null;
 }
@@ -237,7 +238,12 @@ export function VendedorEditor() {
           conectado, el vendedor responde solo los mensajes que te llegan.
         </p>
 
-        {wa?.connected ? (
+        {wa?.available === false ? (
+          <div className="mt-3 rounded-xl bg-amber-50 px-3.5 py-3 text-[12px] text-amber-800">
+            {wa.error ??
+              "La vinculación por QR no está disponible en este despliegue (serverless). Ejecutá el vendedor en local o en el servidor bilbo."}
+          </div>
+        ) : wa?.connected ? (
           <div className="mt-3 flex items-center justify-between gap-3">
             <span className="rounded-full bg-green-100 px-2.5 py-1 text-[11.5px] font-semibold text-green-700">
               ✓ Número vinculado y activo
