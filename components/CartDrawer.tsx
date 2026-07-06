@@ -1,32 +1,20 @@
 "use client";
 
 import Image from "next/image";
-import {
-  ArrowLeft,
-  ChevronRight,
-  Minus,
-  Plus,
-  ShoppingCart,
-  User,
-  X,
-} from "lucide-react";
+import { ChevronRight, Minus, Plus, ShoppingCart, X } from "lucide-react";
+import { WhatsAppIcon } from "./WhatsAppIcon";
 import { bs, productById } from "@/lib/products";
 import { useCart } from "@/context/StoreProvider";
-import { PaymentPanel } from "./PaymentPanel";
 
 export function CartDrawer({
   open,
-  pay,
   onClose,
-  onOpenPay,
-  onBackToCart,
+  onContinue,
 }: {
   open: boolean;
-  /** true = mostrar el flujo de pago dentro del panel del carrito. */
-  pay: boolean;
   onClose: () => void;
-  onOpenPay: () => void;
-  onBackToCart: () => void;
+  /** Abre WhatsApp con el resumen del pedido. */
+  onContinue: () => void;
 }) {
   const cart = useCart();
   const ids = cart.ids;
@@ -48,92 +36,69 @@ export function CartDrawer({
         {/* Cabecera */}
         <div className="flex items-center justify-between px-6 pt-[22px]">
           <button
-            onClick={pay ? onBackToCart : onClose}
-            className="flex items-center gap-1.5 text-[1.4rem] leading-none text-ink2"
-            aria-label={pay ? "Volver" : "Cerrar"}
+            onClick={onClose}
+            className="text-[1.4rem] leading-none text-ink2"
+            aria-label="Cerrar"
           >
-            {pay ? (
-              <>
-                <ArrowLeft size={20} />
-                <span className="text-[.9rem] font-semibold">Volver</span>
-              </>
-            ) : (
-              <X size={26} />
-            )}
+            <X size={26} />
           </button>
-          <div className="flex items-center gap-[7px] text-[.85rem] text-ink2">
-            <User size={18} /> Mi cuenta
-          </div>
         </div>
 
-        {pay ? (
-          /* ===== Paso de pago (en línea) ===== */
-          <div className="flex flex-1 flex-col overflow-y-auto px-[30px] pb-10 pt-2">
-            <PaymentPanel onDone={onClose} />
-          </div>
-        ) : (
-          /* ===== Carrito ===== */
-          <>
-            <div className="flex items-center justify-between px-6 pt-3.5">
-              <h3 className="text-[1.45rem] font-semibold text-ink">
-                Carrito de Compras
-              </h3>
-              <span className="relative text-pink">
-                <ShoppingCart size={30} />
-                <span className="absolute -right-2 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-pink text-[.7rem] font-semibold text-white">
-                  {cart.count}
-                </span>
-              </span>
-            </div>
+        {/* ===== Carrito ===== */}
+        <div className="flex items-center justify-between px-6 pt-3.5">
+          <h3 className="text-[1.45rem] font-semibold text-ink">
+            Carrito de Compras
+          </h3>
+          <span className="relative text-pink">
+            <ShoppingCart size={30} />
+            <span className="absolute -right-2 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-pink text-[.7rem] font-semibold text-white">
+              {cart.count}
+            </span>
+          </span>
+        </div>
 
-            {ids.length > 0 && (
-              <button
-                onClick={cart.clear}
-                className="px-6 pb-3.5 pt-1.5 text-right text-[.82rem] font-medium text-pink"
-              >
-                Vaciar Carrito
-              </button>
-            )}
-
-            <div className="flex-1 overflow-y-auto px-6 pt-1">
-              {ids.length === 0 ? (
-                <div className="grid h-full place-items-center px-10 text-center text-[.9rem] text-faint">
-                  <p>
-                    Tu carrito está vacío.
-                    <br />
-                    Agrega un arreglo para empezar 🌷
-                  </p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3.5 pb-2">
-                  {ids.map((id) => (
-                    <CartItem key={id} id={id} />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Barra de pago */}
-            <div className="px-6 pb-6 pt-4">
-              <button
-                onClick={onOpenPay}
-                disabled={ids.length === 0}
-                className="flex w-full items-center gap-3.5 rounded-[14px] bg-pink p-1.5 text-white transition-colors hover:bg-pinkDeep disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <span className="grid h-[42px] w-[42px] place-items-center rounded-[10px] bg-[#1d1d1d] text-[1rem] font-semibold">
-                  {cart.count}
-                </span>
-                <span className="flex-1 text-left text-[1rem] font-semibold">
-                  Pagar
-                </span>
-                <span className="text-[1rem] font-semibold">
-                  {bs(cart.total)}
-                </span>
-                <ChevronRight size={20} className="mr-1.5" />
-              </button>
-            </div>
-          </>
+        {ids.length > 0 && (
+          <button
+            onClick={cart.clear}
+            className="px-6 pb-3.5 pt-1.5 text-right text-[.82rem] font-medium text-pink"
+          >
+            Vaciar Carrito
+          </button>
         )}
+
+        <div className="flex-1 overflow-y-auto px-6 pt-1">
+          {ids.length === 0 ? (
+            <div className="grid h-full place-items-center px-10 text-center text-[.9rem] text-faint">
+              <p>
+                Tu carrito está vacío.
+                <br />
+                Agrega un arreglo para empezar 🌷
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3.5 pb-2">
+              {ids.map((id) => (
+                <CartItem key={id} id={id} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Continuar el pedido por WhatsApp */}
+        <div className="px-6 pb-6 pt-4">
+          <button
+            onClick={onContinue}
+            disabled={ids.length === 0}
+            className="flex w-full items-center gap-3 rounded-[14px] bg-pink px-4 py-3.5 text-white transition-colors hover:bg-pinkDeep disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <WhatsAppIcon size={22} />
+            <span className="flex-1 text-left text-[1rem] font-semibold">
+              Continuar con el pedido
+            </span>
+            <span className="text-[1rem] font-semibold">{bs(cart.total)}</span>
+            <ChevronRight size={20} />
+          </button>
+        </div>
       </aside>
     </>
   );

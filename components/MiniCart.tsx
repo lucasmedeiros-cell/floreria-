@@ -8,10 +8,10 @@ import { useCart } from "@/context/StoreProvider";
 
 export function MiniCart({
   onViewCart,
-  onPay,
+  onContinue,
 }: {
   onViewCart: () => void;
-  onPay: () => void;
+  onContinue: () => void;
 }) {
   const cart = useCart();
   const [show, setShow] = useState(false);
@@ -86,11 +86,11 @@ export function MiniCart({
               <button
                 onClick={() => {
                   hide();
-                  onPay();
+                  onContinue();
                 }}
                 className="flex-1 rounded-[10px] bg-pink py-2.5 text-[.82rem] font-semibold text-white transition-colors hover:bg-pinkDeep"
               >
-                Pagar
+                Continuar
               </button>
             </div>
           </div>

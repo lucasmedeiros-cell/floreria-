@@ -4,7 +4,6 @@ import { useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  Clock,
   Lock,
   QrCode,
   Search,
@@ -12,16 +11,14 @@ import {
   ShoppingCart,
   Sparkles,
   Truck,
-  User,
 } from "lucide-react";
-import { kProducts, searchProducts } from "@/lib/products";
-import { useCart, useToast } from "@/context/StoreProvider";
+import { bs, kProducts, kWhatsapp, productById, searchProducts } from "@/lib/products";
+import { useCart } from "@/context/StoreProvider";
 import { openWhatsapp } from "@/lib/whatsapp";
 import { ProductCard } from "./ProductCard";
 import { WhatsAppIcon } from "./WhatsAppIcon";
 import { CartDrawer } from "./CartDrawer";
 import { MiniCart } from "./MiniCart";
-import { WhatsAppFab } from "./WhatsAppFab";
 
 const NAV = ["INICIO", "PRODUCTOS", "CÓMO COMPRAR", "CONTACTO"] as const;
 
@@ -75,24 +72,33 @@ function Wordmark({ light = false }: { light?: boolean }) {
 
 export function Storefront() {
   const cart = useCart();
-  const { showToast } = useToast();
 
   const [query, setQuery] = useState("");
   const [nav, setNav] = useState<string>("INICIO");
   const [cartOpen, setCartOpen] = useState(false);
-  const [payMode, setPayMode] = useState(false);
 
-  const openCart = () => {
-    setPayMode(false);
-    setCartOpen(true);
-  };
-  const openPay = () => {
-    setPayMode(true);
-    setCartOpen(true);
-  };
-  const closeCart = () => {
-    setCartOpen(false);
-    setPayMode(false);
+  const openCart = () => setCartOpen(true);
+  const closeCart = () => setCartOpen(false);
+
+  /** Abre WhatsApp con el resumen del pedido para continuar la compra. */
+  const continuarPedido = () => {
+    if (cart.ids.length === 0) return;
+    const lines = cart.ids
+      .map((id) => {
+        const p = productById(id);
+        const q = cart.qty(id);
+        return `• ${q}x ${p.name} — ${bs(p.price * q)}`;
+      })
+      .join("\n");
+    const msg =
+      `¡Hola FloresOnline! 🌸\n\n` +
+      `Quiero continuar con este pedido:\n\n` +
+      `${lines}\n\n` +
+      `*Total: ${bs(cart.total)}*\n\n` +
+      `¿Me ayudan a coordinar la entrega y el pago? 🌷`;
+    openWhatsapp(msg, kWhatsapp);
+    cart.clear();
+    closeCart();
   };
 
   const productosRef = useRef<HTMLDivElement>(null);
@@ -136,17 +142,6 @@ export function Storefront() {
                 className="absolute right-[18px] top-1/2 -translate-y-1/2 text-faint"
               />
             </div>
-
-            {/* Mi cuenta */}
-            <button
-              onClick={() => showToast("Inicio de sesión de clientes — próximamente")}
-              className="hidden items-center gap-[7px] text-[.9rem] text-ink2 sm:flex"
-            >
-              <User size={20} />
-              <span>Mi cuenta</span>
-            </button>
-
-            <span className="hidden h-[30px] w-px bg-line sm:block" />
 
             {/* Carrito */}
             <button
@@ -335,12 +330,6 @@ export function Storefront() {
                 Arreglos florales de autor con entrega el mismo día en Santa
                 Cruz de la Sierra.
               </p>
-              <button
-                onClick={() => openWhatsapp("Hola FloresOnline 🌷")}
-                className="mt-5 inline-flex items-center gap-2 rounded-full bg-pink px-6 py-3 text-[.8rem] font-semibold text-white transition-colors hover:bg-pinkDeep"
-              >
-                <WhatsAppIcon size={17} /> Escríbenos por WhatsApp
-              </button>
             </div>
 
             <div className="w-[45%] md:w-[150px]">
@@ -395,17 +384,8 @@ export function Storefront() {
       </footer>
 
       {/* Overlays */}
-      <MiniCart onViewCart={openCart} onPay={openPay} />
-      <CartDrawer
-        open={cartOpen}
-        pay={payMode}
-        onClose={closeCart}
-        onOpenPay={() => setPayMode(true)}
-        onBackToCart={() => setPayMode(false)}
-      />
-      <WhatsAppFab
-        onClick={() => openWhatsapp("Hola FloresOnline 🌷, tengo una consulta.")}
-      />
+      <MiniCart onViewCart={openCart} onContinue={continuarPedido} />
+      <CartDrawer open={cartOpen} onClose={closeCart} onContinue={continuarPedido} />
     </div>
   );
 }
