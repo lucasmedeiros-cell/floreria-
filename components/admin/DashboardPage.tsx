@@ -1,25 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  TrendingUp,
-  TrendingDown,
-  Wallet,
-  ReceiptText,
-  ShoppingBag,
-  Coins,
-} from "lucide-react";
-import { orderSubtotal, orderTotal, type Order } from "@/lib/adminData";
+import { TrendingUp, ReceiptText, ShoppingBag } from "lucide-react";
+import { orderTotal, type Order } from "@/lib/adminData";
 import { bs2 } from "@/lib/products";
 import { useOrders } from "@/context/StoreProvider";
-
-/**
- * Ratio de costo de mercadería estimado sobre el subtotal de productos.
- * Mientras la contabilidad real vive en la BD (Bilbo), estimamos el gasto
- * como: costo de mercadería (subtotal * COST_RATIO) + costo de entrega.
- * Reemplazar por el gasto real cuando la BD lo provea.
- */
-const COST_RATIO = 0.55;
 
 type Period = "ayer" | "hoy" | "semana" | "mes";
 
@@ -59,31 +44,21 @@ function previousRange(r: Range): Range {
 
 const inRange = (r: Range) => (d: Date) => d.getTime() >= r.start && d.getTime() < r.end;
 
-const gasto = (o: Order) => orderSubtotal(o) * COST_RATIO + o.deliveryCost;
-
 interface Stats {
   ventas: number;
-  gastos: number;
-  ganancia: number;
   pedidos: number;
   ticket: number;
-  margen: number;
 }
 
 function computeStats(orders: Order[], r: Range): Stats {
   const match = inRange(r);
   const valid = orders.filter((o) => o.status !== "cancelado" && match(o.createdAt));
   const ventas = valid.reduce((s, o) => s + orderTotal(o), 0);
-  const gastos = valid.reduce((s, o) => s + gasto(o), 0);
-  const ganancia = ventas - gastos;
   const pedidos = valid.length;
   return {
     ventas,
-    gastos,
-    ganancia,
     pedidos,
     ticket: pedidos ? ventas / pedidos : 0,
-    margen: ventas ? (ganancia / ventas) * 100 : 0,
   };
 }
 
@@ -132,7 +107,7 @@ export function DashboardPage() {
         <div>
           <h1 className="text-[30px] font-semibold text-ink">Inicio</h1>
           <p className="mt-1 text-[13px] text-ink2">
-            Resumen de ventas, gastos y ganancia del negocio
+            Resumen de ventas del negocio
           </p>
         </div>
 
@@ -157,8 +132,8 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* Tarjetas principales: Ventas, Gastos, Ganancia */}
-      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+      {/* Ventas (dato exacto de la base de datos) */}
+      <div className="mt-6 grid grid-cols-1 gap-4">
         <BigCard
           icon={<TrendingUp size={26} />}
           label="Ventas"
@@ -166,25 +141,6 @@ export function DashboardPage() {
           hint={`Ingresos de ${periodLabel}`}
           color="#E8366B"
           delta={delta(stats.ventas, prev.ventas)}
-          prevLabel={prevLabel}
-        />
-        <BigCard
-          icon={<TrendingDown size={26} />}
-          label="Gastos"
-          value={bs2(stats.gastos)}
-          hint="Mercadería y entregas"
-          color="#F76F9C"
-          delta={delta(stats.gastos, prev.gastos)}
-          prevLabel={prevLabel}
-          invert
-        />
-        <BigCard
-          icon={<Wallet size={26} />}
-          label="Ganancia"
-          value={bs2(stats.ganancia)}
-          hint={`Margen ${stats.margen.toFixed(0)}%`}
-          color="#2EA66B"
-          delta={delta(stats.ganancia, prev.ganancia)}
           prevLabel={prevLabel}
         />
       </div>
@@ -201,7 +157,7 @@ export function DashboardPage() {
       )}
 
       {/* Tarjetas secundarias */}
-      <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-2 gap-4">
         <SmallCard
           icon={<ShoppingBag size={20} />}
           label="Pedidos"
@@ -214,18 +170,7 @@ export function DashboardPage() {
           value={bs2(stats.ticket)}
           color="#8B5CF6"
         />
-        <SmallCard
-          icon={<Coins size={20} />}
-          label="Margen"
-          value={`${stats.margen.toFixed(0)}%`}
-          color="#E8A33D"
-        />
       </div>
-
-      <p className="mt-5 text-[11.5px] text-faint">
-        Los gastos son una estimación (costo de mercadería {Math.round(COST_RATIO * 100)}% + entregas).
-        Se ajustarán con los datos reales de la base de datos.
-      </p>
     </div>
   );
 }
