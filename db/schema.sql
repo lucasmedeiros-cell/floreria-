@@ -111,6 +111,19 @@ CREATE TABLE IF NOT EXISTS orders (
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 
+-- ---------- Gastos / egresos del negocio ----------
+-- Necesario para calcular ganancias reales (ingresos - gastos) y el
+-- dashboard central COMANDER. Ver db/migrations/001_expenses.sql.
+CREATE TABLE IF NOT EXISTS expenses (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  category    text          NOT NULL DEFAULT 'General',
+  description text          NOT NULL DEFAULT '',
+  amount      numeric(10,2) NOT NULL DEFAULT 0,
+  spent_at    date          NOT NULL DEFAULT current_date,
+  created_by  text          NOT NULL DEFAULT '',
+  created_at  timestamptz   NOT NULL DEFAULT now()
+);
+
 -- ---------- Ítems del pedido ----------
 CREATE TABLE IF NOT EXISTS order_items (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -129,6 +142,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_status       ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at    ON orders(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_order_items_order    ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_products_category    ON products(category);
+CREATE INDEX IF NOT EXISTS idx_expenses_spent_at    ON expenses(spent_at DESC);
 
 -- ---------- Vistas de apoyo ----------
 -- Totales calculados por pedido
