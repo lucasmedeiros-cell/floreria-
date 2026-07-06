@@ -77,12 +77,36 @@ CREATE TABLE IF NOT EXISTS products (
 );
 
 -- ---------- Ajustes del sitio (clave → JSON) ----------
--- Config editable desde el panel (p. ej. la landing promocional /promo).
+-- Config editable desde el panel (p. ej. la landing promocional /promo
+-- o el Vendedor 24/7 con key = 'vendedor247').
 CREATE TABLE IF NOT EXISTS settings (
   key        text PRIMARY KEY,
   value      jsonb       NOT NULL,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- ---------- Vendedor 24/7 (bot de WhatsApp con IA) ----------
+-- Conversaciones entrantes de WhatsApp (una por número) + su historial, para
+-- que el asistente de ventas (Claude) tenga contexto. Ver db/migrations/002.
+CREATE TABLE IF NOT EXISTS wa_conversations (
+  phone           text PRIMARY KEY,
+  name            text        NOT NULL DEFAULT '',
+  bot_active      boolean     NOT NULL DEFAULT true,
+  campaign        text,
+  last_message_at timestamptz NOT NULL DEFAULT now(),
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS wa_messages (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  phone      text        NOT NULL REFERENCES wa_conversations(phone) ON DELETE CASCADE,
+  direction  text        NOT NULL DEFAULT 'in',
+  body       text        NOT NULL DEFAULT '',
+  from_bot   boolean     NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_wa_messages_phone ON wa_messages(phone, created_at);
 
 -- ---------- Pedidos ----------
 CREATE TABLE IF NOT EXISTS orders (

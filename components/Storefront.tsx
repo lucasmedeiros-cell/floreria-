@@ -12,9 +12,9 @@ import {
   Sparkles,
   Truck,
 } from "lucide-react";
-import { bs, kProducts, kWhatsapp, productById, searchProducts } from "@/lib/products";
+import { bs, kProducts, productById, searchProducts } from "@/lib/products";
 import { useCart } from "@/context/StoreProvider";
-import { openWhatsapp } from "@/lib/whatsapp";
+import { openWhatsapp, useBusinessWhatsapp } from "@/lib/whatsapp";
 import { ProductCard } from "./ProductCard";
 import { WhatsAppIcon } from "./WhatsAppIcon";
 import { CartDrawer } from "./CartDrawer";
@@ -22,30 +22,17 @@ import { MiniCart } from "./MiniCart";
 
 const NAV = ["INICIO", "PRODUCTOS", "CÓMO COMPRAR", "CONTACTO"] as const;
 
-/** Isotipo (flor) del mockup HTML. */
+/** Isotipo (marca de flor) — logo real de FloresOnline. */
 function PinkMark({ size = 42 }: { size?: number }) {
   return (
-    <svg
-      viewBox="0 0 42 46"
-      fill="none"
-      style={{ width: size, height: (size * 46) / 42 }}
-      className="shrink-0"
-    >
-      <circle cx="21" cy="13" r="6" stroke="#E8366B" strokeWidth="1.6" />
-      <path
-        d="M21 7c-3 -4 -9 -3 -9 2 0 4 5 5 9 4M21 7c3 -4 9 -3 9 2 0 4 -5 5 -9 4"
-        stroke="#E8366B"
-        strokeWidth="1.4"
-        fill="none"
-      />
-      <path d="M21 19v22" stroke="#7DBA5A" strokeWidth="1.6" />
-      <path
-        d="M21 30c-6 0 -9 -4 -10 -8 5 -1 9 3 10 8M21 34c5 0 8 -3 9 -7 -4 -1 -8 2 -9 7"
-        stroke="#7DBA5A"
-        strokeWidth="1.4"
-        fill="none"
-      />
-    </svg>
+    <Image
+      src="/images/logo-mark.png"
+      alt="FloresOnline"
+      width={Math.round(size * 0.94)}
+      height={size}
+      loading="eager"
+      className="shrink-0 object-contain"
+    />
   );
 }
 
@@ -77,6 +64,9 @@ export function Storefront() {
   const [nav, setNav] = useState<string>("INICIO");
   const [cartOpen, setCartOpen] = useState(false);
 
+  // WhatsApp del negocio = el número vinculado al Vendedor 24/7 (con respaldo).
+  const waNumber = useBusinessWhatsapp();
+
   const openCart = () => setCartOpen(true);
   const closeCart = () => setCartOpen(false);
 
@@ -96,7 +86,7 @@ export function Storefront() {
       `${lines}\n\n` +
       `*Total: ${bs(cart.total)}*\n\n` +
       `¿Me ayudan a coordinar la entrega y el pago? 🌷`;
-    openWhatsapp(msg, kWhatsapp);
+    openWhatsapp(msg, waNumber);
     // No vaciamos el carrito: el pedido aún no está confirmado, sólo se está
     // redactando el mensaje de WhatsApp. Si el cliente vuelve, no debe perderlo.
     closeCart();
@@ -216,7 +206,8 @@ export function Storefront() {
               <button
                 onClick={() =>
                   openWhatsapp(
-                    "Hola FloresOnline 🌷, quisiera hacer una reserva."
+                    "Hola FloresOnline 🌷, quisiera hacer una reserva.",
+                    waNumber
                   )
                 }
                 className="inline-flex items-center gap-2 rounded-full bg-pink px-7 py-[14px] text-[.78rem] font-semibold tracking-[1px] text-white transition-colors hover:bg-pinkDeep"
@@ -355,7 +346,8 @@ export function Storefront() {
                 <button
                   onClick={() =>
                     openWhatsapp(
-                      "Hola FloresOnline 🌷, quisiera hacer un pedido."
+                      "Hola FloresOnline 🌷, quisiera hacer un pedido.",
+                      waNumber
                     )
                   }
                   className="text-left transition-colors hover:text-white"

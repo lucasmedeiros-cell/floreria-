@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Check, Clock, Lock, QrCode, RefreshCw } from "lucide-react";
-import { bs, kWhatsapp, productById } from "@/lib/products";
+import { bs, productById } from "@/lib/products";
 import { useCart, useToast } from "@/context/StoreProvider";
-import { openWhatsapp } from "@/lib/whatsapp";
+import { openWhatsapp, useBusinessWhatsapp } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "./WhatsAppIcon";
 
 /**
@@ -14,6 +14,7 @@ import { WhatsAppIcon } from "./WhatsAppIcon";
 export function PaymentPanel({ onDone }: { onDone: () => void }) {
   const cart = useCart();
   const { showToast } = useToast();
+  const waNumber = useBusinessWhatsapp();
   const [paid, setPaid] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -157,7 +158,7 @@ export function PaymentPanel({ onDone }: { onDone: () => void }) {
       `👤 ${name.trim()}\n` +
       `📱 ${phone.trim()}\n\n` +
       `¿Me pueden confirmar la entrega, por favor? ¡Muchas gracias! 💐`;
-    openWhatsapp(msg, kWhatsapp);
+    openWhatsapp(msg, waNumber);
     cart.clear();
     onDone();
   };

@@ -1,5 +1,9 @@
 // ===== Configuración del negocio =====
-export const kWhatsapp = "59170000000"; // <- número real de FloresOnline
+// Número de respaldo del negocio. En local/bilbo la tienda usa el número al que
+// está vinculado el Vendedor 24/7 (Baileys, vía /api/whatsapp/number); este
+// valor se usa cuando ese número no está disponible (p. ej. en Netlify, que es
+// serverless y no mantiene la conexión de Baileys).
+export const kWhatsapp = "59177648081";
 export const kPayReference = "FLORESONLINE-EASYPAY";
 
 export type ProductStatus = "activo" | "inactivo";

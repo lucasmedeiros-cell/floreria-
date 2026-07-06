@@ -1,51 +1,32 @@
 "use client";
 
-/** Logo: flor dibujada (SVG), equivalente al CustomPainter de Flutter. */
+import Image from "next/image";
+
+/** Marca (flor) — logo real de FloresOnline. */
 export function FlowerMark({ size = 40 }: { size?: number }) {
-  const w = size;
-  const h = size * 1.08;
-  const cx = w * 0.5;
-  const cy = h * 0.3;
-  const R = w * 0.2;
-  const petals = [];
-  for (let i = 0; i < 6; i++) {
-    const a = (i * 60 * Math.PI) / 180;
-    petals.push(
-      <ellipse
-        key={i}
-        cx={R * 0.78}
-        cy={0}
-        rx={(R * 1.15) / 2}
-        ry={(R * 0.72) / 2}
-        fill="#E8366B"
-        fillOpacity={0.92}
-        transform={`translate(${cx} ${cy}) rotate(${(a * 180) / Math.PI})`}
-      />
-    );
-  }
-  const leaf = (t: number, left: boolean) => {
-    const baseY = h * (0.58 + t);
-    const dir = left ? -1 : 1;
-    return `M ${cx} ${baseY} Q ${cx + dir * w * 0.2} ${baseY - h * 0.05} ${
-      cx + dir * w * 0.26
-    } ${baseY - h * 0.16} Q ${cx + dir * w * 0.1} ${baseY - h * 0.1} ${cx} ${baseY} Z`;
-  };
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="shrink-0">
-      <line
-        x1={cx}
-        y1={cy + R * 0.5}
-        x2={cx}
-        y2={h * 0.96}
-        stroke="#2F6B4F"
-        strokeWidth={w * 0.05}
-        strokeLinecap="round"
-      />
-      <path d={leaf(0, true)} fill="#2F6B4F" fillOpacity={0.92} />
-      <path d={leaf(0.1, false)} fill="#2F6B4F" fillOpacity={0.92} />
-      {petals}
-      <circle cx={cx} cy={cy} r={R * 0.52} fill="#F76F9C" />
-    </svg>
+    <Image
+      src="/images/logo-mark.png"
+      alt="FloresOnline"
+      width={Math.round(size * 0.94)}
+      height={size}
+      loading="eager"
+      className="shrink-0 object-contain"
+    />
+  );
+}
+
+/** Logo completo (marca + texto) para usos donde luce el lockup horizontal. */
+export function LogoLockup({ height = 40 }: { height?: number }) {
+  return (
+    <Image
+      src="/images/logo.png"
+      alt="FloresOnline"
+      width={Math.round(height * (942 / 225))}
+      height={height}
+      loading="eager"
+      className="object-contain"
+    />
   );
 }
 

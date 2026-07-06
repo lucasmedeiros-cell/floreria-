@@ -7,6 +7,7 @@ import { useToast } from "@/context/StoreProvider";
 import { PrimaryButton } from "@/components/ui";
 import { PromoEditor } from "./PromoEditor";
 import { AnimationEditor } from "./AnimationEditor";
+import { VendedorEditor } from "./VendedorEditor";
 
 export function ConfiguracionPage() {
   const { showToast } = useToast();
@@ -57,6 +58,9 @@ export function ConfiguracionPage() {
             ))}
           </div>
         </Card>
+
+        {/* Vendedor 24/7 (bot de WhatsApp con IA) */}
+        <VendedorEditor />
 
         {/* Animaciones de inicio */}
         <AnimationEditor />

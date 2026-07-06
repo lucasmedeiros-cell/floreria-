@@ -1,9 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // pg usa requires dinámicos/nativos: que Next lo cargue en runtime, no lo empaquete.
+  // pg y Baileys usan requires dinámicos/nativos (crypto, WebSocket): que Next
+  // los cargue en runtime, no los empaquete con webpack (lo rompería).
   experimental: {
-    serverComponentsExternalPackages: ["pg"],
+    serverComponentsExternalPackages: [
+      "pg",
+      "@whiskeysockets/baileys",
+      "pino",
+      "qrcode",
+    ],
   },
   // CORS para imágenes estáticas: el renderer CanvasKit de Flutter web
   // necesita el header para poder pintar imágenes de otro origen (8090 -> 3005).
