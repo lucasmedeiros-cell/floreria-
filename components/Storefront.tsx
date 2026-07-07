@@ -19,6 +19,7 @@ import { ProductCard } from "./ProductCard";
 import { WhatsAppIcon } from "./WhatsAppIcon";
 import { CartDrawer } from "./CartDrawer";
 import { MiniCart } from "./MiniCart";
+import { DebugReporter } from "./DebugReporter";
 
 const NAV = ["INICIO", "PRODUCTOS", "CÓMO COMPRAR", "CONTACTO"] as const;
 
@@ -379,6 +380,7 @@ export function Storefront() {
       {/* Overlays */}
       <MiniCart onViewCart={openCart} onContinue={continuarPedido} />
       <CartDrawer open={cartOpen} onClose={closeCart} onContinue={continuarPedido} />
+      <DebugReporter surface="web" />
     </div>
   );
 }

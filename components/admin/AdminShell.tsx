@@ -32,6 +32,7 @@ import { ConfiguracionPage } from "./ConfiguracionPage";
 import { UsuariosPage } from "./UsuariosPage";
 import { DashboardPage } from "./DashboardPage";
 import { AdminIntro } from "./AdminIntro";
+import { DebugReporter } from "../DebugReporter";
 
 type Section =
   | "inicio"
@@ -126,6 +127,8 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
         </div>
         <div className="flex-1 overflow-hidden">{page()}</div>
       </div>
+
+      <DebugReporter surface="crm" />
     </div>
   );
 }
