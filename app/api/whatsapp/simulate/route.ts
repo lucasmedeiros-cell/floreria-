@@ -1,27 +1,21 @@
 import { NextRequest } from "next/server";
-import { bad, handler, ok } from "@/lib/api";
+import { bad, handler, ok, unauthorized } from "@/lib/api";
 import { getSession } from "@/lib/auth";
 import { handleIncoming, loggingSender } from "@/lib/vendedorEngine";
-import { cloudEnabled } from "@/lib/whatsappCloud";
 import { query } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Prueba LOCAL del Vendedor 24/7 — simula un mensaje entrante de WhatsApp sin
- * pasar por Meta. Devuelve la respuesta del bot y el historial de la charla.
- *
- * Disponible solo cuando NO hay credenciales de Meta (modo local/demo) o para
- * empleados con sesión. En producción con WhatsApp conectado queda deshabilitado
- * para el público.
+ * Probador del Vendedor 24/7 — simula un mensaje entrante y devuelve la
+ * respuesta del bot + el historial. Solo empleados con sesión (se usa desde el
+ * panel admin); así no se expone la IA (que consume tokens) al público.
  *
  * POST /api/whatsapp/simulate  { phone?, name?, text }
  */
 export const POST = handler(async (req: NextRequest) => {
-  if (cloudEnabled() && !getSession("employee")) {
-    return bad("Endpoint de prueba deshabilitado con WhatsApp conectado.", 403);
-  }
+  if (!getSession("employee")) return unauthorized();
 
   const b = (await req.json()) as { phone?: string; name?: string; text?: string };
   const text = (b.text ?? "").trim();
@@ -40,8 +34,9 @@ export const POST = handler(async (req: NextRequest) => {
   return ok({ ...result, history });
 });
 
-/** GET /api/whatsapp/simulate?phone= — historial de una conversación de prueba. */
+/** GET /api/whatsapp/simulate?phone= — historial de una conversación (empleados). */
 export const GET = handler(async (req: NextRequest) => {
+  if (!getSession("employee")) return unauthorized();
   const phone = (req.nextUrl.searchParams.get("phone") ?? "+59170000001").trim();
   const history = await query(
     `SELECT direction, body, from_bot, created_at FROM wa_messages
