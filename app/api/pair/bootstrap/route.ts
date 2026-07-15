@@ -4,6 +4,7 @@ import { query, queryOne } from "@/lib/db";
 import { writeBusinessConfig } from "@/lib/businessStore";
 import { resetPromoConfig } from "@/lib/promoStore";
 import { applyRubroCatalog } from "@/lib/rubroApply";
+import { defaultModules } from "@/lib/modules";
 import { RUBROS, type RubroId } from "@/lib/rubros";
 import { currentTenant } from "@/lib/tenant";
 import { deviceToken } from "@/lib/tenantRequest";
@@ -59,8 +60,12 @@ export const POST = handler(async (req: NextRequest) => {
   }
 
   // 1) Marca + rubro del negocio (lo que pinta la tienda, la landing y el bot).
+  //    Los módulos arrancan según el rubro (una ferretería nace sin entregas ni
+  //    agenda). Van explícitos: si no, al mezclar con el default de arranque
+  //    (florería, todo prendido) se quedarían todos en on.
   const saved = await writeBusinessConfig({
     rubroId: rubro as RubroId,
+    modules: defaultModules(rubro as RubroId),
     name: nombre,
     whatsapp: b.whatsapp ?? "",
     configured: true,
