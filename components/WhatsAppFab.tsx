@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { WhatsAppIcon } from "./WhatsAppIcon";
+import { useBusiness } from "@/context/StoreProvider";
 
 export function WhatsAppFab({ onClick }: { onClick: () => void }) {
+  const { rubro } = useBusiness();
   const [showBubble, setShowBubble] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setShowBubble(true), 1400);
@@ -21,7 +23,7 @@ export function WhatsAppFab({ onClick }: { onClick: () => void }) {
         <div className="flex max-w-[236px] items-start gap-1 rounded-2xl border border-line bg-white px-3.5 py-3 shadow-cardHover">
           <div>
             <p className="text-[13.5px] font-bold text-ink">¿Tienes una consulta?</p>
-            <p className="text-[12px] text-ink2">Escríbenos por WhatsApp 🌷</p>
+            <p className="text-[12px] text-ink2">Escríbenos por WhatsApp {rubro.emoji}</p>
           </div>
           <button onClick={() => setShowBubble(false)} className="p-0.5 text-faint">
             <X size={16} />

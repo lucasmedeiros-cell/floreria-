@@ -4,7 +4,7 @@
 
 import {
   BOLIVIA_BOUNDS,
-  FLORERIA,
+  ORIGEN,
   ZONAS,
   type Zona,
 } from "./deliveryConfig";
@@ -56,7 +56,7 @@ export interface Cotizacion {
 }
 
 /**
- * Cotiza el delivery desde la florería hasta las coordenadas del cliente.
+ * Cotiza el delivery desde la tienda hasta las coordenadas del cliente.
  * ok=false si las coordenadas son inválidas o la zona requiere cotización manual.
  */
 export function cotizarDelivery(lat: number, lng: number): Cotizacion {
@@ -69,7 +69,7 @@ export function cotizarDelivery(lat: number, lng: number): Cotizacion {
       motivo: "Coordenadas inválidas o fuera de Bolivia.",
     };
   }
-  const distanciaKm = calcularDistancia(FLORERIA.lat, FLORERIA.lng, lat, lng);
+  const distanciaKm = calcularDistancia(ORIGEN.lat, ORIGEN.lng, lat, lng);
   const zona = obtenerZona(distanciaKm);
   if (!zona || zona.precio === null) {
     return {

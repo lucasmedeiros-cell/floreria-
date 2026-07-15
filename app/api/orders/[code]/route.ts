@@ -5,6 +5,10 @@ import { getSession } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
+// Toda ruta de la API resuelve a qué negocio pertenece la request (lee headers
+// en `handler()`), así que nunca se puede renderizar estáticamente.
+export const dynamic = "force-dynamic";
+
 type Params = { params: { code: string } };
 
 const STATUSES = [

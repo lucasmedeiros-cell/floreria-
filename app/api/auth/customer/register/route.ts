@@ -5,6 +5,10 @@ import { setSessionCookie, signToken } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
+// Toda ruta de la API resuelve a qué negocio pertenece la request (lee headers
+// en `handler()`), así que nunca se puede renderizar estáticamente.
+export const dynamic = "force-dynamic";
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const POST = handler(async (req: NextRequest) => {

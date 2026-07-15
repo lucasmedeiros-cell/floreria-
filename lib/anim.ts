@@ -2,9 +2,9 @@
 // Interruptores para activar/desactivar las animaciones desde el panel admin.
 
 export interface AnimConfig {
-  /** Animación de inicio en la web pública (rosa que pierde sus pétalos). */
+  /** Animación de inicio en la web pública (intro con el logo del rubro). */
   web: boolean;
-  /** Animación de inicio del panel de administración (flor que florece). */
+  /** Splash de inicio del CRM (logo de easy pos + negocio y rubro). */
   admin: boolean;
 }
 

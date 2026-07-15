@@ -1,15 +1,19 @@
 // ============================================================
-//  Configuración del delivery de la florería.
+//  Configuración del delivery del negocio (cualquier rubro).
 //  Ubicación fija de la tienda + tarifario por zonas concéntricas
 //  (anillos de Santa Cruz de la Sierra). Todo editable acá.
 // ============================================================
 
-export const FLORERIA = {
-  nombre: "Flores Online",
+/** Punto de origen de los envíos (la tienda / depósito). */
+export const ORIGEN = {
+  nombre: "Tienda",
   direccion: "Av. La Salle",
   lat: -17.753392,
   lng: -63.191447,
 };
+
+/** @deprecated Nombre viejo de la época en que el sistema era solo florería. */
+export const FLORERIA = ORIGEN;
 
 /**
  * Centro de la ciudad (Plaza 24 de Septiembre) — referencia para estimar en
@@ -19,7 +23,7 @@ export const CENTRO = { lat: -17.7833, lng: -63.1821 };
 
 // ============================================================
 //  TARIFARIO REAL — courier "Radio Móvil Corea 2025"
-//  Origen: Flores Online (Av. La Salle). Matriz Destino × Anillo (2A..9A).
+//  Origen: la tienda (Av. La Salle). Matriz Destino × Anillo (2A..9A).
 //  ⚠️ TRANSCRITO DE FOTO — PENDIENTE VERIFICAR precios (sobre todo las
 //     celdas con nota y los rangos "25-30"/"30-35").
 //    - precio  : tarifa plana en Bs (no depende del anillo).

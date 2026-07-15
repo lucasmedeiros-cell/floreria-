@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { TrendingUp, ReceiptText, ShoppingBag } from "lucide-react";
+import { ShoppingBag, ReceiptText, Store, TrendingUp } from "lucide-react";
 import { orderTotal, type Order } from "@/lib/adminData";
 import { bs2 } from "@/lib/products";
-import { useOrders } from "@/context/StoreProvider";
+import { useBusiness, useOrders } from "@/context/StoreProvider";
 
 type Period = "ayer" | "hoy" | "semana" | "mes";
 
@@ -85,6 +85,8 @@ function dailySales(orders: Order[], r: Range): { label: string; value: number }
 }
 
 export function DashboardPage() {
+  const business = useBusiness();
+  const { colors } = business;
   const { orders } = useOrders();
   const [period, setPeriod] = useState<Period>("hoy");
 
@@ -103,6 +105,17 @@ export function DashboardPage() {
 
   return (
     <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
+      {/* easy pos recién instalado: todavía no hay negocio vinculado. */}
+      {!business.configured && (
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-[16px] border border-pink/40 bg-pinkSoft px-4 py-3.5">
+          <Store size={18} className="shrink-0 text-pink" />
+          <p className="flex-1 text-[13px] text-ink2">
+            <b className="text-ink">Este easy pos aún no está configurado.</b> Elige el rubro
+            y carga los datos del negocio en <b className="text-ink">Configuración</b> para que
+            la tienda, la landing y el panel tomen su identidad.
+          </p>
+        </div>
+      )}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[30px] font-semibold text-ink">Inicio</h1>
@@ -139,7 +152,7 @@ export function DashboardPage() {
           label="Ventas"
           value={bs2(stats.ventas)}
           hint={`Ingresos de ${periodLabel}`}
-          color="#E8366B"
+          color={colors.accent}
           delta={delta(stats.ventas, prev.ventas)}
           prevLabel={prevLabel}
         />
@@ -235,7 +248,7 @@ function DeltaBadge({
       ? { bg: "#6B72801a", fg: "#6B7280" }
       : good
       ? { bg: "#2EA66B1a", fg: "#1F9257" }
-      : { bg: "#E8366B1a", fg: "#D81B60" };
+      : { bg: "#C0334E1a", fg: "#C0334E" };
   const arrow = flat ? "→" : positive ? "↑" : "↓";
   return (
     <span
@@ -250,6 +263,7 @@ function DeltaBadge({
 }
 
 function SalesBars({ data }: { data: { label: string; value: number }[] }) {
+  const accent = useBusiness().colors.accent;
   const max = Math.max(1, ...data.map((d) => d.value));
   return (
     <div className="mt-5 flex h-[150px] items-end gap-1.5">
@@ -266,7 +280,7 @@ function SalesBars({ data }: { data: { label: string; value: number }[] }) {
               style={{
                 height: `${has ? Math.max(6, (d.value / max) * 118) : 3}px`,
                 background: has
-                  ? "linear-gradient(180deg,#F76F9C,#E8366B)"
+                  ? `linear-gradient(180deg,${accent}99,${accent})`
                   : "#EBE3E7",
               }}
             />

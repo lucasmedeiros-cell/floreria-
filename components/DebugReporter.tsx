@@ -1,5 +1,6 @@
 "use client";
 
+import { apiUrl } from "@/lib/apiBase";
 import { useState } from "react";
 import { Bug, Check, Loader2, Send, X } from "lucide-react";
 
@@ -56,7 +57,7 @@ export function DebugReporter({ surface = "web" }: { surface?: "web" | "crm" }) 
       fd.append("url", typeof window !== "undefined" ? window.location.href : "");
       if (imagen) fd.append("imagen", imagen);
 
-      const r = await fetch("/api/tickets/report", { method: "POST", body: fd });
+      const r = await fetch(apiUrl("/api/tickets/report"), { method: "POST", body: fd });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(data?.error || "No se pudo enviar el reporte.");
       setOkMsg(data?.numero_ticket || "Reporte enviado");

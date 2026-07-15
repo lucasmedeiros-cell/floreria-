@@ -1,15 +1,18 @@
 "use client";
 
+import { useLink } from "@/lib/negocioLink";
+import { apiUrl } from "@/lib/apiBase";
 import { useEffect, useState } from "react";
 import { ExternalLink, Loader2, RotateCcw, Save, Sparkles } from "lucide-react";
-import { kProducts } from "@/lib/products";
 import { defaultPromoConfig, type PromoConfig } from "@/lib/promo";
-import { useToast } from "@/context/StoreProvider";
+import { useProducts, useToast } from "@/context/StoreProvider";
 import { PrimaryButton } from "@/components/ui";
 
 /** Editor de la landing promocional (/promo) — un solo producto destacado. */
 export function PromoEditor() {
+  const link = useLink();
   const { showToast } = useToast();
+  const { products } = useProducts();
   const [cfg, setCfg] = useState<PromoConfig>(defaultPromoConfig);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -17,7 +20,7 @@ export function PromoEditor() {
   // Carga la config guardada desde la base de datos.
   useEffect(() => {
     let alive = true;
-    fetch("/api/promo")
+    fetch(apiUrl("/api/promo"))
       .then((r) => r.json())
       .then((data: PromoConfig) => {
         if (alive) setCfg({ ...defaultPromoConfig, ...data });
@@ -38,7 +41,7 @@ export function PromoEditor() {
       set("productId", undefined);
       return;
     }
-    const p = kProducts.find((x) => x.id === id);
+    const p = products.find((x) => x.id === id);
     if (!p) return;
     setCfg((c) => ({
       ...c,
@@ -54,7 +57,7 @@ export function PromoEditor() {
   const persist = async (data: PromoConfig, msg: string) => {
     setSaving(true);
     try {
-      const res = await fetch("/api/promo", {
+      const res = await fetch(apiUrl("/api/promo"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -110,7 +113,7 @@ export function PromoEditor() {
             className="mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none focus:border-pink"
           >
             <option value="">— Personalizado (sin vincular) —</option>
-            {kProducts.map((p) => (
+            {products.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.id} · {p.name}
               </option>
@@ -153,8 +156,8 @@ export function PromoEditor() {
 
       <Card icon={<Sparkles size={18} />} title="Imágenes y llamado a la acción">
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Imagen principal" value={cfg.image} onChange={(v) => set("image", v)} placeholder="/images/r208.jpg" />
-          <Field label="Imagen secundaria (opcional)" value={cfg.imageAlt ?? ""} onChange={(v) => set("imageAlt", v)} placeholder="/images/r206.jpg" />
+          <Field label="Imagen principal" value={cfg.image} onChange={(v) => set("image", v)} placeholder="/images/promo.jpg (vacío = placeholder del rubro)" />
+          <Field label="Imagen secundaria (opcional)" value={cfg.imageAlt ?? ""} onChange={(v) => set("imageAlt", v)} placeholder="/images/promo-2.jpg" />
         </div>
         <Field label="Texto del botón (CTA)" value={cfg.ctaLabel} onChange={(v) => set("ctaLabel", v)} />
         <Field
@@ -172,7 +175,7 @@ export function PromoEditor() {
             disabled={saving}
           />
           <a
-            href="/promo"
+            href={link("/promo")}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-5 py-3 text-[13px] font-semibold text-ink shadow-soft"

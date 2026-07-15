@@ -22,7 +22,6 @@ import {
   itemDiscountValue,
   itemGross,
   itemTotal,
-  kClients,
   kCouriers,
   kPayMethods,
   kPriorities,
@@ -30,7 +29,8 @@ import {
   statusLabel,
 } from "@/lib/adminData";
 import { bs2 } from "@/lib/products";
-import { useAuth, useOrders, useProducts, useToast } from "@/context/StoreProvider";
+import { useAuth, useBusiness, useOrders, useProducts, useToast } from "@/context/StoreProvider";
+import { useClients } from "@/lib/clientsClient";
 import { openWhatsappRaw } from "@/lib/whatsapp";
 import { OutlineButton, PrimaryButton } from "@/components/ui";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
@@ -42,6 +42,11 @@ let seq = 0;
 
 export function NewOrderPage({ onDone }: { onDone: () => void }) {
   const orders = useOrders();
+  const { colors, modules } = useBusiness();
+  // Un negocio que no reparte (repuestos, ferretería…) no debería tener que
+  // contestar quién entrega ni cuánto cuesta el envío.
+  const reparte = modules.entregas;
+  const { clients } = useClients();
   const auth = useAuth();
   const { showToast } = useToast();
 
@@ -68,7 +73,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
   const [orderNotes, setOrderNotes] = useState("");
   const [sheet, setSheet] = useState(false);
 
-  const delCost = parseFloat(deliveryCost.replace(",", ".")) || 0;
+  const delCost = reparte ? parseFloat(deliveryCost.replace(",", ".")) || 0 : 0;
   const subtotal = items.reduce((s, i) => s + itemGross(i), 0);
   const discount = items.reduce((s, i) => s + itemDiscountValue(i), 0);
   const total = subtotal - discount + delCost;
@@ -157,7 +162,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
             <OutlineButton
               label="Guardar borrador"
               icon={<Save size={18} />}
-              color="#E8366B"
+              color={colors.accent}
               onClick={() => save("borrador")}
             />
             <PrimaryButton
@@ -181,12 +186,12 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
                   <select
                     value={client ? client.name : ""}
                     onChange={(e) =>
-                      fillFrom(kClients.find((c) => c.name === e.target.value) ?? null)
+                      fillFrom(clients.find((c) => c.name === e.target.value) ?? null)
                     }
                     className="flex-1 rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none focus:border-pink"
                   >
                     <option value="">Buscar / seleccionar cliente…</option>
-                    {kClients.map((c) => (
+                    {clients.map((c) => (
                       <option key={c.name} value={c.name}>
                         {c.name}
                       </option>
@@ -221,7 +226,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
                 <Field label="Ubicación (lat, lng)" value={location} onChange={setLocation} placeholder="-17.7833, -63.1821" />
                 <div>
                   <Label>Mapa</Label>
-                  <OutlineButton label="Ver en mapa" icon={<MapPin size={18} />} color="#E8366B" full onClick={openMap} />
+                  <OutlineButton label="Ver en mapa" icon={<MapPin size={18} />} color={colors.accent} full onClick={openMap} />
                 </div>
               </TwoCol>
               <Field label="Notas del cliente" value={clientNotes} onChange={setClientNotes} placeholder="Preferencias, horarios, etc." />
@@ -253,7 +258,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
                 <OutlineButton
                   label="Agregar producto / servicio"
                   icon={<Plus size={18} />}
-                  color="#E8366B"
+                  color={colors.accent}
                   onClick={() => setSheet(true)}
                 />
               </div>
@@ -274,7 +279,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
 
           {/* Columna derecha */}
           <div className="flex flex-col gap-5">
-            <Card title="Agenda de entrega">
+            <Card title={reparte ? "Agenda de entrega" : "Fecha del pedido"}>
               <TwoCol>
                 <div>
                   <Label>Fecha de entrega</Label>
@@ -299,20 +304,24 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
                 <Label>Prioridad</Label>
                 <Select value={priority} options={kPriorities} onChange={setPriority} />
               </div>
-              <div>
-                <Label>Responsable / Repartidor</Label>
-                <Select value={courier} options={kCouriers} onChange={setCourier} />
-              </div>
-              <div className="mt-3.5 flex items-start gap-2 rounded-xl bg-[#3B6FD4]/[0.08] p-3">
-                <Check size={17} className="mt-0.5 text-[#3B6FD4]" />
-                <span className="text-[11.5px] text-ink2">
-                  La entrega se agenda y el cliente recibirá una confirmación por
-                  WhatsApp.
-                </span>
-              </div>
+              {reparte && (
+                <>
+                  <div>
+                    <Label>Responsable / Repartidor</Label>
+                    <Select value={courier} options={kCouriers} onChange={setCourier} />
+                  </div>
+                  <div className="mt-3.5 flex items-start gap-2 rounded-xl bg-[#3B6FD4]/[0.08] p-3">
+                    <Check size={17} className="mt-0.5 text-[#3B6FD4]" />
+                    <span className="text-[11.5px] text-ink2">
+                      La entrega se agenda y el cliente recibirá una confirmación por
+                      WhatsApp.
+                    </span>
+                  </div>
+                </>
+              )}
             </Card>
 
-            <Card title="Detalles de entrega y pago">
+            <Card title={reparte ? "Detalles de entrega y pago" : "Pago"}>
               <div>
                 <Label>Método de pago</Label>
                 <Select value={payMethod} options={kPayMethods} onChange={setPayMethod} />
@@ -326,18 +335,22 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
                     onChange={(v) => setReceipt(v === "Sí")}
                   />
                 </div>
-                <Field
-                  label="Costo de entrega (Bs)"
-                  value={deliveryCost}
-                  onChange={setDeliveryCost}
-                />
+                {reparte && (
+                  <Field
+                    label="Costo de entrega (Bs)"
+                    value={deliveryCost}
+                    onChange={setDeliveryCost}
+                  />
+                )}
               </TwoCol>
-              <Field
-                label="Observaciones de entrega"
-                value={deliveryObs}
-                onChange={setDeliveryObs}
-                placeholder="Ej. Tocar timbre y esperar confirmación."
-              />
+              {reparte && (
+                <Field
+                  label="Observaciones de entrega"
+                  value={deliveryObs}
+                  onChange={setDeliveryObs}
+                  placeholder="Ej. Tocar timbre y esperar confirmación."
+                />
+              )}
             </Card>
 
             <Card title="Resumen">

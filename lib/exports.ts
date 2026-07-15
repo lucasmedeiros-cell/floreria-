@@ -31,13 +31,13 @@ const INK: [number, number, number] = [36, 26, 30];
 // --------------------------------------------------------------------------
 // Listado de notas de venta → PDF
 // --------------------------------------------------------------------------
-export function exportOrdersPDF(orders: Order[]) {
+export function exportOrdersPDF(orders: Order[], businessName = "Notas de venta") {
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
 
   doc.setTextColor(...BRAND);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text("FloresOnline · Notas de venta", 40, 40);
+  doc.text(`${businessName} · Notas de venta`, 40, 40);
 
   doc.setTextColor(120);
   doc.setFont("helvetica", "normal");
@@ -127,14 +127,14 @@ export function exportOrdersExcel(orders: Order[]) {
 // --------------------------------------------------------------------------
 // Una nota de venta individual → PDF con detalle (comprobante)
 // --------------------------------------------------------------------------
-export function exportNotaPDF(o: Order) {
+export function exportNotaPDF(o: Order, businessName = "") {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const M = 40;
 
   doc.setTextColor(...BRAND);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
-  doc.text("FloresOnline", M, 46);
+  doc.text(businessName, M, 46);
 
   doc.setTextColor(...INK);
   doc.setFontSize(13);

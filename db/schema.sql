@@ -23,12 +23,47 @@ CREATE SEQUENCE IF NOT EXISTS order_code_seq START 1044;
 CREATE TABLE IF NOT EXISTS employees (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name        text        NOT NULL,
-  email       text        NOT NULL UNIQUE,
+  -- Teléfono: identidad principal para el alta/login desde la app. Correo
+  -- opcional (las cuentas viejas solo tienen correo y siguen entrando por él).
+  phone       text,
+  email       text,
   pass_hash   text        NOT NULL,
   role        text        NOT NULL DEFAULT 'Vendedora',
   active      boolean     NOT NULL DEFAULT true,
   created_at  timestamptz NOT NULL DEFAULT now()
 );
+-- Únicos pero solo entre los que tienen el dato (varios NULL conviven).
+CREATE UNIQUE INDEX IF NOT EXISTS employees_phone_key
+  ON employees (phone) WHERE phone IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS employees_email_key
+  ON employees (lower(email)) WHERE email IS NOT NULL;
+
+-- ---------- Dispositivos pareados (login de la app por código) ----------
+-- El CRM emite un código de 6 dígitos (device_pairing) que la app canjea por un
+-- token. En modo multi-negocio el registro vive en la central (lib/tenant.ts);
+-- esta tabla es el equivalente para el modo de un solo negocio. Ver lib/pairing.ts.
+CREATE TABLE IF NOT EXISTS device_pairing (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code_hash   text        NOT NULL,
+  expires_at  timestamptz NOT NULL,
+  attempts    int         NOT NULL DEFAULT 0,
+  created_by  uuid REFERENCES employees(id) ON DELETE SET NULL,
+  token       text UNIQUE,
+  paired_at   timestamptz,
+  revoked     boolean     NOT NULL DEFAULT false,
+  platform    text,
+  model       text,
+  os_version  text,
+  app_version text,
+  device_name text,
+  last_seen   timestamptz,
+  last_ip     text,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS device_pairing_pending
+  ON device_pairing (expires_at) WHERE token IS NULL AND NOT revoked;
+CREATE INDEX IF NOT EXISTS device_pairing_token
+  ON device_pairing (token) WHERE token IS NOT NULL;
 
 -- ---------- Cuentas de cliente (login de la tienda web) ----------
 CREATE TABLE IF NOT EXISTS customers (
@@ -63,10 +98,14 @@ CREATE TABLE IF NOT EXISTS couriers (
 
 -- ---------- Productos (catálogo) ----------
 CREATE TABLE IF NOT EXISTS products (
-  id          text PRIMARY KEY,             -- SKU / código (R208)
+  id          text PRIMARY KEY,             -- SKU / código interno (R208)
   name        text           NOT NULL,
   description text           NOT NULL DEFAULT '',
-  price       integer        NOT NULL DEFAULT 0,   -- Bs (enteros)
+  price       integer        NOT NULL DEFAULT 0,   -- Bs (venta)
+  cost        integer        NOT NULL DEFAULT 0,   -- Bs (costo)
+  -- Código de barras físico del producto (EAN/UPC/Code128). Distinto del SKU:
+  -- viene impreso de fábrica. Ver db/migrations/004_barcode.sql.
+  barcode     text           NOT NULL DEFAULT '',
   image       text           NOT NULL DEFAULT '',
   category    text           NOT NULL,
   featured    boolean        NOT NULL DEFAULT false,
@@ -75,6 +114,10 @@ CREATE TABLE IF NOT EXISTS products (
   created_at  timestamptz    NOT NULL DEFAULT now(),
   updated_at  timestamptz    NOT NULL DEFAULT now()
 );
+
+-- Un código de barras identifica un solo producto (los vacíos no compiten).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_products_barcode
+  ON products (barcode) WHERE barcode <> '';
 
 -- ---------- Ajustes del sitio (clave → JSON) ----------
 -- Config editable desde el panel (p. ej. la landing promocional /promo

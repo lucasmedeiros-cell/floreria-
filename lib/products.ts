@@ -1,10 +1,15 @@
-// ===== Configuración del negocio =====
-// Número de respaldo del negocio. En local/bilbo la tienda usa el número al que
-// está vinculado el Vendedor 24/7 (Baileys, vía /api/whatsapp/number); este
-// valor se usa cuando ese número no está disponible (p. ej. en Netlify, que es
-// serverless y no mantiene la conexión de Baileys).
+// ===== Producto (neutro, sirve a cualquier rubro) =====
+// El catálogo ya no vive acá: cada rubro trae el suyo (ver lib/rubros.ts) y el
+// negocio carga los propios desde el CRM. Este archivo solo define el modelo y
+// los helpers que comparten la tienda, el panel y el bot.
+
+/**
+ * Número de respaldo del negocio. La tienda usa el número al que está vinculado
+ * el Vendedor 24/7 (Baileys, vía /api/whatsapp/number) o el de Configuración;
+ * este valor solo entra cuando ninguno está disponible (p. ej. en Netlify, que
+ * es serverless y no mantiene la conexión de Baileys).
+ */
 export const kWhatsapp = "59177648081";
-export const kPayReference = "FLORESONLINE-EASYPAY";
 
 export type ProductStatus = "activo" | "inactivo";
 
@@ -12,22 +17,25 @@ export const productStatusLabel = (s: ProductStatus): string =>
   s === "activo" ? "Activo" : "Inactivo";
 
 export interface Product {
-  id: string; // SKU / código único (R208)
+  id: string; // SKU / código interno del negocio (R208, FT101, AP204…)
   name: string;
   desc: string;
-  price: number; // Bs
+  price: number; // Bs (venta)
+  /** Bs (costo). Lo que le cuesta al negocio; se carga al ingresar mercadería. */
+  cost?: number;
+  /**
+   * Código de barras FÍSICO del producto (EAN-13, UPC-A, Code128…), el impreso
+   * en el envase. No es el SKU: un repuesto trae su EAN de fábrica y el negocio
+   * le pone además su propio SKU. Vacío = el producto no tiene código.
+   */
+  barcode?: string;
+  /** Foto del producto. Vacío = se pinta el placeholder del rubro. */
   image: string;
   category: string;
   featured?: boolean;
   stock?: number;
   status?: ProductStatus;
 }
-
-export const kAll = "Todos";
-export const kCategories = [kAll, "Rosas", "Ramos", "Girasoles", "Exóticas"];
-
-/** Categorías seleccionables al registrar un producto (sin "Todos"). */
-export const kProductCategories = kCategories.filter((c) => c !== kAll);
 
 /**
  * Búsqueda rápida por SKU/código (id), nombre, categoría y palabras clave
@@ -38,28 +46,21 @@ export function searchProducts(list: Product[], q: string): Product[] {
   if (!t) return list;
   const terms = t.split(/\s+/);
   return list.filter((p) => {
-    const hay = `${p.id} ${p.name} ${p.category} ${p.desc}`.toLowerCase();
+    const hay =
+      `${p.id} ${p.name} ${p.category} ${p.desc} ${p.barcode ?? ""}`.toLowerCase();
     return terms.every((term) => hay.includes(term));
   });
 }
 
-export const kProducts: Product[] = [
-  { id: "R208", name: "Jardinera Premium", desc: "Peonías, rosas y eucalipto en jardinera de autor.", price: 1850, image: "/images/r208.jpg", category: "Ramos", featured: true },
-  { id: "R211", name: "Peonías de Lujo", desc: "Peonías magenta de tallo largo, frescura premium.", price: 1200, image: "/images/r211.jpg", category: "Ramos" },
-  { id: "R209", name: "Tulipanes Holandeses", desc: "Tulipanes de temporada, color vibrante y frescos.", price: 540, image: "/images/r209.jpg", category: "Ramos" },
-  { id: "R206", name: "Rosas Rojas Premium", desc: "Rosas rojas y protea en composición editorial.", price: 950, image: "/images/r206.jpg", category: "Rosas", featured: true },
-  { id: "R204", name: "Mensaje de Amor", desc: "Rosa roja de tallo largo para decir te amo.", price: 600, image: "/images/r204.jpg", category: "Rosas" },
-  { id: "R210", name: "Rosa Eterna", desc: "Rosa rosada en florero de cristal soplado.", price: 520, image: "/images/r210.jpg", category: "Rosas" },
-  { id: "R207", name: "Jardín Exótico Mix", desc: "Rosas multicolor, una explosión de color única.", price: 1100, image: "/images/r207.jpg", category: "Exóticas", featured: true },
-  { id: "R205", name: "Calas Naturalistas", desc: "Calas rosadas de líneas puras y elegantes.", price: 850, image: "/images/r205.jpg", category: "Exóticas" },
-  { id: "R201", name: "Lirio Estelar", desc: "Lirio rosado de pétalos amplios y perfumados.", price: 465, image: "/images/r201.jpg", category: "Exóticas" },
-  { id: "R212", name: "Girasoles Radiantes", desc: "Girasol gigante que ilumina cualquier espacio.", price: 480, image: "/images/r212.jpg", category: "Girasoles" },
-  { id: "R203", name: "Campo de Girasoles", desc: "Brazada de girasoles frescos recién cortados.", price: 420, image: "/images/r203.jpg", category: "Girasoles" },
-  { id: "R202", name: "Flores de Campo", desc: "Flores silvestres amarillas, estilo campestre.", price: 400, image: "/images/r202.jpg", category: "Girasoles" },
-];
+/** Busca por código de barras exacto (lo que devuelve el escáner). */
+export const findByBarcode = (list: Product[], code: string): Product | undefined => {
+  const c = code.trim();
+  return c ? list.find((p) => (p.barcode ?? "") === c) : undefined;
+};
 
-export const productById = (id: string): Product =>
-  kProducts.find((p) => p.id === id)!;
+/** Busca un producto por SKU dentro de un catálogo. */
+export const findProduct = (list: Product[], id: string): Product | undefined =>
+  list.find((p) => p.id === id);
 
 /** "1850" -> "1.850" (separador de miles es-BO). */
 function group(n: number): string {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Plus, ShieldCheck, X } from "lucide-react";
-import { useToast } from "@/context/StoreProvider";
+import { useBusiness, useToast } from "@/context/StoreProvider";
 import { PrimaryButton, OutlineButton } from "@/components/ui";
 
 interface TeamUser {
@@ -15,20 +15,18 @@ interface TeamUser {
 
 const ROLES = ["Administrador", "Vendedora", "Repartidor"];
 
-const roleColor = (r: string): string =>
-  (({ Administrador: "#E8366B", Vendedora: "#3B6FD4", Repartidor: "#F76F9C" } as Record<string, string>)[r] ?? "#6E6064");
+/** El rol principal se pinta con el color del rubro; los demás, con su color fijo. */
+const roleColor = (r: string, accent: string): string =>
+  (({ Administrador: accent, Vendedora: "#3B6FD4", Repartidor: `${accent}99` } as Record<string, string>)[r] ?? "#6E6064");
 
-const SEED: TeamUser[] = [
-  { id: "u1", name: "Ana Gómez", role: "Administrador", email: "ana@floresonline.com", active: true },
-  { id: "u2", name: "Luis Rodríguez", role: "Repartidor", email: "luis@floresonline.com", active: true },
-  { id: "u3", name: "Pedro Gutiérrez", role: "Repartidor", email: "pedro@floresonline.com", active: true },
-  { id: "u4", name: "Carla Méndez", role: "Vendedora", email: "carla@floresonline.com", active: true },
-];
+// Sin usuarios de ejemplo: el equipo se arma invitando gente desde el panel.
+const SEED: TeamUser[] = [];
 
 const initials = (n: string) => n.trim().split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("");
 
 export function UsuariosPage() {
   const { showToast } = useToast();
+  const { colors } = useBusiness();
   const [users, setUsers] = useState<TeamUser[]>(SEED);
   const [open, setOpen] = useState(false);
 
@@ -44,16 +42,28 @@ export function UsuariosPage() {
         <PrimaryButton label="Invitar usuario" icon={<Plus size={18} />} onClick={() => setOpen(true)} />
       </div>
 
+      {users.length === 0 && (
+        <div className="mt-6 flex flex-col items-center rounded-[18px] border border-dashed border-line bg-surface py-16 text-center">
+          <h3 className="text-[18px] font-semibold text-ink">Todavía no hay usuarios</h3>
+          <p className="mt-1.5 max-w-[380px] text-[13px] text-ink2">
+            Invita a los miembros del equipo que van a usar el panel.
+          </p>
+        </div>
+      )}
+
       <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
         {users.map((u) => (
           <div key={u.id} className="flex items-center gap-3.5 rounded-[18px] border border-line bg-surface p-[18px] shadow-soft">
-            <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-gradient-to-b from-[#E8366B] to-[#D81B60] text-[18px] font-bold text-white">
+            <span
+              className="flex h-[52px] w-[52px] items-center justify-center rounded-full text-[18px] font-bold text-white"
+              style={{ background: `linear-gradient(180deg,${colors.accent},${colors.accentDeep})` }}
+            >
               {initials(u.name)}
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <p className="truncate text-[15px] font-semibold text-ink">{u.name}</p>
-                <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: `${roleColor(u.role)}1a`, color: roleColor(u.role) }}>
+                <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: `${roleColor(u.role, colors.accent)}1a`, color: roleColor(u.role, colors.accent) }}>
                   {u.role}
                 </span>
               </div>
@@ -102,7 +112,7 @@ function InviteDialog({ onClose, onSave }: { onClose: () => void; onSave: (u: Te
         </div>
         <div className="mt-4 flex flex-col gap-3">
           <FieldRow label="Nombre" value={name} onChange={setName} placeholder="Nombre y apellido" />
-          <FieldRow label="Correo" value={email} onChange={setEmail} placeholder="correo@floresonline.com" type="email" />
+          <FieldRow label="Correo" value={email} onChange={setEmail} placeholder="correo@empresa.com" type="email" />
           <label className="block">
             <span className="text-[12px] font-semibold text-ink2">Rol</span>
             <select value={role} onChange={(e) => setRole(e.target.value)} className="mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none focus:border-pink">

@@ -4,6 +4,10 @@ import { consultarEstado } from "@/lib/baas";
 
 export const runtime = "nodejs";
 
+// Toda ruta de la API resuelve a qué negocio pertenece la request (lee headers
+// en `handler()`), así que nunca se puede renderizar estáticamente.
+export const dynamic = "force-dynamic";
+
 // POST /api/payments/status  { correlativo, qrId }
 // Consulta al BaaS si el QR ya fue pagado (polling desde el checkout).
 export const POST = handler(async (req: NextRequest) => {

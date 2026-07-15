@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { Check, Minus, Plus, ShoppingCart } from "lucide-react";
 import { Product, bs } from "@/lib/products";
 import { useCart, useToast } from "@/context/StoreProvider";
+import { ProductImage } from "./ProductImage";
 
-/** Tarjeta de producto — estilo ".pcard" del mockup, con foto real. */
+/** Tarjeta de producto — estilo ".pcard" del mockup. Sin foto cae al placeholder del rubro. */
 export function ProductCard({
   product: p,
   index,
@@ -33,12 +33,12 @@ export function ProductCard({
     <div className="group flex flex-col rounded-[14px] border border-line bg-white p-4 transition-all duration-200 hover:-translate-y-[3px] hover:shadow-[0_6px_24px_rgba(0,0,0,0.08)]">
       {/* Foto */}
       <div className="relative mb-3.5 aspect-square overflow-hidden rounded-[10px]">
-        <Image
+        <ProductImage
           src={p.image}
           alt={p.name}
-          fill
           sizes="(max-width:520px) 50vw,(max-width:860px) 33vw, 25vw"
           className="object-cover transition-transform duration-500 group-hover:scale-[1.06]"
+          iconSize={40}
         />
       </div>
 

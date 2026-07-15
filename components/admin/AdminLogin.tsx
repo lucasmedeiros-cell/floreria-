@@ -1,5 +1,6 @@
 "use client";
 
+import { useLink } from "@/lib/negocioLink";
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -17,8 +18,9 @@ import {
   User,
   UserPlus,
 } from "lucide-react";
-import { useAuth } from "@/context/StoreProvider";
-import { FlowerMark, Wordmark } from "@/components/Brand";
+import { useAuth, useBusiness } from "@/context/StoreProvider";
+import { EASYPOS } from "@/lib/easypos";
+import { BrandMark, Wordmark } from "@/components/Brand";
 import { PrimaryButton } from "@/components/ui";
 
 type Mode = "login" | "register";
@@ -40,7 +42,7 @@ export function AdminLogin() {
 // ===================== Iniciar sesión =====================
 function LoginForm({ onRegister }: { onRegister: () => void }) {
   const auth = useAuth();
-  const [email, setEmail] = useState("ana@floresonline.com");
+  const [email, setEmail] = useState("");
   const [pass, setPass] = useState("demo1234");
   const [obscure, setObscure] = useState(false);
 
@@ -72,7 +74,7 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
           autoFocus
           value={email}
           onChange={setEmail}
-          placeholder="tucorreo@floresonline.com"
+          placeholder="tucorreo@empresa.com"
         />
 
         <Field
@@ -110,7 +112,7 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
       <div className="mt-4 flex items-start gap-2 rounded-xl border border-line bg-surface2 p-3">
         <Info size={16} className="mt-px shrink-0 text-pink" />
         <span className="text-[11.5px] leading-relaxed text-ink2">
-          Demo: los datos ya están cargados, solo toca “Ingresar al panel”.
+          Ingresa con el correo de tu cuenta de empleado.
         </span>
       </div>
 
@@ -165,7 +167,7 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
           autoComplete="email"
           value={email}
           onChange={setEmail}
-          placeholder="tucorreo@floresonline.com"
+          placeholder="tucorreo@empresa.com"
           className="mt-4"
         />
 
@@ -233,23 +235,22 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
 
 // ===================== Compartidos =====================
 function FormShell({ children }: { children: React.ReactNode }) {
+  const business = useBusiness();
+  // La foto de fondo es de la florería: solo se usa en ese rubro (o si el
+  // negocio cargó una propia). El resto ve un degradado con su color de marca.
+  const photo = business.rubro.id === "floreria" ? "/images/hero.jpg" : "";
+
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-5 py-10 sm:px-7">
-      {/* Fondo rosa oscuro con imagen floral */}
-      <Image
-        src="/images/hero.jpg"
-        alt=""
-        fill
-        priority
-        sizes="55vw"
-        className="object-cover"
-      />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-pinkDeep px-5 py-10 sm:px-7">
+      {photo && (
+        <Image src={photo} alt="" fill priority sizes="55vw" className="object-cover" />
+      )}
       <div className="absolute inset-0 bg-gradient-to-br from-pinkDeep/95 via-pink/85 to-pinkDeep/90" />
 
       {/* Tarjeta del formulario */}
-      <div className="relative w-full max-w-[420px] rounded-[26px] border border-white/60 bg-white p-7 shadow-[0_30px_70px_-20px_rgba(140,10,50,0.55)] sm:p-9">
+      <div className="relative w-full max-w-[420px] rounded-[26px] border border-white/60 bg-white p-7 shadow-[0_30px_70px_-20px_rgba(0,0,0,0.35)] sm:p-9">
         <div className="mb-5 flex justify-center lg:hidden">
-          <FlowerMark size={52} />
+          <BrandMark size={52} />
         </div>
         {children}
       </div>
@@ -272,6 +273,7 @@ function Header({ title, subtitle }: { title: string; subtitle: string }) {
 }
 
 function BrandPanel() {
+  const business = useBusiness();
   return (
     <div className="relative hidden overflow-hidden bg-pinkHero lg:flex lg:flex-col lg:justify-between lg:p-12">
       {/* Halos decorativos suaves */}
@@ -280,7 +282,7 @@ function BrandPanel() {
 
       {/* Marca */}
       <div className="relative flex items-center gap-3">
-        <FlowerMark size={44} />
+        <BrandMark size={44} />
         <Wordmark />
       </div>
 
@@ -325,8 +327,16 @@ function BrandPanel() {
             </div>
           ))}
         </div>
-        <p className="mt-9 text-[11.5px] text-faint">
-          © 2026 FloresOnline · Arte floral en cada detalle
+        {/* Sello del producto: el CRM es easy pos; el negocio es quien lo usa. */}
+        <div className="mt-9 flex items-center gap-2.5">
+          <Image src={EASYPOS.logo} alt="" width={30} height={30} className="rounded-[6px]" />
+          <span className="text-[11px] font-bold uppercase tracking-[2px] text-ink2">
+            {EASYPOS.name}
+          </span>
+          <span className="text-[11px] text-faint">· {EASYPOS.tagline.toLowerCase()}</span>
+        </div>
+        <p className="mt-3 text-[11.5px] text-faint">
+          © 2026 {business.name} · {business.tagline.toLowerCase()}
         </p>
       </div>
     </div>
@@ -455,9 +465,10 @@ function ErrorBanner({ msg }: { msg: string }) {
 }
 
 function BackToStore() {
+  const link = useLink();
   return (
     <Link
-      href="/"
+      href={link("/")}
       className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-line bg-surface px-[26px] py-[13px] text-[13px] font-semibold text-ink transition-colors hover:border-pink hover:text-pink"
     >
       <ArrowLeft size={18} className="text-pink" /> Volver a la tienda

@@ -4,6 +4,10 @@ import { generarQR } from "@/lib/baas";
 
 export const runtime = "nodejs";
 
+// Toda ruta de la API resuelve a qué negocio pertenece la request (lee headers
+// en `handler()`), así que nunca se puede renderizar estáticamente.
+export const dynamic = "force-dynamic";
+
 // POST /api/payments/qr  { amount, gloss? }
 // Genera un QR dinámico del BCP (vía BaaS) por el monto de la compra.
 export const POST = handler(async (req: NextRequest) => {

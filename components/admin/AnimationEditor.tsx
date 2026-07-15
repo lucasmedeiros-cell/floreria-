@@ -1,5 +1,6 @@
 "use client";
 
+import { apiUrl } from "@/lib/apiBase";
 import { useEffect, useState } from "react";
 import { Loader2, Play, Save, Sparkles } from "lucide-react";
 import { defaultAnimConfig, type AnimConfig } from "@/lib/anim";
@@ -15,7 +16,7 @@ export function AnimationEditor() {
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/anim")
+    fetch(apiUrl("/api/anim"))
       .then((r) => r.json())
       .then((data: AnimConfig) => {
         if (alive) setCfg({ ...defaultAnimConfig, ...data });
@@ -33,7 +34,7 @@ export function AnimationEditor() {
   const save = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/anim", {
+      const res = await fetch(apiUrl("/api/anim"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(cfg),
@@ -77,15 +78,15 @@ export function AnimationEditor() {
       ) : (
         <div className="mt-4 flex flex-col gap-3">
           <ToggleRow
-            title="Animación de la web (rosa que pierde sus pétalos)"
+            title="Animación de la web (intro con el logo del rubro)"
             desc="Se muestra al abrir la página pública (inicio)."
             checked={cfg.web}
             onChange={() => set("web", !cfg.web)}
             onPreview={() => replay("web")}
           />
           <ToggleRow
-            title="Animación del panel (flor que florece)"
-            desc="Se muestra al entrar al panel de administración."
+            title="Splash del panel (logo de easy pos)"
+            desc="Se muestra al entrar al CRM, con el negocio y su rubro."
             checked={cfg.admin}
             onChange={() => set("admin", !cfg.admin)}
             onPreview={() => replay("admin")}

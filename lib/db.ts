@@ -1,8 +1,14 @@
 import { Pool, type QueryResultRow } from "pg";
+import { currentTenant } from "./tenant";
 
 /**
- * Pool de conexiones PostgreSQL compartido.
- * Usa DATABASE_URL; en desarrollo se reutiliza entre recargas (HMR).
+ * Pool de conexiones PostgreSQL por defecto.
+ *
+ * Usa DATABASE_URL; en desarrollo se reutiliza entre recargas (HMR). Es la base
+ * del modo de un solo negocio (y la de las rutas viejas `/`, `/admin`).
+ * Cuando la request pertenece a un negocio pareado (`/n/<slug>` o token de
+ * dispositivo), `activePool()` devuelve el pool de LA BASE DE ESE NEGOCIO y
+ * esta queda sin usar. Ver `lib/tenant.ts`.
  */
 const globalForPg = globalThis as unknown as {
   pgPool?: Pool;
@@ -39,12 +45,21 @@ if (!globalForPg.pgPoolErrorBound) {
   globalForPg.pgPoolErrorBound = true;
 }
 
+/**
+ * La base contra la que corre la consulta: la del negocio de esta request si
+ * hay uno resuelto, o la de `DATABASE_URL` si no. Por esto las rutas de la API
+ * no tienen que pasar el negocio a mano en cada consulta.
+ */
+export function activePool(): Pool {
+  return currentTenant()?.pool ?? pool;
+}
+
 /** Helper tipado: ejecuta una consulta y devuelve las filas. */
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: unknown[]
 ): Promise<T[]> {
-  const res = await pool.query<T>(text, params as never[]);
+  const res = await activePool().query<T>(text, params as never[]);
   return res.rows;
 }
 
@@ -61,7 +76,7 @@ export async function queryOne<T extends QueryResultRow = QueryResultRow>(
 export async function withTransaction<T>(
   fn: (client: import("pg").PoolClient) => Promise<T>
 ): Promise<T> {
-  const client = await pool.connect();
+  const client = await activePool().connect();
   try {
     await client.query("BEGIN");
     const result = await fn(client);

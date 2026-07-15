@@ -11,7 +11,9 @@ import { headers } from "next/headers";
 import { NextRequest } from "next/server";
 import { queryOne, query } from "./db";
 
-export const CENTRAL_BUSINESS_ID = "floreria";
+// Identificador con el que este negocio está dado de alta en COMANDER.
+// NO cambiar por el rubro: es la clave de la integración ya registrada.
+export const CENTRAL_BUSINESS_ID = process.env.CENTRAL_BUSINESS_ID ?? "floreria";
 export const CENTRAL_CURRENCY = "BOB";
 
 /** Estados de pedido que NO cuentan como venta (coincide con el dashboard). */

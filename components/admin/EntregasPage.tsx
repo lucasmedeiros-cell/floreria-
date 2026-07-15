@@ -3,7 +3,7 @@
 import { Bike, MapPin, Phone, Truck, PackageCheck, Navigation } from "lucide-react";
 import { fmtDate, orderTotal, statusColor, statusLabel } from "@/lib/adminData";
 import { bs2 } from "@/lib/products";
-import { useOrders, useToast } from "@/context/StoreProvider";
+import { useBusiness, useOrders, useToast } from "@/context/StoreProvider";
 import { openWhatsapp } from "@/lib/whatsapp";
 import { OutlineButton, PrimaryButton } from "@/components/ui";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
@@ -13,6 +13,7 @@ const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.g
 
 export function EntregasPage() {
   const model = useOrders();
+  const { colors } = useBusiness();
   const { showToast } = useToast();
   const today = new Date();
 
@@ -33,7 +34,7 @@ export function EntregasPage() {
 
       {/* Resumen */}
       <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <MiniStat icon={<Navigation size={20} />} label="En camino" value={`${enCamino}`} color="#F76F9C" />
+        <MiniStat icon={<Navigation size={20} />} label="En camino" value={`${enCamino}`} color={`${colors.accent}99`} />
         <MiniStat icon={<Truck size={20} />} label="Programadas hoy" value={`${progHoy}`} color="#3B6FD4" />
         <MiniStat icon={<PackageCheck size={20} />} label="Entregadas hoy" value={`${entHoy}`} color="#2EA66B" />
       </div>
@@ -101,7 +102,7 @@ export function EntregasPage() {
                         onClick={() => {
                           const p = o.phone.replace(/\D/g, "");
                           if (!p) return showToast("Este cliente no tiene teléfono");
-                          const msg = `Hola ${o.clientName} 🌷, tu pedido ${o.code} está *${statusLabel(o.status)}*. Entrega: ${fmtDate(o.deliveryDate)} ${o.deliveryTime}.`;
+                          const msg = `Hola ${o.clientName}, tu pedido ${o.code} está *${statusLabel(o.status)}*. Entrega: ${fmtDate(o.deliveryDate)} ${o.deliveryTime}.`;
                           openWhatsapp(msg, `591${p}`);
                         }}
                       />

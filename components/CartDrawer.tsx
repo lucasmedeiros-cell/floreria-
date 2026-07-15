@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { ChevronRight, Minus, Plus, ShoppingCart, X } from "lucide-react";
 import { WhatsAppIcon } from "./WhatsAppIcon";
-import { bs, productById } from "@/lib/products";
-import { useCart } from "@/context/StoreProvider";
+import { bs } from "@/lib/products";
+import { useBusiness, useCart, useProducts } from "@/context/StoreProvider";
+import { ProductImage } from "./ProductImage";
 
 export function CartDrawer({
   open,
@@ -17,6 +17,7 @@ export function CartDrawer({
   onContinue: () => void;
 }) {
   const cart = useCart();
+  const { noun, rubro } = useBusiness();
   const ids = cart.ids;
 
   return (
@@ -72,7 +73,7 @@ export function CartDrawer({
               <p>
                 Tu carrito está vacío.
                 <br />
-                Agrega un arreglo para empezar 🌷
+                Agrega un {noun.one} para empezar {rubro.emoji}
               </p>
             </div>
           ) : (
@@ -106,12 +107,13 @@ export function CartDrawer({
 
 function CartItem({ id }: { id: string }) {
   const cart = useCart();
-  const p = productById(id);
+  const p = useProducts().byId(id);
   const q = cart.qty(id);
+  if (!p) return null;
   return (
     <div className="flex items-center gap-3.5 rounded-[14px] border border-line p-3">
       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[10px]">
-        <Image src={p.image} alt={p.name} fill sizes="64px" className="object-cover" />
+        <ProductImage src={p.image} alt={p.name} sizes="64px" iconSize={22} />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[.82rem] font-semibold leading-tight text-ink">

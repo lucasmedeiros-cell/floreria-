@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Bike, CalendarCheck, MapPin } from "lucide-react";
 import { fmtDate } from "@/lib/adminData";
-import { useOrders } from "@/context/StoreProvider";
+import { useBusiness, useOrders } from "@/context/StoreProvider";
 import { StatusChip } from "./OrdersPage";
 
 const WD = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -12,6 +12,7 @@ const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.g
 
 export function AgendaPage() {
   const { orders } = useOrders();
+  const { colors } = useBusiness();
   const today = new Date();
   const [sel, setSel] = useState<Date>(today);
 
@@ -47,7 +48,7 @@ export function AgendaPage() {
               <span className="text-[24px] font-bold leading-tight">{d.getDate()}</span>
               <span
                 className="mt-1 rounded-full px-2 text-[10.5px] font-bold"
-                style={active ? { background: "rgba(255,255,255,.25)", color: "#fff" } : count ? { background: "#E8366B1a", color: "#E8366B" } : { color: "#9C9094" }}
+                style={active ? { background: "rgba(255,255,255,.25)", color: "#fff" } : count ? { background: `${colors.accent}1a`, color: colors.accent } : { color: "#9C9094" }}
               >
                 {count || "—"}
               </span>

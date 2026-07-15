@@ -18,8 +18,12 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useAuth } from "@/context/StoreProvider";
-import { FlowerMark, Wordmark } from "@/components/Brand";
+import { useAuth, useBusiness } from "@/context/StoreProvider";
+import { BrandMark, Wordmark } from "@/components/Brand";
+import Image from "next/image";
+import { Icon } from "@/components/Icon";
+import { EASYPOS } from "@/lib/easypos";
+import type { ModuleId } from "@/lib/modules";
 import { PrimaryButton } from "@/components/ui";
 import { NewOrderPage } from "./NewOrderPage";
 import { OrdersPage } from "./OrdersPage";
@@ -31,7 +35,7 @@ import { ReportesPage } from "./ReportesPage";
 import { ConfiguracionPage } from "./ConfiguracionPage";
 import { UsuariosPage } from "./UsuariosPage";
 import { DashboardPage } from "./DashboardPage";
-import { AdminIntro } from "./AdminIntro";
+import { EasyPosSplash } from "./EasyPosSplash";
 import { DebugReporter } from "../DebugReporter";
 
 type Section =
@@ -50,30 +54,44 @@ interface NavDef {
   s: Section;
   icon: React.ReactNode;
   label: string;
+  /**
+   * Módulo que hay que tener prendido para ver esta sección. Sin `mod`, la
+   * sección es del núcleo del CRM y se ve siempre (Pedidos, Configuración).
+   */
+  mod?: ModuleId;
 }
 
 const NAV: NavDef[] = [
   { s: "pedidos", icon: <ListOrdered size={19} />, label: "Pedidos" },
-  { s: "agenda", icon: <CalendarClock size={19} />, label: "Agenda" },
-  { s: "clientes", icon: <Users size={19} />, label: "Clientes" },
-  { s: "productos", icon: <Flower2 size={19} />, label: "Productos" },
-  { s: "entregas", icon: <Truck size={19} />, label: "Entregas" },
-  { s: "reportes", icon: <LineChart size={19} />, label: "Reportes" },
+  { s: "agenda", icon: <CalendarClock size={19} />, label: "Agenda", mod: "agenda" },
+  { s: "clientes", icon: <Users size={19} />, label: "Clientes", mod: "clientes" },
+  { s: "productos", icon: <Flower2 size={19} />, label: "Productos", mod: "productos" },
+  { s: "entregas", icon: <Truck size={19} />, label: "Entregas", mod: "entregas" },
+  { s: "reportes", icon: <LineChart size={19} />, label: "Reportes", mod: "reportes" },
   { s: "configuracion", icon: <Settings size={19} />, label: "Configuración" },
-  { s: "usuarios", icon: <IdCard size={19} />, label: "Usuarios" },
+  { s: "usuarios", icon: <IdCard size={19} />, label: "Usuarios", mod: "usuarios" },
 ];
 
 export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
   const [section, setSection] = useState<Section>("inicio");
   const [drawer, setDrawer] = useState(false);
+  // Qué secciones usa este negocio (Configuración → Módulos del CRM).
+  const modules = useBusiness().modules;
 
   const go = (s: Section) => {
     setSection(s);
     setDrawer(false);
   };
 
+  // Si se apaga el módulo de la sección que estás mirando, el CRM te devuelve a
+  // Inicio en vez de dejarte en una pantalla que ya no debería existir.
+  const nav = NAV.filter((n) => !n.mod || modules[n.mod]);
+  const visible = NAV.find((n) => n.s === section);
+  const seccion: Section =
+    visible && visible.mod && !modules[visible.mod] ? "inicio" : section;
+
   const page = () => {
-    switch (section) {
+    switch (seccion) {
       case "inicio":
         return <DashboardPage />;
       case "nuevoPedido":
@@ -99,11 +117,11 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
 
   return (
     <div className="flex h-screen bg-bg">
-      <AdminIntro enabled={adminIntro} />
+      <EasyPosSplash enabled={adminIntro} />
 
       {/* Sidebar (lg) */}
       <div className="hidden lg:block">
-        <Sidebar current={section} onSelect={go} />
+        <Sidebar current={seccion} nav={nav} onSelect={go} />
       </div>
 
       {/* Drawer (mobile) */}
@@ -111,7 +129,7 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
         <div className="fixed inset-0 z-[70] lg:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setDrawer(false)} />
           <div className="absolute left-0 top-0 h-full">
-            <Sidebar current={section} onSelect={go} onClose={() => setDrawer(false)} />
+            <Sidebar current={seccion} nav={nav} onSelect={go} onClose={() => setDrawer(false)} />
           </div>
         </div>
       )}
@@ -122,7 +140,7 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
           <button onClick={() => setDrawer(true)} className="text-ink">
             <Menu size={24} />
           </button>
-          <FlowerMark size={28} />
+          <BrandMark size={28} />
           <Wordmark />
         </div>
         <div className="flex-1 overflow-hidden">{page()}</div>
@@ -135,14 +153,18 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
 
 function Sidebar({
   current,
+  nav,
   onSelect,
   onClose,
 }: {
   current: Section;
+  /** Menú ya filtrado por los módulos que usa el negocio. */
+  nav: NavDef[];
   onSelect: (s: Section) => void;
   onClose?: () => void;
 }) {
   const auth = useAuth();
+  const business = useBusiness();
   const initials = auth.name
     .trim()
     .split(" ")
@@ -175,14 +197,21 @@ function Sidebar({
 
   return (
     <div className="flex h-full w-64 flex-col border-r border-line bg-white">
-      <div className="flex items-center gap-2.5 px-5 pb-4 pt-5">
-        <FlowerMark size={38} />
+      <div className="flex items-center gap-2.5 px-5 pb-2 pt-5">
+        <BrandMark size={38} />
         <Wordmark />
         {onClose && (
           <button onClick={onClose} className="ml-auto text-ink2">
             <X size={20} />
           </button>
         )}
+      </div>
+      {/* Rubro activo: se cambia en Configuración → Rubro del negocio. */}
+      <div className="px-5 pb-4">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-pinkSoft px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[1px] text-pink">
+          <Icon name={business.rubro.icon} size={12} />
+          {business.rubro.label}
+        </span>
       </div>
       <div className="px-4">
         <PrimaryButton
@@ -196,7 +225,7 @@ function Sidebar({
         <div className="flex flex-col gap-0.5">
           {item({ s: "inicio", icon: <Home size={19} />, label: "Inicio" })}
           {item({ s: "nuevoPedido", icon: <PlusSquare size={19} />, label: "Nuevo Pedido" })}
-          {NAV.map((n) => item(n))}
+          {nav.map((n) => item(n))}
         </div>
       </div>
       <div className="h-px bg-line" />
@@ -211,6 +240,13 @@ function Sidebar({
         <button onClick={auth.logout} title="Cerrar sesión" className="text-ink2 hover:text-pink">
           <LogOut size={19} />
         </button>
+      </div>
+      {/* Marca del producto: el CRM es easy pos (el negocio es el inquilino). */}
+      <div className="flex items-center justify-center gap-2 border-t border-line py-3">
+        <Image src={EASYPOS.logo} alt="" width={22} height={22} className="rounded-[4px]" />
+        <span className="text-[10.5px] font-bold uppercase tracking-[2px] text-faint">
+          {EASYPOS.name}
+        </span>
       </div>
     </div>
   );

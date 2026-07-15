@@ -1,6 +1,9 @@
 // ===== Landing promocional (oferta destacada) =====
-// Configura aquí la promoción que se muestra en /promo.
-// Cambia el producto, precios, textos y la fecha de vigencia.
+// La landing /promo se configura desde el panel (Configuración → Landing).
+// Sus valores por defecto salen del RUBRO activo (lib/rubros.ts): al cambiar de
+// rubro, la promo se regenera con el producto estrella de ese rubro.
+
+import { DEFAULT_RUBRO_ID, getRubro, type RubroId } from "./rubros";
 
 export interface PromoStat {
   value: string;
@@ -8,7 +11,7 @@ export interface PromoStat {
 }
 
 export interface PromoHighlight {
-  /** Nombre de un icono de lucide-react (ver ICONS en PromoLanding). */
+  /** Nombre de un icono (ver components/Icon.tsx). */
   icon: string;
   title: string;
   text?: string;
@@ -45,63 +48,40 @@ export interface PromoConfig extends Promo {
   enabled: boolean;
 }
 
-export const kPromo: Promo = {
-  productId: "R208",
-  eyebrow: "Edición limitada",
-  badge: "-23%",
-  title: "Jardinera Premium de temporada",
-  subtitle:
-    "Peonías, rosas y eucalipto compuestos a mano en una jardinera de autor. Una pieza que enamora a primera vista.",
-  productName: "Jardinera Premium",
-  description:
-    "Nuestra composición más pedida, ahora en edición limitada. Cada jardinera se arma el mismo día con flores frescas premium seleccionadas al amanecer, para que llegue impecable y perfume cada rincón. Ideal para aniversarios, cumpleaños o simplemente para decir «pienso en ti».",
-  price: 1850,
-  originalPrice: 2400,
-  validUntil: "2026-07-15T23:59:59",
-  image: "/images/r208.jpg",
-  imageAlt: "/images/r206.jpg",
-  stats: [
-    { value: "+2.000", label: "Clientes felices" },
-    { value: "4.9★", label: "Valoración" },
-    { value: "Hoy", label: "Entrega el mismo día" },
-    { value: "100%", label: "Flores frescas" },
-  ],
-  highlights: [
-    {
-      icon: "Flower2",
-      title: "Flores premium",
-      text: "Selección diaria de la mejor calidad.",
-    },
-    {
-      icon: "Brush",
-      title: "Diseño de autor",
-      text: "Hecho a mano, nunca dos iguales.",
-    },
-    {
-      icon: "Truck",
-      title: "Entrega el mismo día",
-      text: "Pedidos antes de las 15:00 en Santa Cruz.",
-    },
-    {
-      icon: "Heart",
-      title: "Tarjeta dedicatoria",
-      text: "Incluimos tu mensaje de regalo.",
-    },
-    {
-      icon: "Leaf",
-      title: "Frescura garantizada",
-      text: "Flores que duran, cuidadas hasta tu puerta.",
-    },
-    {
-      icon: "ShieldCheck",
-      title: "Pago seguro",
-      text: "Compra protegida con EasyPay.",
-    },
-  ],
-  ctaLabel: "Pedir por WhatsApp",
-  whatsappMessage:
-    "Hola FloresOnline 🌷, quiero pedir la *Jardinera Premium* de la promoción.",
-};
+/** Promo por defecto de un rubro: su producto estrella con textos ya escritos. */
+export function promoFromRubro(
+  rubroId: RubroId,
+  businessName?: string
+): PromoConfig {
+  const r = getRubro(rubroId);
+  const p = r.promo;
+  const name = businessName ?? r.brandName;
+  const hero = r.catalog.find((x) => x.id === p.productId);
+  const alt = r.catalog.find((x) => x.featured && x.id !== p.productId);
 
-/** Config por defecto (promo original + activada). Server-safe. */
-export const defaultPromoConfig: PromoConfig = { ...kPromo, enabled: true };
+  return {
+    // Instalación nueva (rubro sin definir): la landing queda despublicada
+    // hasta que se configure desde el panel.
+    enabled: rubroId !== "generico",
+    productId: p.productId,
+    eyebrow: p.eyebrow,
+    badge: p.badge,
+    title: p.title,
+    subtitle: p.subtitle,
+    productName: p.productName,
+    description: p.description,
+    price: p.price,
+    originalPrice: p.originalPrice,
+    // Sin fecha límite: la cuenta regresiva se activa al fijar una en el panel.
+    validUntil: undefined,
+    image: hero?.image ?? "",
+    imageAlt: alt?.image ?? "",
+    stats: p.stats,
+    highlights: p.highlights,
+    ctaLabel: p.ctaLabel,
+    whatsappMessage: `¡Hola ${name}! ${r.emoji} Quiero pedir la promoción de *${p.productName}*.`,
+  };
+}
+
+/** Config por defecto (rubro por defecto + activada). Server-safe. */
+export const defaultPromoConfig: PromoConfig = promoFromRubro(DEFAULT_RUBRO_ID);

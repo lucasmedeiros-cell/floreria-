@@ -1,36 +1,46 @@
 "use client";
 
 import Image from "next/image";
+import { useBusiness } from "@/context/StoreProvider";
+import { Icon } from "./Icon";
 
-/** Marca (flor) — logo real de FloresOnline. */
-export function FlowerMark({ size = 40 }: { size?: number }) {
+/**
+ * Isotipo del negocio: el logo cargado en Configuración o, si no hay ninguno,
+ * el icono del rubro sobre el color de marca.
+ */
+export function BrandMark({ size = 40 }: { size?: number }) {
+  const b = useBusiness();
+
+  if (b.logoUrl) {
+    return (
+      <Image
+        src={b.logoUrl}
+        alt={b.name}
+        width={Math.round(size * 0.94)}
+        height={size}
+        loading="eager"
+        className="shrink-0 object-contain"
+      />
+    );
+  }
+
   return (
-    <Image
-      src="/images/logo-mark.png"
-      alt="FloresOnline"
-      width={Math.round(size * 0.94)}
-      height={size}
-      loading="eager"
-      className="shrink-0 object-contain"
-    />
+    <span
+      aria-label={b.name}
+      className="grid shrink-0 place-items-center rounded-[12px] bg-pinkSoft text-pink"
+      style={{ width: size, height: size }}
+    >
+      <Icon name={b.rubro.icon} size={Math.round(size * 0.58)} />
+    </span>
   );
 }
 
-/** Logo completo (marca + texto) para usos donde luce el lockup horizontal. */
-export function LogoLockup({ height = 40 }: { height?: number }) {
-  return (
-    <Image
-      src="/images/logo.png"
-      alt="FloresOnline"
-      width={Math.round(height * (942 / 225))}
-      height={height}
-      loading="eager"
-      className="object-contain"
-    />
-  );
-}
-
+/** Nombre del negocio + bajada, con la primera parte en tipografía fina. */
 export function Wordmark({ light = false }: { light?: boolean }) {
+  const b = useBusiness();
+  const light1 = b.nameLight && b.name.startsWith(b.nameLight) ? b.nameLight : "";
+  const rest = light1 ? b.name.slice(light1.length) : b.name;
+
   return (
     <span className="flex flex-col leading-none">
       <span
@@ -38,14 +48,15 @@ export function Wordmark({ light = false }: { light?: boolean }) {
           light ? "text-white" : "text-ink"
         }`}
       >
-        <b className="font-light">Flores</b>Online
+        {light1 && <b className="font-light">{light1}</b>}
+        {rest}
       </span>
       <span
         className={`mt-[1px] text-[.52rem] font-medium tracking-[3px] ${
           light ? "text-white/60" : "text-faint"
         }`}
       >
-        ARTE FLORAL EN CADA DETALLE
+        {b.tagline}
       </span>
     </span>
   );

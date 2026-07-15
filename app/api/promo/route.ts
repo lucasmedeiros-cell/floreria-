@@ -1,8 +1,12 @@
 import { NextRequest } from "next/server";
 import { handler, ok, unauthorized } from "@/lib/api";
 import { getSession } from "@/lib/auth";
-import { readPromoConfig, writePromoConfig } from "@/lib/promoStore";
-import { defaultPromoConfig, type PromoConfig } from "@/lib/promo";
+import {
+  defaultPromoForBusiness,
+  readPromoConfig,
+  writePromoConfig,
+} from "@/lib/promoStore";
+import type { PromoConfig } from "@/lib/promo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,9 +21,12 @@ export const POST = handler(async (req: NextRequest) => {
   if (!getSession("employee")) return unauthorized();
   const b = (await req.json()) as Partial<PromoConfig>;
 
+  // Los defaults salen del rubro activo del negocio, no de la florería.
+  const base = await defaultPromoForBusiness();
+
   // Normaliza/sanea los campos editables.
   const cfg: PromoConfig = {
-    ...defaultPromoConfig,
+    ...base,
     ...b,
     enabled: b.enabled ?? true,
     price: Math.round(Number(b.price) || 0),
@@ -27,8 +34,8 @@ export const POST = handler(async (req: NextRequest) => {
       b.originalPrice == null || b.originalPrice === ("" as unknown)
         ? undefined
         : Math.round(Number(b.originalPrice) || 0),
-    productName: (b.productName ?? defaultPromoConfig.productName).trim(),
-    title: (b.title ?? defaultPromoConfig.title).trim(),
+    productName: (b.productName ?? base.productName).trim(),
+    title: (b.title ?? base.title).trim(),
   };
 
   return ok(await writePromoConfig(cfg));

@@ -16,14 +16,19 @@ const config: Config = {
         surface: "#FFFFFF",
         surface2: "#FBF6F0",
         line: "#E7DDD2",
-        rose: "#B11E4B",
-        roseDeep: "#8C153A",
-        wine: "#6E1733",
-        // Paleta rosa del mockup HTML (storefront)
-        pink: "#E8366B",
-        pinkDeep: "#D81B60",
-        pinkSoft: "#FCE9EF",
-        pinkHero: "#FDF1F4",
+        // ---------------------------------------------------------------
+        // Color de marca = el del RUBRO activo (lib/rubros.ts). Las variables
+        // las inyecta app/layout.tsx en <body> a partir de la config del
+        // negocio, así que cambiar de rubro repinta toda la UI sin tocar clases.
+        // Los nombres "pink*" quedaron del diseño original de la florería.
+        // ---------------------------------------------------------------
+        pink: "rgb(var(--c-accent) / <alpha-value>)",
+        pinkDeep: "rgb(var(--c-accent-deep) / <alpha-value>)",
+        pinkSoft: "rgb(var(--c-accent-soft) / <alpha-value>)",
+        pinkHero: "rgb(var(--c-accent-hero) / <alpha-value>)",
+        rose: "rgb(var(--c-accent) / <alpha-value>)",
+        roseDeep: "rgb(var(--c-accent-deep) / <alpha-value>)",
+        wine: "rgb(var(--c-accent-deep) / <alpha-value>)",
         greenOk: "#2EB872",
         gold: "#B8924A",
         goldSoft: "#CBA869",

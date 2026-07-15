@@ -1,14 +1,17 @@
 "use client";
 
 import { DollarSign, ReceiptText, PackageCheck, Users } from "lucide-react";
-import { kClients, orderStatuses, orderTotal, statusColor, statusLabel } from "@/lib/adminData";
+import { orderStatuses, orderTotal, statusColor, statusLabel } from "@/lib/adminData";
+import { useClients } from "@/lib/clientsClient";
 import { bs2 } from "@/lib/products";
-import { useOrders } from "@/context/StoreProvider";
+import { useBusiness, useOrders } from "@/context/StoreProvider";
 
 const MS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
 export function ReportesPage() {
   const { orders, countByStatus } = useOrders();
+  const { colors } = useBusiness();
+  const { clients } = useClients();
   const valid = orders.filter((o) => o.status !== "cancelado");
 
   const totalSales = valid.reduce((s, o) => s + orderTotal(o), 0);
@@ -47,10 +50,10 @@ export function ReportesPage() {
 
       {/* KPIs */}
       <div className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Kpi icon={<DollarSign size={22} />} label="Ventas acumuladas" value={bs2(totalSales)} color="#E8366B" />
+        <Kpi icon={<DollarSign size={22} />} label="Ventas acumuladas" value={bs2(totalSales)} color={colors.accent} />
         <Kpi icon={<ReceiptText size={22} />} label="Notas totales" value={`${orders.length}`} color="#3B6FD4" />
         <Kpi icon={<PackageCheck size={22} />} label="Entregadas" value={`${delivered}`} color="#2EA66B" />
-        <Kpi icon={<Users size={22} />} label="Clientes" value={`${kClients.length}`} color="#F76F9C" />
+        <Kpi icon={<Users size={22} />} label="Clientes" value={`${clients.length}`} color={`${colors.accent}99`} />
       </div>
 
       {/* Ventas por mes */}
@@ -66,7 +69,9 @@ export function ReportesPage() {
                   className="mt-1.5 w-full rounded-t-lg"
                   style={{
                     height: `${Math.max(4, (m.value / maxMonthly) * 140)}px`,
-                    background: last ? "linear-gradient(180deg,#E8366B,#D81B60)" : "linear-gradient(180deg,#F9A8C4,#F76F9C)",
+                    background: last
+                      ? `linear-gradient(180deg,${colors.accent},${colors.accentDeep})`
+                      : `linear-gradient(180deg,${colors.accent}55,${colors.accent}99)`,
                   }}
                 />
                 <span className={`mt-2 text-[11.5px] ${last ? "font-bold text-pink" : "font-medium text-ink2"}`}>{m.label}</span>
@@ -119,6 +124,7 @@ function Kpi({ icon, label, value, color }: { icon: React.ReactNode; label: stri
 }
 
 function RankCard({ title, rows }: { title: string; rows: { name: string; label: string; pct: number }[] }) {
+  const { colors } = useBusiness();
   return (
     <div className="rounded-[18px] border border-line bg-surface p-5 shadow-soft">
       <h3 className="text-[15px] font-semibold text-ink">{title}</h3>
@@ -133,7 +139,7 @@ function RankCard({ title, rows }: { title: string; rows: { name: string; label:
                 <span className="text-[13px] font-bold text-pink">{r.label}</span>
               </div>
               <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-line">
-                <div className="h-full rounded-full" style={{ width: `${r.pct * 100}%`, background: "linear-gradient(90deg,#E8366B,#D81B60)" }} />
+                <div className="h-full rounded-full" style={{ width: `${r.pct * 100}%`, background: `linear-gradient(90deg,${colors.accent},${colors.accentDeep})` }} />
               </div>
             </div>
           ))

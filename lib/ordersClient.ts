@@ -6,6 +6,7 @@
 //  a través de los endpoints /api/*.
 // ============================================================
 
+import { apiUrl } from "./apiBase";
 import type { Order, OrderItem, OrderStatus } from "./adminData";
 
 // ---- Forma cruda que devuelve /api/orders ----
@@ -124,7 +125,7 @@ const JSON_HEADERS = { "Content-Type": "application/json" };
 
 /** Lista todos los pedidos (requiere sesión de empleado). */
 export async function apiListOrders(): Promise<Order[]> {
-  const res = await fetch("/api/orders", { cache: "no-store" });
+  const res = await fetch(apiUrl("/api/orders"), { cache: "no-store" });
   if (!res.ok) throw new Error("No se pudieron cargar los pedidos");
   const rows = (await res.json()) as ApiOrder[];
   return Array.isArray(rows) ? rows.map(mapApiToOrder) : [];
@@ -134,7 +135,7 @@ export async function apiListOrders(): Promise<Order[]> {
 export async function apiCreateOrder(
   payload: ReturnType<typeof orderToPayload>
 ): Promise<{ code: string }> {
-  const res = await fetch("/api/orders", {
+  const res = await fetch(apiUrl("/api/orders"), {
     method: "POST",
     headers: JSON_HEADERS,
     body: JSON.stringify(payload),
@@ -149,7 +150,7 @@ export async function apiPatchStatus(
   code: string,
   status: OrderStatus
 ): Promise<void> {
-  const res = await fetch(`/api/orders/${encodeURIComponent(code)}`, {
+  const res = await fetch(apiUrl(`/api/orders/${encodeURIComponent(code)}`), {
     method: "PATCH",
     headers: JSON_HEADERS,
     body: JSON.stringify({ status }),
@@ -159,7 +160,7 @@ export async function apiPatchStatus(
 
 /** Elimina un pedido. */
 export async function apiDeleteOrder(code: string): Promise<void> {
-  const res = await fetch(`/api/orders/${encodeURIComponent(code)}`, {
+  const res = await fetch(apiUrl(`/api/orders/${encodeURIComponent(code)}`), {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("No se pudo eliminar el pedido");
@@ -178,7 +179,7 @@ export async function apiEmployeeLogin(
   email: string,
   pass: string
 ): Promise<EmployeeUser> {
-  const res = await fetch("/api/auth/employee/login", {
+  const res = await fetch(apiUrl("/api/auth/employee/login"), {
     method: "POST",
     headers: JSON_HEADERS,
     body: JSON.stringify({ email, pass }),
@@ -191,7 +192,7 @@ export async function apiEmployeeLogin(
 /** Devuelve el empleado autenticado por la cookie, o null. */
 export async function apiEmployeeMe(): Promise<EmployeeUser | null> {
   try {
-    const res = await fetch("/api/auth/employee/me", { cache: "no-store" });
+    const res = await fetch(apiUrl("/api/auth/employee/me"), { cache: "no-store" });
     if (!res.ok) return null;
     const { user } = await res.json();
     return user ?? null;
@@ -202,5 +203,5 @@ export async function apiEmployeeMe(): Promise<EmployeeUser | null> {
 
 /** Cierra la sesión de empleado. */
 export async function apiEmployeeLogout(): Promise<void> {
-  await fetch("/api/auth/employee/logout", { method: "POST" }).catch(() => {});
+  await fetch(apiUrl("/api/auth/employee/logout"), { method: "POST" }).catch(() => {});
 }

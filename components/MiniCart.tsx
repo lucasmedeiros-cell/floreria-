@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { Check, X } from "lucide-react";
-import { bs, productById } from "@/lib/products";
-import { useCart } from "@/context/StoreProvider";
+import { bs } from "@/lib/products";
+import { useCart, useProducts } from "@/context/StoreProvider";
+import { ProductImage } from "./ProductImage";
 
 export function MiniCart({
   onViewCart,
@@ -14,6 +14,7 @@ export function MiniCart({
   onContinue: () => void;
 }) {
   const cart = useCart();
+  const { byId } = useProducts();
   const [show, setShow] = useState(false);
   const [item, setItem] = useState<string | null>(null);
   const [qty, setQty] = useState(0);
@@ -36,7 +37,7 @@ export function MiniCart({
     setShow(false);
   };
 
-  const p = item ? productById(item) : null;
+  const p = item ? byId(item) : null;
 
   return (
     <div className="pointer-events-none fixed right-3 top-[92px] z-[55] md:right-5 md:top-[120px]">
@@ -62,7 +63,7 @@ export function MiniCart({
             </div>
             <div className="mt-3 flex items-center gap-3">
               <div className="relative h-[56px] w-[56px] shrink-0 overflow-hidden rounded-xl">
-                <Image src={p.image} alt={p.name} fill sizes="56px" className="object-cover" />
+                <ProductImage src={p.image} alt={p.name} sizes="56px" iconSize={20} />
               </div>
               <div className="min-w-0">
                 <p className="truncate text-[.82rem] font-semibold text-ink">

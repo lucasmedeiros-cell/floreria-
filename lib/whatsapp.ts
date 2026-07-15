@@ -1,5 +1,7 @@
+import { apiUrl } from "./apiBase";
 import { useEffect, useState } from "react";
 import { kWhatsapp } from "./products";
+import { useBusiness } from "@/context/StoreProvider";
 
 /**
  * Abre WhatsApp con el texto prellenado. A prueba de bloqueadores de popups:
@@ -39,13 +41,14 @@ function openUrl(url: string) {
  * el Vendedor 24/7 (Baileys), así el cliente cae en el WhatsApp que atiende el
  * bot. Se prefetchea al montar (para que el clic abra WhatsApp de forma
  * síncrona y no lo bloquee el navegador). Si no hay número vinculado, usa el de
- * respaldo (kWhatsapp).
+ * Configuración (y, en última instancia, kWhatsapp).
  */
 export function useBusinessWhatsapp(): string {
-  const [phone, setPhone] = useState(kWhatsapp);
+  const business = useBusiness();
+  const [phone, setPhone] = useState(business.whatsapp || kWhatsapp);
   useEffect(() => {
     let alive = true;
-    fetch("/api/whatsapp/number")
+    fetch(apiUrl("/api/whatsapp/number"))
       .then((r) => r.json())
       .then((d: { phone?: string | null }) => {
         if (alive && d?.phone) setPhone(d.phone);

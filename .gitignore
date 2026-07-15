@@ -12,3 +12,8 @@ next-env.d.ts
 
 # App móvil (va en otro repo)
 /mobile
+
+# Dumps de base de datos (datos reales de clientes: NO subir)
+/backups
+*.dump
+*.sql.gz

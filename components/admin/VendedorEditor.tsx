@@ -1,5 +1,6 @@
 "use client";
 
+import { apiUrl } from "@/lib/apiBase";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, Loader2, QrCode, Save, Send, Smartphone } from "lucide-react";
 import { useToast } from "@/context/StoreProvider";
@@ -57,13 +58,13 @@ export function VendedorEditor() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Probador local
-  const [testMsg, setTestMsg] = useState("Hola, quiero un ramo para un cumpleaños");
+  const [testMsg, setTestMsg] = useState("Hola, ¿qué me pueden ofrecer?");
   const [testReply, setTestReply] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/whatsapp/config")
+    fetch(apiUrl("/api/whatsapp/config"))
       .then((r) => r.json())
       .then((data: { config: VendedorConfig; status: Status }) => {
         if (!alive) return;
@@ -80,7 +81,7 @@ export function VendedorEditor() {
   // Estado de Baileys (polling mientras esté abierto el panel).
   const refreshWa = useCallback(async () => {
     try {
-      const r = await fetch("/api/whatsapp/baileys");
+      const r = await fetch(apiUrl("/api/whatsapp/baileys"));
       if (!r.ok) return;
       setWa(await r.json());
     } catch {
@@ -99,7 +100,7 @@ export function VendedorEditor() {
   const connectWa = async () => {
     setWaBusy(true);
     try {
-      const r = await fetch("/api/whatsapp/baileys", {
+      const r = await fetch(apiUrl("/api/whatsapp/baileys"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "start" }),
@@ -117,7 +118,7 @@ export function VendedorEditor() {
   const disconnectWa = async () => {
     setWaBusy(true);
     try {
-      await fetch("/api/whatsapp/baileys", {
+      await fetch(apiUrl("/api/whatsapp/baileys"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "logout" }),
@@ -135,7 +136,7 @@ export function VendedorEditor() {
   const save = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/whatsapp/config", {
+      const res = await fetch(apiUrl("/api/whatsapp/config"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(cfg),
@@ -158,7 +159,7 @@ export function VendedorEditor() {
     setTesting(true);
     setTestReply(null);
     try {
-      const res = await fetch("/api/whatsapp/simulate", {
+      const res = await fetch(apiUrl("/api/whatsapp/simulate"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
@@ -208,7 +209,7 @@ export function VendedorEditor() {
         <Toggle label="Vendedor 24/7 activo" checked={cfg.botEnabled} onChange={() => set("botEnabled", !cfg.botEnabled)} />
 
         <Field label="Persona del asistente" value={cfg.botPersona} onChange={(v) => set("botPersona", v)} rows={4}
-          placeholder="Eres el asistente de ventas de FloresOnline…" />
+          placeholder="Vacío = usa la persona del rubro (Configuración → Rubro del negocio)" />
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Palabra clave de activación (opcional)" value={cfg.activationKeyword} onChange={(v) => set("activationKeyword", v)}

@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { MapPin, Plus, Search } from "lucide-react";
-import { Client, kClients } from "@/lib/adminData";
+import { MapPin, Plus, Search, Users } from "lucide-react";
+import type { Client } from "@/lib/adminData";
+import { useClients } from "@/lib/clientsClient";
 import { bs2 } from "@/lib/products";
 import { PrimaryButton } from "@/components/ui";
 
 export function ClientsPage({ onNew }: { onNew: () => void }) {
   const [q, setQ] = useState("");
-  const items = kClients.filter(
+  const { clients, loading } = useClients();
+  const items = clients.filter(
     (c) =>
       c.name.toLowerCase().includes(q.toLowerCase()) || c.phone.includes(q)
   );
@@ -19,7 +21,7 @@ export function ClientsPage({ onNew }: { onNew: () => void }) {
         <div className="flex-1">
           <h1 className="text-[30px] font-semibold text-ink">Clientes</h1>
           <p className="mt-1 text-[13px] text-ink2">
-            {kClients.length} clientes registrados
+            {loading ? "Cargando…" : `${clients.length} clientes registrados`}
           </p>
         </div>
         <PrimaryButton label="Nuevo pedido" icon={<Plus size={18} />} onClick={onNew} />
@@ -35,11 +37,32 @@ export function ClientsPage({ onNew }: { onNew: () => void }) {
         />
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {items.map((cl) => (
-          <ClientCard key={cl.name} cl={cl} />
-        ))}
-      </div>
+      {items.length === 0 && !loading ? (
+        <EmptyState
+          title={q ? "Sin resultados" : "Todavía no hay clientes"}
+          text={
+            q
+              ? "Prueba con otro nombre o teléfono."
+              : "Los clientes se registran solos al crear pedidos, o se cargan al vincular el negocio."
+          }
+        />
+      ) : (
+        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {items.map((cl) => (
+            <ClientCard key={cl.name} cl={cl} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmptyState({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="mt-6 flex flex-col items-center rounded-[18px] border border-dashed border-line bg-surface py-16 text-center">
+      <Users size={38} className="text-faint" />
+      <h3 className="mt-3 text-[18px] font-semibold text-ink">{title}</h3>
+      <p className="mt-1.5 max-w-[380px] text-[13px] text-ink2">{text}</p>
     </div>
   );
 }

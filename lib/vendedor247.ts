@@ -3,14 +3,20 @@ import os from "node:os";
 import path from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import { query, queryOne } from "./db";
-import { kProducts, type Product } from "./products";
+import { type Product } from "./products";
+import { readBusinessConfig } from "./businessStore";
+import { botPersonaFor } from "./business";
+import { getRubro } from "./rubros";
 
 /**
- * Vendedor 24/7 — asistente de ventas de FloresOnline por WhatsApp.
+ * Vendedor 24/7 — asistente de ventas del negocio por WhatsApp.
  *
- * Portado del proyecto "Vendedor247" (easy-pay-pos) y adaptado a la florería:
- * un chatbot (Claude) que atiende WhatsApp actuando como vendedor — usa el
- * catálogo real, responde breve y cordial, orienta al cierre y cobra por QR.
+ * Portado del proyecto "Vendedor247" (easy-pay-pos): un chatbot (Claude) que
+ * atiende WhatsApp actuando como vendedor — usa el catálogo real, responde
+ * breve y cordial, orienta al cierre y cobra por QR.
+ *
+ * Es agnóstico del rubro: la persona y las reglas de venta salen del rubro
+ * activo (lib/rubros.ts) salvo que se personalicen desde el panel.
  *
  * Funciona SIN credenciales en "modo simulado" (respuestas de ejemplo), para
  * poder probarlo local; al cargar ANTHROPIC_API_KEY responde con IA real.
@@ -45,9 +51,9 @@ export interface VendedorConfig {
 
 export const defaultVendedorConfig: VendedorConfig = {
   botEnabled: true,
-  botPersona:
-    "Eres el asistente de ventas de FloresOnline, una florería en Santa Cruz de la Sierra. " +
-    "Atiendes por WhatsApp de forma amable, cálida y cercana, ayudando a elegir el ramo ideal y a cerrar el pedido.",
+  // Vacío = se usa la persona del rubro activo (ver botPersonaFor). El panel
+  // permite escribir una propia y esa gana.
+  botPersona: "",
   activationKeyword: "",
   aiModel: "claude-haiku-4-5",
   paymentOptions: "QR / transferencia (BCP), tarjeta o efectivo contra entrega",
@@ -93,7 +99,7 @@ export async function writeVendedorConfig(
 
 // ------------------------------ Catálogo -----------------------------------
 
-/** Productos activos para alimentar el prompt (BD real; cae al catálogo estático). */
+/** Productos activos para alimentar el prompt (BD real; cae al catálogo del rubro). */
 async function loadCatalog(): Promise<Product[]> {
   try {
     const rows = await query<Product>(
@@ -105,9 +111,10 @@ async function loadCatalog(): Promise<Product[]> {
     );
     if (rows.length) return rows;
   } catch (error) {
-    console.warn("[vendedor247] catálogo desde BD falló; uso el estático.", error);
+    console.warn("[vendedor247] catálogo desde BD falló; uso el del rubro.", error);
   }
-  return kProducts;
+  const business = await readBusinessConfig();
+  return getRubro(business.rubroId).catalog;
 }
 
 // ------------------------------ System prompt ------------------------------
@@ -115,7 +122,11 @@ async function loadCatalog(): Promise<Product[]> {
 function systemPrompt(
   cfg: VendedorConfig,
   contactName: string,
-  products: Product[]
+  products: Product[],
+  /** Persona y reglas del rubro activo (se usan si el panel no las personalizó). */
+  persona: string,
+  rubroGuidance: string,
+  noun: { one: string; many: string }
 ): string {
   const catalog = products
     .slice(0, 20)
@@ -123,20 +134,21 @@ function systemPrompt(
     .join("\n");
 
   return [
-    cfg.botPersona,
+    cfg.botPersona.trim() || persona,
     "",
     "Reglas:",
     "- Responde en español, breve y cordial (1 a 3 frases).",
     "- NO uses emojis ni emoticones. Tono profesional, claro y humano, sin caritas ni símbolos.",
     "- Los precios van en bolivianos (Bs).",
-    "- Orienta a cerrar la venta: sugiere un ramo del catálogo y ofrece tomar el pedido.",
-    "- Para concretar la entrega pide solo lo que falte: a quién va dirigido, dirección de entrega en Santa Cruz, fecha y hora, dedicatoria (opcional) y teléfono de contacto.",
+    `- Orienta a cerrar la venta: sugiere un ${noun.one} del catálogo y ofrece tomar el pedido.`,
+    "- Para concretar la entrega pide solo lo que falte: a quién va dirigido, dirección de entrega, fecha y hora, y teléfono de contacto.",
     `- Formas de pago disponibles: ${cfg.paymentOptions}. Si el cliente pregunta cómo pagar, ofrécelas.`,
     "- COBRO POR QR: cuando el cliente confirme el pedido y quiera pagar por QR o transferencia, termina tu mensaje con el marcador EXACTO [QR:MONTO] usando el total en número, por ejemplo [QR:600]. No expliques ni menciones el marcador: el sistema genera y ENVÍA el QR real del banco automáticamente. Úsalo UNA sola vez por pedido.",
     "- Revisa lo que el cliente YA te dijo (dirección, fecha, dedicatoria, teléfono, forma de pago) y NO se lo vuelvas a preguntar. Pregunta solo lo que falta.",
     "- No inventes productos ni precios fuera del catálogo.",
-    "- SIEMPRE responde a lo que el cliente escribe. Si menciona una ocasión (cumpleaños, aniversario, condolencias) o un tipo de flor, sugiere opciones del catálogo con su precio.",
-    "- Si el cliente saluda o escribe algo corto o ambiguo, preséntate breve y pregunta en qué lo puedes ayudar o para qué ocasión busca flores. NUNCA te despidas ni uses frases como \"cuando quieras\", \"aquí estaré\" o \"si cambias de idea\", salvo que el cliente diga EXPLÍCITAMENTE que no quiere nada.",
+    "- SIEMPRE responde a lo que el cliente escribe, sugiriendo opciones del catálogo con su precio.",
+    `- ${rubroGuidance}`,
+    "- Si el cliente saluda o escribe algo corto o ambiguo, preséntate breve y pregunta en qué lo puedes ayudar. NUNCA te despidas ni uses frases como \"cuando quieras\", \"aquí estaré\" o \"si cambias de idea\", salvo que el cliente diga EXPLÍCITAMENTE que no quiere nada.",
     "- Haz avanzar la conversación pidiendo solo el dato que falta. No repitas el mismo mensaje.",
     "",
     "Catálogo disponible:",
@@ -230,12 +242,21 @@ export async function generateReply(
   history: { direction: string; body: string }[]
 ): Promise<{ text: string; simulated: boolean }> {
   const products = await loadCatalog();
-  const system = systemPrompt(cfg, contactName, products);
+  const business = await readBusinessConfig();
+  const rubro = getRubro(business.rubroId);
+  const system = systemPrompt(
+    cfg,
+    contactName,
+    products,
+    botPersonaFor(business),
+    rubro.bot.guidance,
+    rubro.noun
+  );
   const messages = toMessages(history);
 
   const built = buildClient();
   if (!built) {
-    return { text: mockReply(contactName, products), simulated: true };
+    return { text: mockReply(contactName, products, business.name), simulated: true };
   }
 
   try {
@@ -257,17 +278,17 @@ export async function generateReply(
     return { text: stripEmojis(text), simulated: false };
   } catch (error) {
     console.error("[vendedor247] error llamando a Claude:", error);
-    return { text: mockReply(contactName, products), simulated: true };
+    return { text: mockReply(contactName, products, business.name), simulated: true };
   }
 }
 
 /** Respuesta de ejemplo cuando no hay API key (modo demo). */
-function mockReply(name: string, products: Product[]): string {
+function mockReply(name: string, products: Product[], businessName = "la tienda"): string {
   const p = products[0];
   const suffix =
     " (respuesta simulada — configura ANTHROPIC_API_KEY para IA real)";
   if (p) {
-    return `Hola ${name}, gracias por escribir a FloresOnline. Tenemos, por ejemplo, ${p.name} a Bs ${p.price}. ¿Para qué ocasión buscas flores?${suffix}`;
+    return `Hola ${name}, gracias por escribir a ${businessName}. Tenemos, por ejemplo, ${p.name} a Bs ${p.price}. ¿En qué te puedo ayudar?${suffix}`;
   }
   return `Hola ${name}, ¿en qué te puedo ayudar hoy?${suffix}`;
 }

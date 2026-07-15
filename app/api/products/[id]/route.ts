@@ -5,11 +5,16 @@ import { getSession } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
+// Toda ruta de la API resuelve a qué negocio pertenece la request (lee headers
+// en `handler()`), así que nunca se puede renderizar estáticamente.
+export const dynamic = "force-dynamic";
+
 type Params = { params: { id: string } };
 
 export const GET = handler(async (_req: NextRequest, { params }: Params) => {
   const row = await queryOne(
-    `SELECT id, name, description AS desc, price, image, category, featured, stock, status
+    `SELECT id, name, description AS desc, price, cost, barcode, image, category,
+            featured, stock, status
        FROM products WHERE id = $1`,
     [params.id]
   );
@@ -28,26 +33,46 @@ export const PATCH = handler(async (req: NextRequest, { params }: Params) => {
     if (dup) return bad("Ya existe un producto con ese SKU.");
   }
 
+  // Código de barras: único. Si el que llega ya es de otro producto, se avisa
+  // en vez de romper con el error del índice.
+  const barcode = b.barcode != null ? String(b.barcode).trim() : null;
+  if (barcode) {
+    const taken = await queryOne<{ id: string; name: string }>(
+      `SELECT id, name FROM products WHERE barcode = $1 AND id <> $2`,
+      [barcode, params.id]
+    );
+    if (taken) {
+      return bad(
+        `El código de barras ${barcode} ya es del producto ${taken.id} · ${taken.name}.`
+      );
+    }
+  }
+
   const row = await queryOne(
     `UPDATE products SET
        id          = $2,
        name        = COALESCE($3, name),
        description = COALESCE($4, description),
        price       = COALESCE($5, price),
-       image       = COALESCE($6, image),
-       category    = COALESCE($7, category),
-       featured    = COALESCE($8, featured),
-       stock       = COALESCE($9, stock),
-       status      = COALESCE($10, status),
+       cost        = COALESCE($6, cost),
+       barcode     = COALESCE($7, barcode),
+       image       = COALESCE($8, image),
+       category    = COALESCE($9, category),
+       featured    = COALESCE($10, featured),
+       stock       = COALESCE($11, stock),
+       status      = COALESCE($12::product_status, status),
        updated_at  = now()
      WHERE id = $1
-     RETURNING id, name, description AS desc, price, image, category, featured, stock, status`,
+     RETURNING id, name, description AS desc, price, cost, barcode, image, category,
+               featured, stock, status`,
     [
       params.id,
       nextId,
       b.name ?? null,
       b.desc ?? b.description ?? null,
       b.price != null ? Math.round(Number(b.price)) : null,
+      b.cost != null ? Math.round(Number(b.cost)) : null,
+      barcode,
       b.image ?? null,
       b.category ?? null,
       typeof b.featured === "boolean" ? b.featured : null,

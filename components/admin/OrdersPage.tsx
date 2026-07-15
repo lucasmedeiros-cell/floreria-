@@ -32,7 +32,7 @@ import {
   statusLabel,
 } from "@/lib/adminData";
 import { bs2 } from "@/lib/products";
-import { useOrders, useToast } from "@/context/StoreProvider";
+import { useBusiness, useOrders, useToast } from "@/context/StoreProvider";
 import { openWhatsapp } from "@/lib/whatsapp";
 import { exportNotaPDF, exportOrdersExcel, exportOrdersPDF } from "@/lib/exports";
 import { OutlineButton, PrimaryButton } from "@/components/ui";
@@ -40,6 +40,7 @@ import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 
 export function OrdersPage({ onNew }: { onNew: () => void }) {
   const model = useOrders();
+  const business = useBusiness();
   const { showToast } = useToast();
   const [filter, setFilter] = useState<OrderStatus | null>(null);
   const [q, setQ] = useState("");
@@ -70,7 +71,7 @@ export function OrdersPage({ onNew }: { onNew: () => void }) {
   const doExport = (kind: "pdf" | "excel") => {
     const list = toExport();
     if (list.length === 0) return showToast("No hay notas para exportar");
-    if (kind === "pdf") exportOrdersPDF(list);
+    if (kind === "pdf") exportOrdersPDF(list, business.name);
     else exportOrdersExcel(list);
     showToast(
       `Exportando ${list.length} nota(s) a ${kind === "pdf" ? "PDF" : "Excel"}`
@@ -102,7 +103,7 @@ export function OrdersPage({ onNew }: { onNew: () => void }) {
         <OutlineButton
           label="Exportar PDF"
           icon={<FileDown size={18} />}
-          color="#E8366B"
+          color={business.colors.accent}
           onClick={() => doExport("pdf")}
         />
         <OutlineButton
@@ -282,6 +283,7 @@ function OrderCard({
 
 function DetailDialog({ o, onClose }: { o: Order; onClose: () => void }) {
   const model = useOrders();
+  const business = useBusiness();
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-5">
       <div className="flex max-h-[720px] w-full max-w-[520px] flex-col rounded-[22px] bg-surface">
@@ -362,8 +364,8 @@ function DetailDialog({ o, onClose }: { o: Order; onClose: () => void }) {
           <OutlineButton
             label="Descargar nota PDF"
             icon={<FileDown size={18} />}
-            color="#E8366B"
-            onClick={() => exportNotaPDF(o)}
+            color={business.colors.accent}
+            onClick={() => exportNotaPDF(o, business.name)}
           />
           <div className="min-w-[160px] flex-1">
             <OutlineButton
@@ -374,7 +376,7 @@ function DetailDialog({ o, onClose }: { o: Order; onClose: () => void }) {
               onClick={() => {
                 const p = o.phone.replace(/\D/g, "");
                 if (!p) return;
-                const msg = `Hola ${o.clientName} 🌷, tu pedido ${o.code} está *${statusLabel(
+                const msg = `Hola ${o.clientName}, tu pedido ${o.code} está *${statusLabel(
                   o.status
                 )}*. Entrega: ${fmtDate(o.deliveryDate)} ${o.deliveryTime}.`;
                 openWhatsapp(msg, `591${p}`);

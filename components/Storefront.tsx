@@ -1,20 +1,15 @@
 "use client";
 
+import { useLink } from "@/lib/negocioLink";
 import { useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  Lock,
-  QrCode,
-  Search,
-  ShieldCheck,
-  ShoppingCart,
-  Sparkles,
-  Truck,
-} from "lucide-react";
-import { bs, kProducts, productById, searchProducts } from "@/lib/products";
-import { useCart } from "@/context/StoreProvider";
+import { Lock, Search, ShoppingCart } from "lucide-react";
+import { bs } from "@/lib/products";
+import { useBusiness, useCart, useProducts } from "@/context/StoreProvider";
 import { openWhatsapp, useBusinessWhatsapp } from "@/lib/whatsapp";
+import { BrandMark, Wordmark } from "./Brand";
+import { Icon } from "./Icon";
 import { ProductCard } from "./ProductCard";
 import { WhatsAppIcon } from "./WhatsAppIcon";
 import { CartDrawer } from "./CartDrawer";
@@ -23,43 +18,17 @@ import { DebugReporter } from "./DebugReporter";
 
 const NAV = ["INICIO", "PRODUCTOS", "CÓMO COMPRAR", "CONTACTO"] as const;
 
-/** Isotipo (marca de flor) — logo real de FloresOnline. */
-function PinkMark({ size = 42 }: { size?: number }) {
-  return (
-    <Image
-      src="/images/logo-mark.png"
-      alt="FloresOnline"
-      width={Math.round(size * 0.94)}
-      height={size}
-      loading="eager"
-      className="shrink-0 object-contain"
-    />
-  );
-}
-
-function Wordmark({ light = false }: { light?: boolean }) {
-  return (
-    <span className="flex flex-col leading-none">
-      <span
-        className={`text-[1.55rem] font-semibold tracking-[-.5px] ${
-          light ? "text-white" : "text-ink"
-        }`}
-      >
-        <b className="font-light">Flores</b>Online
-      </span>
-      <span
-        className={`mt-[1px] text-[.52rem] font-medium tracking-[3px] ${
-          light ? "text-white/60" : "text-faint"
-        }`}
-      >
-        ARTE FLORAL EN CADA DETALLE
-      </span>
-    </span>
-  );
-}
-
+/**
+ * Tienda pública. Todo lo que la hace "de florería" (colores, textos, catálogo,
+ * categorías) sale de la config del negocio → el rubro activo, así que el mismo
+ * componente sirve para una ferretería, una tienda de repuestos, etc.
+ */
 export function Storefront() {
+  const link = useLink();
   const cart = useCart();
+  const business = useBusiness();
+  const { products, byId, search } = useProducts();
+  const { rubro, hero, noun } = business;
 
   const [query, setQuery] = useState("");
   const [nav, setNav] = useState<string>("INICIO");
@@ -76,17 +45,19 @@ export function Storefront() {
     if (cart.ids.length === 0) return;
     const lines = cart.ids
       .map((id) => {
-        const p = productById(id);
+        const p = byId(id);
+        if (!p) return null;
         const q = cart.qty(id);
         return `• ${q}x ${p.name} — ${bs(p.price * q)}`;
       })
+      .filter(Boolean)
       .join("\n");
     const msg =
-      `¡Hola FloresOnline! 🌸\n\n` +
+      `${business.greeting}\n\n` +
       `Quiero continuar con este pedido:\n\n` +
       `${lines}\n\n` +
       `*Total: ${bs(cart.total)}*\n\n` +
-      `¿Me ayudan a coordinar la entrega y el pago? 🌷`;
+      `¿Me ayudan a coordinar la entrega y el pago?`;
     openWhatsapp(msg, waNumber);
     // No vaciamos el carrito: el pedido aún no está confirmado, sólo se está
     // redactando el mensaje de WhatsApp. Si el cliente vuelve, no debe perderlo.
@@ -106,7 +77,7 @@ export function Storefront() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const filtered = useMemo(() => searchProducts(kProducts, query), [query]);
+  const filtered = useMemo(() => search(query), [search, query]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -115,7 +86,7 @@ export function Storefront() {
         <div className="mx-auto w-[92%] max-w-[1760px] px-6 pt-[22px]">
           <div className="flex items-center gap-6">
             <button onClick={goTop} className="flex items-center gap-2.5">
-              <PinkMark size={42} />
+              <BrandMark size={42} />
               <Wordmark />
             </button>
 
@@ -184,51 +155,62 @@ export function Storefront() {
         <section className="mt-[30px] grid grid-cols-1 items-center gap-8 rounded-[6px] bg-pinkHero px-7 py-9 md:grid-cols-2 md:px-14 md:py-[50px]">
           <div className="order-2 md:order-1">
             <p className="mb-3.5 text-[.72rem] font-semibold tracking-[3px] text-pink">
-              EXPRESA LO QUE SIENTES
+              {hero.eyebrow}
             </p>
             <h1 className="text-[2.3rem] font-normal leading-[1.05] tracking-[-1px] text-ink md:text-[3rem]">
-              Flores que cuentan
-              <span className="mt-0.5 block font-script text-[2.5rem] font-bold text-pinkDeep md:text-[3.2rem]">
-                historias
-              </span>
+              {hero.title}
+              {rubro.heroScript ? (
+                <span className="mt-0.5 block font-script text-[2.5rem] font-bold text-pinkDeep md:text-[3.2rem]">
+                  {hero.highlight}
+                </span>
+              ) : (
+                <span className="mt-0.5 block font-semibold text-pinkDeep">
+                  {hero.highlight}
+                </span>
+              )}
             </h1>
             <div className="my-[22px] h-0.5 w-[54px] bg-pink" />
-            <p className="mb-[26px] text-[.95rem] text-ink2">
-              Arreglos únicos para cada ocasión, con flores frescas y entrega el
-              mismo día en Santa Cruz.
-            </p>
+            <p className="mb-[26px] text-[.95rem] text-ink2">{hero.subtitle}</p>
             <div className="flex flex-wrap items-center gap-3.5">
               <button
                 onClick={() => scrollTo(productosRef, "PRODUCTOS")}
                 className="rounded-full border-[1.5px] border-pink px-7 py-[13px] text-[.78rem] font-semibold tracking-[1.5px] text-pink transition-colors hover:bg-pink hover:text-white"
               >
-                VER COLECCIONES
+                {rubro.hero.ctaPrimary}
               </button>
               <button
                 onClick={() =>
                   openWhatsapp(
-                    "Hola FloresOnline 🌷, quisiera hacer una reserva.",
+                    `${business.greeting} Quisiera hacer un pedido.`,
                     waNumber
                   )
                 }
                 className="inline-flex items-center gap-2 rounded-full bg-pink px-7 py-[14px] text-[.78rem] font-semibold tracking-[1px] text-white transition-colors hover:bg-pinkDeep"
               >
-                <WhatsAppIcon size={16} /> RESERVAR
+                <WhatsAppIcon size={16} /> {rubro.hero.ctaSecondary}
               </button>
             </div>
           </div>
 
-          {/* Foto */}
+          {/* Foto (la del rubro florería; los demás rubros usan el isotipo) */}
           <div className="order-1 overflow-hidden rounded-[12px] md:order-2">
             <div className="relative aspect-[4/3] w-full md:aspect-[5/4]">
-              <Image
-                src="/images/hero.jpg"
-                alt="Arreglo floral destacado"
-                fill
-                priority
-                sizes="(max-width:860px) 100vw, 45vw"
-                className="object-cover"
-              />
+              {rubro.id === "floreria" ? (
+                <Image
+                  src="/images/hero.jpg"
+                  alt={business.name}
+                  fill
+                  priority
+                  sizes="(max-width:860px) 100vw, 45vw"
+                  className="object-cover"
+                />
+              ) : (
+                <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-pinkSoft to-white">
+                  <span className="text-pink opacity-70">
+                    <Icon name={rubro.icon} size={120} />
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -245,10 +227,12 @@ export function Storefront() {
           <div className="flex flex-col items-center py-16 text-center">
             <Search size={38} className="text-faint" />
             <h3 className="mt-3 text-[1.15rem] font-semibold text-ink">
-              No encontramos arreglos
+              No encontramos {noun.many}
             </h3>
             <p className="mt-1.5 text-[.9rem] text-ink2">
-              Prueba con otra búsqueda.
+              {products.length === 0
+                ? "El catálogo aún está vacío."
+                : "Prueba con otra búsqueda."}
             </p>
           </div>
         ) : (
@@ -265,48 +249,27 @@ export function Storefront() {
           <div className="mt-1.5 h-[3px] w-[42px] rounded-full bg-pink" />
         </div>
         <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Step
-            icon={<ShoppingCart size={22} />}
-            n="1"
-            title="Elige tus arreglos"
-            text="Agrega al carrito los arreglos que más te gusten."
-          />
-          <Step
-            icon={<QrCode size={22} />}
-            n="2"
-            title="Paga con QR"
-            text="Escanea el código y paga seguro con EasyPay."
-          />
-          <Step
-            icon={<Truck size={22} />}
-            n="3"
-            title="Recíbelo hoy"
-            text="Entrega el mismo día en Santa Cruz de la Sierra."
-          />
+          {rubro.steps.map((s, i) => (
+            <Step
+              key={s.title}
+              icon={<Icon name={s.icon} size={22} />}
+              n={String(i + 1)}
+              title={s.title}
+              text={s.text}
+            />
+          ))}
         </section>
 
         {/* ===================== TRUST BAR ===================== */}
         <section className="mb-[60px] mt-[46px] grid grid-cols-2 gap-[18px] border-t border-line py-[26px] lg:grid-cols-4">
-          <TrustItem
-            icon={<Truck size={30} />}
-            title="Envíos a"
-            sub="Santa Cruz"
-          />
-          <TrustItem
-            icon={<Sparkles size={30} />}
-            title="Flores frescas"
-            sub="de calidad"
-          />
-          <TrustItem
-            icon={<ShieldCheck size={30} />}
-            title="Compra segura"
-            sub="y confiable"
-          />
-          <TrustItem
-            icon={<WhatsAppIcon size={28} />}
-            title="Atención por"
-            sub="WhatsApp"
-          />
+          {rubro.trust.map((t) => (
+            <TrustItem
+              key={t.title + t.sub}
+              icon={<Icon name={t.icon} size={30} />}
+              title={t.title}
+              sub={t.sub}
+            />
+          ))}
         </section>
       </main>
 
@@ -316,12 +279,11 @@ export function Storefront() {
           <div className="flex flex-wrap gap-x-10 gap-y-8">
             <div className="w-full md:w-[290px]">
               <div className="flex items-center gap-2.5">
-                <PinkMark size={40} />
+                <BrandMark size={40} />
                 <Wordmark light />
               </div>
               <p className="mt-4 text-[.82rem] leading-relaxed text-white/60">
-                Arreglos florales de autor con entrega el mismo día en Santa
-                Cruz de la Sierra.
+                {business.about}
               </p>
             </div>
 
@@ -330,10 +292,9 @@ export function Storefront() {
                 TIENDA
               </p>
               <div className="mt-4 flex flex-col gap-2.5 text-[.82rem] text-white/60">
-                <span>Rosas</span>
-                <span>Ramos</span>
-                <span>Girasoles</span>
-                <span>Exóticas</span>
+                {business.categories.map((c) => (
+                  <span key={c}>{c}</span>
+                ))}
               </div>
             </div>
 
@@ -342,20 +303,20 @@ export function Storefront() {
                 CONTACTO
               </p>
               <div className="mt-4 flex flex-col gap-3 text-[.82rem] text-white/60">
-                <span>📍 Av. Monseñor Rivero #123, Santa Cruz</span>
-                <span>📞 +591 7 000 0000</span>
+                <span>📍 {business.address}</span>
+                <span>📞 {business.phone}</span>
                 <button
                   onClick={() =>
                     openWhatsapp(
-                      "Hola FloresOnline 🌷, quisiera hacer un pedido.",
+                      `${business.greeting} Quisiera hacer un pedido.`,
                       waNumber
                     )
                   }
                   className="text-left transition-colors hover:text-white"
                 >
-                  💬 WhatsApp: +591 7 000 0000
+                  💬 WhatsApp: {business.phone}
                 </button>
-                <span>🕐 Lun–Sáb · 8:00 a 20:00</span>
+                <span>🕐 {business.hours}</span>
               </div>
             </div>
           </div>
@@ -365,13 +326,13 @@ export function Storefront() {
             {/* El enlace va a la IZQUIERDA para no quedar debajo del botón
                 flotante de WhatsApp (fijo abajo-derecha), que le robaba el clic. */}
             <Link
-              href="/admin"
+              href={link("/admin")}
               className="relative z-10 flex items-center gap-1.5 text-[.75rem] font-semibold text-pink"
             >
               <Lock size={13} /> Acceso empleados
             </Link>
             <span className="text-[.75rem] text-white/40">
-              © 2026 FloresOnline · Arte floral en cada detalle
+              © 2026 {business.name} · {business.tagline.toLowerCase()}
             </span>
           </div>
         </div>

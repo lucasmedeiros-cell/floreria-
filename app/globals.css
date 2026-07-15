@@ -4,6 +4,15 @@
 
 :root {
   --shell: 1180px;
+
+  /* Color de marca del rubro activo (canales RGB, sin coma: los consume
+     Tailwind como rgb(var(--c-accent) / <alpha-value>)).
+     app/layout.tsx los sobrescribe en <body> con la config del negocio;
+     estos valores son solo el respaldo si aún no hay config guardada. */
+  --c-accent: 232 54 107;
+  --c-accent-deep: 216 27 96;
+  --c-accent-soft: 252 233 239;
+  --c-accent-hero: 253 241 244;
 }
 
 html,
@@ -74,6 +83,40 @@ body {
 }
 .pop-in {
   animation: pop-in 0.48s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ---------- Splash del CRM (easy pos) ----------
+   Entrada sin rebote: el logo entra con un ease-out suave y los textos suben.
+   Nada de escalas encadenadas: cada elemento anima una sola vez. */
+@keyframes splash-logo-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes splash-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes splash-bar {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 
 @keyframes pop-in-center {

@@ -1,16 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
-import { Flower2, Pencil, Plus, Search, Trash2, X } from "lucide-react";
-import {
-  Product,
-  ProductStatus,
-  bs2,
-  kProductCategories,
-  productStatusLabel,
-} from "@/lib/products";
-import { useProducts, useToast } from "@/context/StoreProvider";
+import { Package, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { Product, ProductStatus, bs2, productStatusLabel } from "@/lib/products";
+import { useBusiness, useProducts, useToast } from "@/context/StoreProvider";
+import { ProductImage } from "@/components/ProductImage";
 import { OutlineButton, PrimaryButton } from "@/components/ui";
 
 export function ProductsPage() {
@@ -58,7 +52,7 @@ export function ProductsPage() {
       <div className="flex-1 overflow-y-auto px-6 pb-10 pt-5">
         {list.length === 0 ? (
           <div className="flex flex-col items-center py-16 text-center">
-            <Flower2 size={40} className="text-faint" />
+            <Package size={40} className="text-faint" />
             <h3 className="mt-3 text-[22px] font-semibold text-ink">
               Sin resultados
             </h3>
@@ -109,13 +103,7 @@ function ProductCardAdmin({
   return (
     <div className="flex gap-3.5 rounded-[18px] border border-line bg-surface p-3.5 shadow-soft">
       <div className="relative h-[86px] w-[86px] shrink-0 overflow-hidden rounded-[12px] bg-surface2">
-        {p.image ? (
-          <Image src={p.image} alt={p.name} fill sizes="86px" className="object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-pink">
-            🌿
-          </div>
-        )}
+        <ProductImage src={p.image} alt={p.name} sizes="86px" iconSize={26} />
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -171,19 +159,24 @@ function ProductDialog({
   onClose: () => void;
 }) {
   const model = useProducts();
+  const { categories, noun } = useBusiness();
   const { showToast } = useToast();
   const isEdit = !!product;
 
   const [sku, setSku] = useState(product?.id ?? "");
   const [name, setName] = useState(product?.name ?? "");
-  const [category, setCategory] = useState(product?.category ?? kProductCategories[0]);
+  const [category, setCategory] = useState(product?.category ?? categories[0]);
   const [price, setPrice] = useState(product ? String(product.price) : "");
   const [stock, setStock] = useState(product ? String(product.stock ?? 0) : "0");
   const [status, setStatus] = useState<ProductStatus>(product?.status ?? "activo");
   const [image, setImage] = useState(product?.image ?? "");
   const [desc, setDesc] = useState(product?.desc ?? "");
+  // Código de barras físico (EAN/UPC): es lo que escanea la app móvil. Distinto
+  // del SKU, que es el código interno del negocio.
+  const [barcode, setBarcode] = useState(product?.barcode ?? "");
+  const [cost, setCost] = useState(product ? String(product.cost ?? 0) : "0");
 
-  const save = () => {
+  const save = async () => {
     const id = sku.trim();
     const nm = name.trim();
     const pr = parseFloat(price.replace(",", ".")) || 0;
@@ -200,6 +193,8 @@ function ProductDialog({
       name: nm,
       desc: desc.trim(),
       price: pr,
+      cost: parseInt(cost, 10) || 0,
+      barcode: barcode.trim(),
       image: image.trim(),
       category,
       stock: st,
@@ -207,9 +202,9 @@ function ProductDialog({
     };
 
     const ok = isEdit
-      ? model.update(product!.id, data)
-      : model.add(data);
-    if (!ok) return showToast(`El SKU "${id}" ya existe`);
+      ? await model.update(product!.id, data)
+      : await model.add(data);
+    if (!ok) return showToast(`No se pudo guardar el producto "${id}"`);
 
     showToast(isEdit ? "Producto actualizado" : `Producto ${id} registrado`);
     onClose();
@@ -243,7 +238,7 @@ function ProductDialog({
                 onChange={(e) => setCategory(e.target.value)}
                 className="mt-1.5 w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none focus:border-pink"
               >
-                {kProductCategories.map((c) => (
+                {categories.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
@@ -251,9 +246,18 @@ function ProductDialog({
               </select>
             </div>
           </div>
-          <Field label="Nombre *" value={name} onChange={setName} placeholder="Nombre del arreglo" />
-          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-            <Field label="Precio (Bs) *" value={price} onChange={setPrice} placeholder="0" />
+          <Field label="Nombre *" value={name} onChange={setName} placeholder={`Nombre del ${noun.one}`} />
+          <Field
+            label="Código de barras (EAN / UPC)"
+            value={barcode}
+            onChange={setBarcode}
+            placeholder="Se completa solo al escanearlo desde la app"
+          />
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <Field label="Precio de venta (Bs) *" value={price} onChange={setPrice} placeholder="0" />
+            <Field label="Costo (Bs)" value={cost} onChange={setCost} placeholder="0" />
+          </div>
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
             <Field label="Stock" value={stock} onChange={setStock} placeholder="0" />
             <div>
               <Label>Estado</Label>
@@ -271,7 +275,7 @@ function ProductDialog({
             label="Imagen (ruta)"
             value={image}
             onChange={setImage}
-            placeholder="/images/r213.jpg"
+            placeholder="/images/producto.jpg (vacío = placeholder del rubro)"
           />
           <div>
             <Label>Descripción / palabras clave</Label>
@@ -279,7 +283,7 @@ function ProductDialog({
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
               rows={2}
-              placeholder="Palabras clave para el buscador (colores, ocasión, flores…)"
+              placeholder="Palabras clave para el buscador (marca, medida, modelo…)"
               className="mt-1.5 w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13.5px] text-ink outline-none placeholder:text-faint focus:border-pink"
             />
           </div>

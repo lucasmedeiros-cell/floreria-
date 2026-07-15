@@ -1,9 +1,10 @@
 "use client";
 
+import { apiUrl } from "@/lib/apiBase";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Check, Clock, Lock, QrCode, RefreshCw } from "lucide-react";
-import { bs, productById } from "@/lib/products";
-import { useCart, useToast } from "@/context/StoreProvider";
+import { bs } from "@/lib/products";
+import { useBusiness, useCart, useProducts, useToast } from "@/context/StoreProvider";
 import { openWhatsapp, useBusinessWhatsapp } from "@/lib/whatsapp";
 import { WhatsAppIcon } from "./WhatsAppIcon";
 
@@ -13,6 +14,8 @@ import { WhatsAppIcon } from "./WhatsAppIcon";
  */
 export function PaymentPanel({ onDone }: { onDone: () => void }) {
   const cart = useCart();
+  const business = useBusiness();
+  const { byId } = useProducts();
   const { showToast } = useToast();
   const waNumber = useBusinessWhatsapp();
   const [paid, setPaid] = useState(false);
@@ -21,7 +24,9 @@ export function PaymentPanel({ onDone }: { onDone: () => void }) {
 
   // Snapshot del pedido (sobrevive al vaciado del carrito).
   const snapshot = useMemo(() => {
-    const lines = cart.ids.map((id) => ({ p: productById(id), qty: cart.qty(id) }));
+    const lines = cart.ids
+      .map((id) => ({ p: byId(id), qty: cart.qty(id) }))
+      .filter((e): e is { p: NonNullable<typeof e.p>; qty: number } => !!e.p);
     const total = cart.total;
     const count = cart.count;
     const gloss = lines
@@ -47,7 +52,7 @@ export function PaymentPanel({ onDone }: { onDone: () => void }) {
     setQrLoading(true);
     setQrError(null);
     try {
-      const res = await fetch("/api/payments/qr", {
+      const res = await fetch(apiUrl("/api/payments/qr"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: snapshot.total, gloss: snapshot.gloss }),
@@ -72,7 +77,7 @@ export function PaymentPanel({ onDone }: { onDone: () => void }) {
     if (!qr || paid) return;
     const id = setInterval(async () => {
       try {
-        const res = await fetch("/api/payments/status", {
+        const res = await fetch(apiUrl("/api/payments/status"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ correlativo: qr.correlativo, qrId: qr.qrId }),
@@ -118,7 +123,7 @@ export function PaymentPanel({ onDone }: { onDone: () => void }) {
         image: e.p.image ?? null,
       })),
     };
-    const res = await fetch("/api/orders", {
+    const res = await fetch(apiUrl("/api/orders"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -150,14 +155,14 @@ export function PaymentPanel({ onDone }: { onDone: () => void }) {
       .map((e) => `• ${e.qty}x ${e.p.name} — ${bs(e.p.price * e.qty)}`)
       .join("\n");
     const msg =
-      `¡Hola FloresOnline! 🌸\n\n` +
+      `${business.greeting}\n\n` +
       `Acabo de hacer un pedido desde la tienda web y ya realicé el pago con QR ✅\n\n` +
       (code ? `🧾 *Pedido ${code}*\n\n` : "") +
-      `🌷 *Mi pedido:*\n${lines}\n\n` +
+      `🧺 *Mi pedido:*\n${lines}\n\n` +
       `💰 *Total pagado: ${bs(snapshot.total)}*\n\n` +
       `👤 ${name.trim()}\n` +
       `📱 ${phone.trim()}\n\n` +
-      `¿Me pueden confirmar la entrega, por favor? ¡Muchas gracias! 💐`;
+      `¿Me pueden confirmar la entrega, por favor? ¡Muchas gracias!`;
     openWhatsapp(msg, waNumber);
     cart.clear();
     onDone();

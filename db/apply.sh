@@ -2,7 +2,7 @@
 # ============================================================
 #  Aplica esquema + seed a una base de datos existente.
 #  Variables (con valores por defecto para desarrollo local):
-#    PGHOST=localhost PGPORT=5432 PGUSER=petrobox PGPASSWORD=petrobox PGDATABASE=floreria
+#    PGHOST=localhost PGPORT=5432 PGUSER=petrobox PGPASSWORD=petrobox PGDATABASE=easypos
 #
 #  Ejemplos:
 #    # Local
@@ -16,7 +16,7 @@ export PGHOST="${PGHOST:-localhost}"
 export PGPORT="${PGPORT:-5432}"
 export PGUSER="${PGUSER:-petrobox}"
 export PGPASSWORD="${PGPASSWORD:-petrobox}"
-export PGDATABASE="${PGDATABASE:-floreria}"
+export PGDATABASE="${PGDATABASE:-easypos}"
 export PGCONNECT_TIMEOUT="${PGCONNECT_TIMEOUT:-8}"
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

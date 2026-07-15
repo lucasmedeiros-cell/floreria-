@@ -2,8 +2,9 @@
 
 import { Minus, Plus } from "lucide-react";
 import React from "react";
+import { useBusiness } from "@/context/StoreProvider";
 
-/** Botón primario plano rosa, igual que la tienda. */
+/** Botón primario plano con el color de marca del rubro, igual que la tienda. */
 export function PrimaryButton({
   label,
   onClick,
@@ -21,7 +22,8 @@ export function PrimaryButton({
   colors?: [string, string];
   type?: "button" | "submit";
 }) {
-  const bg = colors ? colors[0] : "#E8366B";
+  const accent = useBusiness().colors.accent;
+  const bg = colors ? colors[0] : accent;
   return (
     <button
       type={type}

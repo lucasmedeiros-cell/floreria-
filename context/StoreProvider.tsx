@@ -20,12 +20,19 @@ import {
   apiPatchStatus,
   orderToPayload,
 } from "@/lib/ordersClient";
+import { Product, findProduct, searchProducts } from "@/lib/products";
 import {
-  Product,
-  kProducts,
-  productById,
-  searchProducts,
-} from "@/lib/products";
+  apiCreateProduct,
+  apiDeleteProduct,
+  apiListProducts,
+  apiUpdateProduct,
+} from "@/lib/productsClient";
+import {
+  defaultBusinessConfig,
+  resolveBusiness,
+  type Business,
+  type BusinessConfig,
+} from "@/lib/business";
 
 // ===================== Carrito =====================
 interface CartState {
@@ -75,12 +82,17 @@ interface AuthApi {
 // ===================== Productos =====================
 interface ProductsApi {
   products: Product[];
+  /** Busca un producto del catálogo activo por SKU. */
+  byId: (id: string) => Product | undefined;
   /** Devuelve true si ya existe un producto con ese SKU (excluyendo `exceptId`). */
   skuExists: (sku: string, exceptId?: string) => boolean;
   search: (q: string) => Product[];
-  add: (p: Product) => boolean;
-  update: (id: string, patch: Partial<Product>) => boolean;
-  remove: (id: string) => void;
+  /** Crea el producto en la BD. false = el SKU ya existe o falló el guardado. */
+  add: (p: Product) => Promise<boolean>;
+  update: (id: string, patch: Partial<Product>) => Promise<boolean>;
+  remove: (id: string) => Promise<void>;
+  /** Relee el catálogo desde la BD (p. ej. tras cambiar el rubro). */
+  refresh: () => Promise<void>;
 }
 
 // ===================== Pedidos =====================
@@ -104,11 +116,55 @@ interface StoreCtx {
   ordersApi: OrdersApi;
   productsApi: ProductsApi;
   toastApi: ToastApi;
+  /** Negocio activo: rubro, marca, contacto, colores y textos. */
+  business: Business;
 }
 
 const Ctx = createContext<StoreCtx | null>(null);
 
-export function StoreProvider({ children }: { children: React.ReactNode }) {
+export function StoreProvider({
+  children,
+  business: businessCfg = defaultBusinessConfig,
+  products: initialProducts = [],
+}: {
+  children: React.ReactNode;
+  /** Config leída en el servidor (app/layout.tsx). */
+  business?: BusinessConfig;
+  /** Catálogo leído en el servidor (app/layout.tsx). */
+  products?: Product[];
+}) {
+  // ---------- Negocio (rubro activo) ----------
+  const business = useMemo(() => resolveBusiness(businessCfg), [businessCfg]);
+
+  // ---------- Productos ----------
+  // Fuente única: la tabla `products` de la base de datos. El CRM y la tienda
+  // ven exactamente lo mismo, y una instalación nueva arranca con el catálogo
+  // vacío (no hay semilla en código).
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+
+  const refreshProducts = useCallback(async () => {
+    try {
+      setProducts(await apiListProducts());
+    } catch {
+      // Sin BD disponible: se deja el catálogo como está.
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshProducts();
+  }, [refreshProducts]);
+
+  // Al cambiar el rubro desde el panel, el catálogo puede haber cambiado en la
+  // BD (se quita el demo anterior, se carga el nuevo): hay que releerlo.
+  useEffect(() => {
+    refreshProducts();
+  }, [businessCfg.rubroId, refreshProducts]);
+
+  const byId = useCallback(
+    (id: string) => findProduct(products, id),
+    [products]
+  );
+
   // ---------- Carrito ----------
   const [cartState, setCartState] = useState<CartState>({
     items: {},
@@ -159,7 +215,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
     const count = Object.values(cartState.items).reduce((a, b) => a + b, 0);
     const total = Object.entries(cartState.items).reduce(
-      (t, [id, n]) => t + productById(id).price * n,
+      (t, [id, n]) => t + (byId(id)?.price ?? 0) * n,
       0
     );
     return {
@@ -177,7 +233,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       remove,
       clear,
     };
-  }, [cartState, qty, add, change, remove, clear]);
+  }, [cartState, byId, qty, add, change, remove, clear]);
 
   // ---------- Auth (sesión de empleado contra la BD) ----------
   const [authState, setAuthState] = useState({
@@ -274,15 +330,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [authState, login, register, logout]
   );
 
-  // ---------- Productos ----------
-  const [products, setProducts] = useState<Product[]>(() =>
-    kProducts.map((p, i) => ({
-      ...p,
-      stock: p.stock ?? 12 + ((i * 7) % 40),
-      status: p.status ?? "activo",
-    }))
-  );
-
   const skuExists = useCallback(
     (sku: string, exceptId?: string): boolean => {
       const s = sku.trim().toLowerCase();
@@ -299,57 +346,65 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addProduct = useCallback(
-    (p: Product): boolean => {
+    async (p: Product): Promise<boolean> => {
       const id = p.id.trim();
       if (id === "") return false;
-      let ok = true;
-      setProducts((ps) => {
-        if (ps.some((x) => x.id.toLowerCase() === id.toLowerCase())) {
-          ok = false;
-          return ps;
-        }
-        return [{ ...p, id }, ...ps];
-      });
-      return ok;
+      // Optimista: se ve al instante y se persiste en la BD.
+      setProducts((ps) => [{ ...p, id }, ...ps]);
+      try {
+        await apiCreateProduct({ ...p, id });
+        await refreshProducts();
+        return true;
+      } catch {
+        await refreshProducts();
+        return false;
+      }
     },
-    []
+    [refreshProducts]
   );
 
   const updateProduct = useCallback(
-    (id: string, patch: Partial<Product>): boolean => {
-      let ok = true;
-      setProducts((ps) => {
-        const nextId = (patch.id ?? id).trim();
-        if (
-          nextId.toLowerCase() !== id.toLowerCase() &&
-          ps.some((x) => x.id.toLowerCase() === nextId.toLowerCase())
-        ) {
-          ok = false;
-          return ps;
-        }
-        return ps.map((x) =>
-          x.id === id ? { ...x, ...patch, id: nextId } : x
-        );
-      });
-      return ok;
+    async (id: string, patch: Partial<Product>): Promise<boolean> => {
+      const nextId = (patch.id ?? id).trim();
+      setProducts((ps) =>
+        ps.map((x) => (x.id === id ? { ...x, ...patch, id: nextId } : x))
+      );
+      try {
+        await apiUpdateProduct(id, patch);
+        await refreshProducts();
+        return true;
+      } catch {
+        await refreshProducts();
+        return false;
+      }
     },
-    []
+    [refreshProducts]
   );
 
-  const removeProduct = useCallback((id: string) => {
-    setProducts((ps) => ps.filter((x) => x.id !== id));
-  }, []);
+  const removeProduct = useCallback(
+    async (id: string) => {
+      setProducts((ps) => ps.filter((x) => x.id !== id));
+      try {
+        await apiDeleteProduct(id);
+      } finally {
+        await refreshProducts();
+      }
+    },
+    [refreshProducts]
+  );
 
   const productsApi: ProductsApi = useMemo(
     () => ({
       products,
+      byId,
       skuExists,
       search: searchProductsCb,
       add: addProduct,
       update: updateProduct,
       remove: removeProduct,
+      refresh: refreshProducts,
     }),
-    [products, skuExists, searchProductsCb, addProduct, updateProduct, removeProduct]
+    [products, byId, skuExists, searchProductsCb, addProduct, updateProduct, removeProduct, refreshProducts]
   );
 
   // ---------- Pedidos (respaldados por la base de datos) ----------
@@ -445,8 +500,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ cart, auth, ordersApi, productsApi, toastApi }),
-    [cart, auth, ordersApi, productsApi, toastApi]
+    () => ({ cart, auth, ordersApi, productsApi, toastApi, business }),
+    [cart, auth, ordersApi, productsApi, toastApi, business]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -462,4 +517,6 @@ export const useCart = () => useStore().cart;
 export const useAuth = () => useStore().auth;
 export const useOrders = () => useStore().ordersApi;
 export const useProducts = () => useStore().productsApi;
+/** Negocio activo: rubro, marca, contacto, colores, categorías y textos. */
+export const useBusiness = () => useStore().business;
 export const useToast = () => useStore().toastApi;
