@@ -274,6 +274,22 @@ function Header({ title, subtitle }: { title: string; subtitle: string }) {
 
 function BrandPanel() {
   const business = useBusiness();
+  // El panel se adapta al negocio: un rubro que reparte (florería, restaurante)
+  // habla de entregas; uno de mostrador (repuestos, ferretería) habla de ventas.
+  // Nada de esto son datos reales del comercio: es una muestra ilustrativa.
+  const reparte = business.modules.entregas;
+  const eyebrow = reparte ? "PEDIDOS Y ENTREGAS" : "VENTAS Y CATÁLOGO";
+  const bullets = reparte
+    ? [
+        "Registrá el pedido con fecha, hora y ubicación",
+        "Asigná un repartidor y una prioridad",
+        "Controlá el estado hasta la entrega",
+      ]
+    : [
+        "Registrá cada venta en segundos",
+        "Controlá tu catálogo, precios y stock",
+        "Seguí tus reportes de ventas y ganancias",
+      ];
   return (
     <div className="relative hidden overflow-hidden bg-pinkHero lg:flex lg:flex-col lg:justify-between lg:p-12">
       {/* Halos decorativos suaves */}
@@ -286,17 +302,19 @@ function BrandPanel() {
         <Wordmark />
       </div>
 
-      {/* Tarjeta de muestra */}
+      {/* Tarjeta de muestra (ilustrativa, no son datos del comercio). */}
       <div className="relative my-8 max-w-[300px] rounded-[18px] border border-line bg-white p-4 shadow-soft">
         <div className="flex items-center justify-between">
           <span className="text-[10.5px] font-semibold tracking-[2px] text-pink">
-            PED-1043
+            {reparte ? "PEDIDO" : "VENTA"} · EJEMPLO
           </span>
           <span className="rounded-full bg-pinkSoft px-2.5 py-0.5 text-[10.5px] font-semibold text-pink">
-            Programado
+            {reparte ? "Programado" : "Cobrado"}
           </span>
         </div>
-        <p className="mt-2 text-[17px] font-semibold text-ink">María Fernández</p>
+        <p className="mt-2 text-[17px] font-semibold text-ink">
+          {reparte ? "Pedido de ejemplo" : "Venta de ejemplo"}
+        </p>
         <div className="mt-1.5 flex items-center gap-1.5 text-[12px] text-ink2">
           <Clock size={13} /> Hoy · 15:00 · 2 ítems
         </div>
@@ -308,17 +326,13 @@ function BrandPanel() {
 
       <div className="relative">
         <p className="text-[.72rem] font-semibold tracking-[3px] text-pink">
-          PEDIDOS Y ENTREGAS
+          {eyebrow}
         </p>
         <h2 className="mt-3 whitespace-pre-line text-[38px] font-semibold leading-[1.1] text-ink">
-          Gestiona cada pedido{"\n"}con simplicidad.
+          {reparte ? "Gestioná cada pedido" : "Gestioná cada venta"}{"\n"}con simplicidad.
         </h2>
         <div className="mt-6 flex flex-col gap-2.5">
-          {[
-            "Registra el pedido con fecha, hora y ubicación",
-            "Asigna un repartidor y una prioridad",
-            "Controla el estado hasta la entrega",
-          ].map((t) => (
+          {bullets.map((t) => (
             <div key={t} className="flex items-start gap-2.5">
               <span className="mt-0.5 grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-pink">
                 <Check size={12} className="text-white" />
