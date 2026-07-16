@@ -189,6 +189,22 @@ export async function negocioBySlug(slug: string): Promise<Negocio | null> {
 }
 
 /**
+ * Todos los negocios easy pos que pueden atender (activos o en prueba). Lo usa
+ * el pareo por código: la app llega con un código de 6 dígitos pero sin saber a
+ * qué negocio pertenece, así que se busca el código en la base de cada uno.
+ */
+export async function negociosEasyposActivos(): Promise<Negocio[]> {
+  if (!isMultiTenant()) return [];
+  const { rows } = await centralPool().query<NegocioRow>(
+    `SELECT id, nombre, slug, db_name, estado, rubro
+       FROM negocio
+      WHERE producto = 'easypos' AND estado NOT IN ('suspendido', 'baja')
+      ORDER BY fecha_alta DESC`
+  );
+  return rows.map(toNegocio);
+}
+
+/**
  * Resuelve el negocio por el token de pareo del dispositivo (app móvil).
  * Devuelve null si el token no existe o el dispositivo está bloqueado —
  * mismo criterio que `posAuth` en el panel de Case.
