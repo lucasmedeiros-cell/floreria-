@@ -12,6 +12,18 @@
 import { defaultModules, normalizeModules, type Modules } from "./modules";
 import { DEFAULT_RUBRO_ID, getRubro, type Rubro, type RubroId } from "./rubros";
 
+/**
+ * Paleta de easy pos (amarillo + negro). FIJA: es la marca del producto, no
+ * cambia con el rubro ni con el negocio. Debe coincidir con app/globals.css.
+ */
+export const EASYPOS_COLORS = {
+  accent: "#FEBB03",
+  accentDeep: "#E2A500",
+  soft: "#FFF3CC",
+  hero: "#FFFAEB",
+  onAccent: "#14110F",
+} as const;
+
 export interface BusinessConfig {
   /** Rubro activo. Define colores, textos, categorías y catálogo demo. */
   rubroId: RubroId;
@@ -91,7 +103,13 @@ export function businessFromRubro(rubroId: RubroId): BusinessConfig {
     deliveryCost: 0,
     payMethods: { Efectivo: true, "QR / Transferencia": true, Tarjeta: false },
     categories: [...r.categories],
-    colors: { ...r.colors },
+    // Colores fijos de easy pos (ya no salen del rubro): la marca es una sola.
+    colors: {
+      accent: EASYPOS_COLORS.accent,
+      accentDeep: EASYPOS_COLORS.accentDeep,
+      soft: EASYPOS_COLORS.soft,
+      hero: EASYPOS_COLORS.hero,
+    },
     hero: {
       eyebrow: r.hero.eyebrow,
       title: r.hero.title,
@@ -152,6 +170,24 @@ export function resolveBusiness(cfg: BusinessConfig): Business {
   const rubro = getRubro(cfg.rubroId);
   return {
     ...cfg,
+    // Estos textos ya NO son configurables (solo nombre y logo lo son): salen
+    // siempre del rubro, así no quedan pegados valores viejos al cambiar de rubro.
+    nameLight: rubro.brandLight,
+    tagline: rubro.tagline,
+    about: rubro.about,
+    hero: {
+      eyebrow: rubro.hero.eyebrow,
+      title: rubro.hero.title,
+      highlight: rubro.hero.highlight,
+      subtitle: rubro.hero.subtitle,
+    },
+    // Colores fijos de easy pos (la marca del producto).
+    colors: {
+      accent: EASYPOS_COLORS.accent,
+      accentDeep: EASYPOS_COLORS.accentDeep,
+      soft: EASYPOS_COLORS.soft,
+      hero: EASYPOS_COLORS.hero,
+    },
     rubro,
     allCategories: [kAll, ...cfg.categories],
     catalog: rubro.catalog,
@@ -198,14 +234,16 @@ export function onAccent(hex: string): string {
 }
 
 /**
- * Variables CSS del tema. Se inyectan en <body> y Tailwind las consume
- * (ver tailwind.config.ts), así que toda la UI se repinta con el color del rubro.
+ * Variables CSS del tema. Toda la web y el CRM usan los colores de easy pos;
+ * ya no dependen de la config del negocio (solo el nombre y el logo son
+ * configurables). Se mantiene la firma con `cfg` por compatibilidad.
  */
-export function themeVars(cfg: BusinessConfig): Record<string, string> {
+export function themeVars(_cfg?: BusinessConfig): Record<string, string> {
   return {
-    "--c-accent": hexToRgbChannels(cfg.colors.accent),
-    "--c-accent-deep": hexToRgbChannels(cfg.colors.accentDeep),
-    "--c-accent-soft": hexToRgbChannels(cfg.colors.soft),
-    "--c-accent-hero": hexToRgbChannels(cfg.colors.hero),
+    "--c-accent": hexToRgbChannels(EASYPOS_COLORS.accent),
+    "--c-accent-deep": hexToRgbChannels(EASYPOS_COLORS.accentDeep),
+    "--c-accent-soft": hexToRgbChannels(EASYPOS_COLORS.soft),
+    "--c-accent-hero": hexToRgbChannels(EASYPOS_COLORS.hero),
+    "--c-on-accent": hexToRgbChannels(EASYPOS_COLORS.onAccent),
   };
 }

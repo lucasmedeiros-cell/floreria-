@@ -21,7 +21,7 @@ export function ProductsPage() {
       <div className="border-b border-line bg-bg px-6 pb-4 pt-6">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex-1">
-            <span className="eyebrow text-[10.5px] font-semibold text-pink">
+            <span className="eyebrow text-[10.5px] font-semibold text-ink">
               Catálogo
             </span>
             <h1 className="mt-1 text-[30px] font-semibold text-ink">
@@ -107,7 +107,7 @@ function ProductCardAdmin({
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="eyebrow text-[10.5px] font-semibold text-pink">{p.id}</span>
+          <span className="eyebrow text-[10.5px] font-semibold text-ink">{p.id}</span>
           <StatusPill active={active} />
         </div>
         <h3 className="mt-0.5 truncate text-[18px] font-semibold text-ink">
@@ -115,7 +115,7 @@ function ProductCardAdmin({
         </h3>
         <p className="text-[11.5px] text-faint">{p.category}</p>
         <div className="mt-1.5 flex items-center gap-3">
-          <span className="text-[17px] font-bold text-pink">
+          <span className="text-[17px] font-bold text-ink">
             {bs2(p.price)}
           </span>
           <span className="text-[12px] text-ink2">Stock: {p.stock ?? 0}</span>
@@ -215,7 +215,7 @@ function ProductDialog({
       <div className="flex max-h-[88vh] w-full max-w-[520px] flex-col rounded-[22px] bg-surface">
         <div className="flex items-start px-6 pb-3 pt-5">
           <div>
-            <span className="eyebrow text-[10.5px] font-semibold text-pink">
+            <span className="eyebrow text-[10.5px] font-semibold text-ink">
               {isEdit ? "Editar producto" : "Nuevo producto"}
             </span>
             <h2 className="mt-1 text-[23px] font-semibold text-ink">

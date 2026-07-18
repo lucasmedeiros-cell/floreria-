@@ -2,9 +2,9 @@
 
 import { Minus, Plus } from "lucide-react";
 import React from "react";
-import { useBusiness } from "@/context/StoreProvider";
+import { EASYPOS_COLORS } from "@/lib/business";
 
-/** Botón primario plano con el color de marca del rubro, igual que la tienda. */
+/** Botón primario de easy pos: fondo amarillo, texto negro. */
 export function PrimaryButton({
   label,
   onClick,
@@ -19,20 +19,21 @@ export function PrimaryButton({
   icon?: React.ReactNode;
   expand?: boolean;
   disabled?: boolean;
+  /** Override opcional [fondo, texto]. Por defecto, amarillo + negro. */
   colors?: [string, string];
   type?: "button" | "submit";
 }) {
-  const accent = useBusiness().colors.accent;
-  const bg = colors ? colors[0] : accent;
+  const bg = colors ? colors[0] : EASYPOS_COLORS.accent;
+  const fg = colors ? colors[1] : EASYPOS_COLORS.onAccent;
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center justify-center gap-2.5 rounded-full px-7 py-[14px] text-[13.5px] font-semibold tracking-wide text-white transition-colors hover:opacity-90 disabled:opacity-50 ${
+      className={`inline-flex items-center justify-center gap-2.5 rounded-full px-7 py-[14px] text-[13.5px] font-semibold tracking-wide transition-opacity hover:opacity-90 disabled:opacity-50 ${
         expand ? "w-full" : ""
       }`}
-      style={{ background: bg }}
+      style={{ background: bg, color: fg }}
     >
       {icon}
       {label}
@@ -86,8 +87,8 @@ export function CategoryChip({
       onClick={onClick}
       className={`rounded-full border px-[22px] py-[11px] text-[12.5px] font-semibold tracking-wide transition-colors ${
         selected
-          ? "border-pink bg-pink text-white"
-          : "border-line bg-transparent text-ink2 hover:border-pink hover:text-pink"
+          ? "border-pink bg-pink text-onAccent"
+          : "border-line bg-transparent text-ink2 hover:border-pink hover:text-ink"
       }`}
     >
       {label}

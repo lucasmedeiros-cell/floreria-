@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { runWithTenant } from "./tenant";
 import { resolveRequestTenant } from "./tenantRequest";
+import { deviceFromRequest, hasDeviceToken } from "./pairing";
 
 export const ok = (data: unknown, init?: ResponseInit) =>
   NextResponse.json(data, init);
@@ -41,12 +42,25 @@ export function handler<T extends unknown[]>(
           );
         case "negocio":
           return await runWithTenant(t.negocio, () => fn(...args));
-        case "ninguno":
+        case "ninguno": {
+          // Modo de un solo negocio: la central no valida el token de pareo, así
+          // que se valida acá. Si la request TRAE un token de dispositivo, tiene
+          // que ser de uno pareado y no revocado — así revocar un equipo perdido
+          // realmente le corta el acceso. La web (cookie, sin este header) no se
+          // ve afectada; el propio pareo todavía no manda token, así que pasa.
+          if (hasDeviceToken() && !(await deviceFromRequest())) {
+            return unauthorized("Dispositivo no autorizado. Volvé a parear.");
+          }
           return await fn(...args);
+        }
       }
     } catch (err) {
       console.error("[api] error:", err);
       const raw = err instanceof Error ? err.message : "Error interno";
+      // Un body que no es JSON válido es culpa del cliente, no un error nuestro.
+      if (err instanceof SyntaxError) {
+        return NextResponse.json({ error: "El cuerpo de la request no es JSON válido." }, { status: 400 });
+      }
       // Errores de conexión a la base de datos → mensaje claro para el usuario.
       const code = (err as { code?: string } | null)?.code;
       const isDbDown =
@@ -57,9 +71,11 @@ export function handler<T extends unknown[]>(
         /ECONNREFUSED|ETIMEDOUT|ENOTFOUND|terminating connection|connection terminated/i.test(
           raw
         );
+      // El mensaje crudo (nombres de tablas, constraints de Postgres…) queda en
+      // el log del servidor; al cliente le va un genérico.
       const msg = isDbDown
         ? "No se pudo conectar con la base de datos. Verifica que el servidor esté activo e inténtalo de nuevo."
-        : raw;
+        : "Error interno del servidor. Intentá de nuevo.";
       return NextResponse.json({ error: msg }, { status: isDbDown ? 503 : 500 });
     }
   };

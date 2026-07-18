@@ -37,17 +37,27 @@ export interface Product {
   status?: ProductStatus;
 }
 
+/** Minúsculas y SIN acentos, para buscar como Google ("bujias" → "bujías"). */
+export function normalize(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 /**
- * Búsqueda rápida por SKU/código (id), nombre, categoría y palabras clave
- * (descripción). Todos los términos deben coincidir (AND).
+ * Búsqueda rápida por SKU/código (id), nombre, categoría, código de barras y
+ * palabras clave (descripción). Ignora acentos y mayúsculas, y todos los
+ * términos deben coincidir (AND) — se pueden poner varias referencias.
  */
 export function searchProducts(list: Product[], q: string): Product[] {
-  const t = q.trim().toLowerCase();
+  const t = normalize(q.trim());
   if (!t) return list;
   const terms = t.split(/\s+/);
   return list.filter((p) => {
-    const hay =
-      `${p.id} ${p.name} ${p.category} ${p.desc} ${p.barcode ?? ""}`.toLowerCase();
+    const hay = normalize(
+      `${p.id} ${p.name} ${p.category} ${p.desc} ${p.barcode ?? ""}`
+    );
     return terms.every((term) => hay.includes(term));
   });
 }
@@ -83,4 +93,19 @@ export function bs2(v: number): string {
   const dec = Math.round((v - intPart) * 100);
   const decStr = dec.toString().padStart(2, "0");
   return `${neg ? "-" : ""}Bs ${group(intPart)},${decStr}`;
+}
+
+/**
+ * Normaliza los atributos de rubro que manda el cliente a un objeto plano de
+ * strings no vacías (marca, compatibilidad, etc.). Descarta valores que no sean
+ * texto y recorta, para no guardar basura ni estructuras anidadas en el JSON.
+ */
+export function plainAttrs(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "string" && v.trim() !== "") out[k] = v.trim();
+    else if (typeof v === "number" || typeof v === "boolean") out[k] = String(v);
+  }
+  return out;
 }

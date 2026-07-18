@@ -50,9 +50,9 @@ export function CartDrawer({
           <h3 className="text-[1.45rem] font-semibold text-ink">
             Carrito de Compras
           </h3>
-          <span className="relative text-pink">
+          <span className="relative text-ink">
             <ShoppingCart size={30} />
-            <span className="absolute -right-2 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-pink text-[.7rem] font-semibold text-white">
+            <span className="absolute -right-2 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-pink text-[.7rem] font-semibold text-onAccent">
               {cart.count}
             </span>
           </span>
@@ -61,7 +61,7 @@ export function CartDrawer({
         {ids.length > 0 && (
           <button
             onClick={cart.clear}
-            className="px-6 pb-3.5 pt-1.5 text-right text-[.82rem] font-medium text-pink"
+            className="px-6 pb-3.5 pt-1.5 text-right text-[.82rem] font-medium text-ink"
           >
             Vaciar Carrito
           </button>
@@ -90,7 +90,7 @@ export function CartDrawer({
           <button
             onClick={onContinue}
             disabled={ids.length === 0}
-            className="flex w-full items-center gap-3 rounded-[14px] bg-pink px-4 py-3.5 text-white transition-colors hover:bg-pinkDeep disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center gap-3 rounded-[14px] bg-pink px-4 py-3.5 text-onAccent transition-colors hover:bg-pinkDeep disabled:cursor-not-allowed disabled:opacity-50"
           >
             <WhatsAppIcon size={22} />
             <span className="flex-1 text-left text-[1rem] font-semibold">

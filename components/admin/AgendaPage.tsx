@@ -41,14 +41,14 @@ export function AgendaPage() {
               key={d.toISOString()}
               onClick={() => setSel(d)}
               className={`flex w-[76px] shrink-0 flex-col items-center rounded-[16px] border py-3 transition-colors ${
-                active ? "border-pink bg-pink text-white shadow-soft" : "border-line bg-surface text-ink shadow-soft"
+                active ? "border-pink bg-pink text-onAccent shadow-soft" : "border-line bg-surface text-ink shadow-soft"
               }`}
             >
-              <span className={`text-[11px] font-semibold ${active ? "text-white/75" : "text-ink2"}`}>{WD[d.getDay()]}</span>
+              <span className={`text-[11px] font-semibold ${active ? "text-onAccent/70" : "text-ink2"}`}>{WD[d.getDay()]}</span>
               <span className="text-[24px] font-bold leading-tight">{d.getDate()}</span>
               <span
                 className="mt-1 rounded-full px-2 text-[10.5px] font-bold"
-                style={active ? { background: "rgba(255,255,255,.25)", color: "#fff" } : count ? { background: `${colors.accent}1a`, color: colors.accent } : { color: "#9C9094" }}
+                style={active ? { background: "rgba(0,0,0,.12)", color: "#14110F" } : count ? { background: `${colors.accent}33`, color: "#14110F" } : { color: "#9C9094" }}
               >
                 {count || "—"}
               </span>
@@ -72,7 +72,7 @@ export function AgendaPage() {
           {Object.entries(byCourier).map(([courier, list]) => (
             <div key={courier} className="rounded-[18px] border border-line bg-surface p-[18px] shadow-soft">
               <div className="flex items-center gap-2">
-                <Bike size={18} className="text-pink" />
+                <Bike size={18} className="text-ink" />
                 <span className="text-[14px] font-semibold text-ink">{courier}</span>
                 <span className="ml-auto rounded-full bg-surface2 px-2.5 py-1 text-[11.5px] font-semibold text-ink2">
                   {list.length} entrega(s)
@@ -81,7 +81,7 @@ export function AgendaPage() {
               <div className="mt-2">
                 {list.map((o) => (
                   <div key={o.code} className="flex items-center gap-3 border-t border-line py-3 first:border-t-0">
-                    <span className="w-14 text-center text-[16px] font-bold text-pink">{o.deliveryTime}</span>
+                    <span className="w-14 text-center text-[16px] font-bold text-ink">{o.deliveryTime}</span>
                     <div className="h-9 w-px bg-line" />
                     <div className="min-w-0 flex-1">
                       <p className="text-[13.5px] font-semibold text-ink">{o.clientName}</p>

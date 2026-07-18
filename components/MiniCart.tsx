@@ -69,7 +69,7 @@ export function MiniCart({
                 <p className="truncate text-[.82rem] font-semibold text-ink">
                   {qty} × {p.name}
                 </p>
-                <p className="text-[1.05rem] font-bold text-pink">
+                <p className="text-[1.05rem] font-bold text-ink">
                   {bs(p.price * qty)}
                 </p>
               </div>
@@ -80,7 +80,7 @@ export function MiniCart({
                   hide();
                   onViewCart();
                 }}
-                className="flex-1 rounded-[10px] border border-pink py-2.5 text-[.82rem] font-semibold text-pink transition-colors hover:bg-pinkSoft"
+                className="flex-1 rounded-[10px] border border-pink py-2.5 text-[.82rem] font-semibold text-ink transition-colors hover:bg-pinkSoft"
               >
                 Ver carrito
               </button>
@@ -89,7 +89,7 @@ export function MiniCart({
                   hide();
                   onContinue();
                 }}
-                className="flex-1 rounded-[10px] bg-pink py-2.5 text-[.82rem] font-semibold text-white transition-colors hover:bg-pinkDeep"
+                className="flex-1 rounded-[10px] bg-pink py-2.5 text-[.82rem] font-semibold text-onAccent transition-colors hover:bg-pinkDeep"
               >
                 Continuar
               </button>

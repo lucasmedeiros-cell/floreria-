@@ -4,6 +4,7 @@ import { DollarSign, ReceiptText, PackageCheck, Users } from "lucide-react";
 import { orderStatuses, orderTotal, statusColor, statusLabel } from "@/lib/adminData";
 import { useClients } from "@/lib/clientsClient";
 import { bs2 } from "@/lib/products";
+import { onAccent } from "@/lib/business";
 import { useBusiness, useOrders } from "@/context/StoreProvider";
 
 const MS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -74,7 +75,7 @@ export function ReportesPage() {
                       : `linear-gradient(180deg,${colors.accent}55,${colors.accent}99)`,
                   }}
                 />
-                <span className={`mt-2 text-[11.5px] ${last ? "font-bold text-pink" : "font-medium text-ink2"}`}>{m.label}</span>
+                <span className={`mt-2 text-[11.5px] ${last ? "font-bold text-ink" : "font-medium text-ink2"}`}>{m.label}</span>
               </div>
             );
           })}
@@ -114,7 +115,7 @@ export function ReportesPage() {
 function Kpi({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
   return (
     <div className="flex flex-col items-center rounded-[18px] border border-line bg-surface p-5 text-center shadow-soft">
-      <span className="flex h-14 w-14 items-center justify-center rounded-2xl text-white" style={{ background: `linear-gradient(140deg, ${color}, ${color}cc)`, boxShadow: `0 10px 20px ${color}44` }}>
+      <span className="flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: `linear-gradient(140deg, ${color}, ${color}cc)`, boxShadow: `0 10px 20px ${color}44`, color: onAccent(color) }}>
         {icon}
       </span>
       <p className="mt-3.5 text-[26px] font-bold leading-none text-ink">{value}</p>
@@ -136,7 +137,7 @@ function RankCard({ title, rows }: { title: string; rows: { name: string; label:
             <div key={r.name}>
               <div className="flex items-center justify-between">
                 <span className="truncate text-[13px] font-medium text-ink">{r.name}</span>
-                <span className="text-[13px] font-bold text-pink">{r.label}</span>
+                <span className="text-[13px] font-bold text-ink">{r.label}</span>
               </div>
               <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-line">
                 <div className="h-full rounded-full" style={{ width: `${r.pct * 100}%`, background: `linear-gradient(90deg,${colors.accent},${colors.accentDeep})` }} />

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { bad, handler, ok } from "@/lib/api";
+import { bad, handler, ok, unauthorized } from "@/lib/api";
+import { getSession } from "@/lib/auth";
 import { consultarEstado } from "@/lib/baas";
 
 export const runtime = "nodejs";
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
 // POST /api/payments/status  { correlativo, qrId }
 // Consulta al BaaS si el QR ya fue pagado (polling desde el checkout).
 export const POST = handler(async (req: NextRequest) => {
+  if (!getSession("employee")) return unauthorized();
   const body = await req.json();
   const correlativo = (body?.correlativo ?? "").toString();
   if (!correlativo) return bad("Falta el correlativo del QR.");

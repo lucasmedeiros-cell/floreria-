@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Directorio de build. Por defecto `.next`. Se puede aislar con NEXT_DIST para
+  // correr DOS `next dev` en la misma carpeta sin que se pisen el build (p. ej.
+  // el CRM web en :3000 y el backend de la app móvil en :3005). Sin esto, ambos
+  // escriben en `.next` y se corrompen (CSS 404, ChunkLoadError).
+  distDir: process.env.NEXT_DIST || ".next",
   reactStrictMode: true,
   // pg y Baileys usan requires dinámicos/nativos (crypto, WebSocket): que Next
   // los cargue en runtime, no los empaquete con webpack (lo rompería).

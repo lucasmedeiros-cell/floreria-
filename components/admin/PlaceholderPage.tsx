@@ -18,7 +18,7 @@ export function PlaceholderPage({
       </div>
       <div className="flex flex-1 items-center justify-center px-6">
         <div className="max-w-[360px] text-center">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-line bg-surface text-pink shadow-soft">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-line bg-surface text-ink shadow-soft">
             {icon}
           </div>
           <h2 className="mt-4.5 mt-5 text-[24px] font-semibold text-ink">

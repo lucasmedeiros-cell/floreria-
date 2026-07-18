@@ -13,9 +13,15 @@
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS phone text;
 ALTER TABLE employees ALTER COLUMN email DROP NOT NULL;
 
--- Único, pero solo entre los que tienen teléfono (varios NULL conviven).
+-- Únicos, pero solo entre los que tienen el dato (varios NULL conviven). El de
+-- correo reemplaza a la constraint UNIQUE original (que se pierde al pasar el
+-- correo a NULLable) y además lo hace CASE-INSENSITIVE, que es como lo consulta
+-- el login. Sin esto, una base migrada aceptaría Ana@x.com y ana@x.com como dos
+-- cuentas y el login por correo sería ambiguo.
 CREATE UNIQUE INDEX IF NOT EXISTS employees_phone_key
   ON employees (phone) WHERE phone IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS employees_email_key
+  ON employees (lower(email)) WHERE email IS NOT NULL;
 
 -- ---------- Pareo de dispositivos ----------
 -- El CRM emite un código de 6 dígitos, de un solo uso y con vencimiento. La app

@@ -20,7 +20,11 @@ const STATUSES = [
 ];
 
 export const GET = handler(async (_req: NextRequest, { params }: Params) => {
-  if (!getSession("employee") && !getSession("customer")) return unauthorized();
+  const emp = getSession("employee");
+  const cust = emp ? null : getSession("customer");
+  if (!emp && !cust) return unauthorized();
+  // Un CLIENTE solo puede ver SUS pedidos: los códigos son secuenciales
+  // (PED-1044…) y sin este filtro cualquier logueado enumeraría los de todos.
   const rows = await query(
     `SELECT o.code, o.client_name AS "clientName", o.status,
             to_char(o.delivery_date,'YYYY-MM-DD') AS "deliveryDate", o.delivery_time AS "deliveryTime",
@@ -29,8 +33,8 @@ export const GET = handler(async (_req: NextRequest, { params }: Params) => {
               'unitPrice',i.unit_price::float,'discountPct',i.discount_pct::float))
               FROM order_items i WHERE i.order_id=o.id),'[]') AS items
        FROM orders o LEFT JOIN order_totals t ON t.id=o.id
-      WHERE o.code = $1`,
-    [params.code]
+      WHERE o.code = $1${cust ? " AND o.customer_id = $2" : ""}`,
+    cust ? [params.code, cust.sub] : [params.code]
   );
   return rows[0] ? ok(rows[0]) : notFound("Pedido no encontrado");
 });

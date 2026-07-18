@@ -184,7 +184,7 @@ export function PromoEditor() {
           </a>
           <button
             onClick={reset}
-            className="inline-flex items-center gap-2 text-[12.5px] font-semibold text-ink2 hover:text-pink"
+            className="inline-flex items-center gap-2 text-[12.5px] font-semibold text-ink2 hover:text-ink"
           >
             <RotateCcw size={15} /> Restablecer
           </button>
@@ -201,7 +201,7 @@ function Card({ icon, title, children }: { icon: React.ReactNode; title: string;
   return (
     <div className="rounded-[18px] border border-line bg-surface p-5 shadow-soft">
       <h3 className="flex items-center gap-2 text-[15px] font-semibold text-ink">
-        <span className="text-pink">{icon}</span>
+        <span className="text-ink">{icon}</span>
         {title}
       </h3>
       <div className="mt-4 flex flex-col gap-3">{children}</div>

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ShoppingBag, ReceiptText, Store, TrendingUp } from "lucide-react";
 import { orderTotal, type Order } from "@/lib/adminData";
 import { bs2 } from "@/lib/products";
+import { onAccent } from "@/lib/business";
 import { useBusiness, useOrders } from "@/context/StoreProvider";
 
 type Period = "ayer" | "hoy" | "semana" | "mes";
@@ -108,7 +109,7 @@ export function DashboardPage() {
       {/* easy pos recién instalado: todavía no hay negocio vinculado. */}
       {!business.configured && (
         <div className="mb-5 flex flex-wrap items-center gap-3 rounded-[16px] border border-pink/40 bg-pinkSoft px-4 py-3.5">
-          <Store size={18} className="shrink-0 text-pink" />
+          <Store size={18} className="shrink-0 text-ink" />
           <p className="flex-1 text-[13px] text-ink2">
             <b className="text-ink">Este easy pos aún no está configurado.</b> Elige el rubro
             y carga los datos del negocio en <b className="text-ink">Configuración</b> para que
@@ -134,7 +135,7 @@ export function DashboardPage() {
                 onClick={() => setPeriod(p.key)}
                 className={`rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors ${
                   active
-                    ? "bg-pink text-white shadow-sm"
+                    ? "bg-pink text-onAccent shadow-sm"
                     : "text-ink2 hover:text-ink"
                 }`}
               >
@@ -212,10 +213,11 @@ function BigCard({
     <div className="relative overflow-hidden rounded-[20px] border border-line bg-surface p-6 shadow-soft">
       <div className="flex items-start justify-between">
         <span
-          className="flex h-16 w-16 items-center justify-center rounded-2xl text-white"
+          className="flex h-16 w-16 items-center justify-center rounded-2xl"
           style={{
             background: `linear-gradient(140deg, ${color}, ${color}cc)`,
             boxShadow: `0 12px 24px ${color}44`,
+            color: onAccent(color),
           }}
         >
           {icon}
@@ -308,9 +310,10 @@ function SmallCard({
   return (
     <div className="flex items-center gap-3.5 rounded-[16px] border border-line bg-surface p-4 shadow-soft">
       <span
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-white"
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
         style={{
           background: `linear-gradient(140deg, ${color}, ${color}cc)`,
+          color: onAccent(color),
           boxShadow: `0 8px 16px ${color}33`,
         }}
       >

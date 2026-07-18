@@ -246,7 +246,7 @@ function OrderCard({
           className="mr-2 h-4 w-4 shrink-0 accent-pink"
         />
         <button onClick={onClick} className="flex flex-1 items-center text-left">
-          <span className="eyebrow text-[10.5px] font-semibold text-pink">{o.code}</span>
+          <span className="eyebrow text-[10.5px] font-semibold text-ink">{o.code}</span>
           <span className="ml-auto">
             <StatusChip s={o.status} />
           </span>
@@ -268,7 +268,7 @@ function OrderCard({
         <span className="ml-1.5 text-[12.5px] text-ink2">
           {orderItemCount(o)} ítems
         </span>
-        <span className="ml-auto text-[19px] font-bold text-pink">
+        <span className="ml-auto text-[19px] font-bold text-ink">
           {bs2(orderTotal(o))}
         </span>
       </div>
@@ -289,7 +289,7 @@ function DetailDialog({ o, onClose }: { o: Order; onClose: () => void }) {
       <div className="flex max-h-[720px] w-full max-w-[520px] flex-col rounded-[22px] bg-surface">
         <div className="flex items-start px-6 pb-2 pt-5">
           <div>
-            <span className="eyebrow text-[10.5px] font-semibold text-pink">
+            <span className="eyebrow text-[10.5px] font-semibold text-ink">
               {o.code}
             </span>
             <h2 className="mt-1 text-[24px] font-semibold text-ink">
@@ -332,7 +332,7 @@ function DetailDialog({ o, onClose }: { o: Order; onClose: () => void }) {
           <div className="my-2 h-px bg-line" />
           <div className="flex items-center">
             <span className="flex-1 text-[14px] font-semibold text-ink">Total</span>
-            <span className="text-[22px] font-bold text-pink">
+            <span className="text-[22px] font-bold text-ink">
               {bs2(orderTotal(o))}
             </span>
           </div>

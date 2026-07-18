@@ -78,7 +78,7 @@ export function UsuariosPage() {
       </div>
 
       <div className="mt-4 flex items-start gap-2.5 rounded-[18px] border border-line bg-surface2 p-[18px]">
-        <ShieldCheck size={20} className="mt-0.5 shrink-0 text-pink" />
+        <ShieldCheck size={20} className="mt-0.5 shrink-0 text-ink" />
         <p className="text-[12.5px] leading-relaxed text-ink2">
           <span className="font-semibold text-ink">Roles y permisos:</span> el <b>Administrador</b> gestiona todo el panel; la <b>Vendedora</b> crea notas y clientes; el <b>Repartidor</b> solo ve su agenda y entregas asignadas.
         </p>

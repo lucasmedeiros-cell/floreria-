@@ -8,19 +8,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Paleta "Editorial Atelier"
-        ink: "#241A1E",
-        ink2: "#6E6064",
-        faint: "#9C9094",
-        bg: "#F7F2EC",
+        // Paleta easy pos (misma que la app móvil, lib/theme.dart).
+        ink: "#201A17",
+        ink2: "#6B615B",
+        faint: "#9A928C",
+        bg: "#F6F4F1",
         surface: "#FFFFFF",
-        surface2: "#FBF6F0",
-        line: "#E7DDD2",
+        surface2: "#F7F4F0",
+        line: "#E7E1DA",
         // ---------------------------------------------------------------
-        // Color de marca = el del RUBRO activo (lib/rubros.ts). Las variables
-        // las inyecta app/layout.tsx en <body> a partir de la config del
-        // negocio, así que cambiar de rubro repinta toda la UI sin tocar clases.
+        // Colores de easy pos (amarillo + negro), FIJOS. Las variables las
+        // inyecta app/globals.css / app/layout.tsx; son las mismas siempre.
         // Los nombres "pink*" quedaron del diseño original de la florería.
+        //   pink*  = amarillo (fondos, botones, bordes, chips, hero)
+        //   onAccent = negro, para TEXTO sobre el amarillo (botones)
         // ---------------------------------------------------------------
         pink: "rgb(var(--c-accent) / <alpha-value>)",
         pinkDeep: "rgb(var(--c-accent-deep) / <alpha-value>)",
@@ -29,13 +30,17 @@ const config: Config = {
         rose: "rgb(var(--c-accent) / <alpha-value>)",
         roseDeep: "rgb(var(--c-accent-deep) / <alpha-value>)",
         wine: "rgb(var(--c-accent-deep) / <alpha-value>)",
+        onAccent: "rgb(var(--c-on-accent) / <alpha-value>)",
+        // Amarillo claro del header curvo (fijo, no depende del negocio).
+        accentLight: "#FFC93C",
         greenOk: "#2EB872",
         gold: "#B8924A",
         goldSoft: "#CBA869",
         green: "#2F6B4F",
         success: "#2EA66B",
-        dark: "#211719",
-        darkSoft: "#2E2226",
+        error: "#E0324E",
+        dark: "#17120F",
+        darkSoft: "#2A2320",
       },
       fontFamily: {
         serif: ["var(--font-cormorant)", "serif"],

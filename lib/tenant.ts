@@ -234,6 +234,26 @@ export function estaActivo(negocio: Negocio): boolean {
 }
 
 /**
+ * Da de alta en la CENTRAL el token que salió de un canje de código de 6
+ * dígitos (que vive en la `device_pairing` del tenant). Sin este registro,
+ * `negocioByToken` no encontraría el token y la request siguiente al canje
+ * devolvería 401: el pareo por código quedaría muerto en multi-tenant.
+ */
+export async function registrarTokenCentral(
+  negocioId: string,
+  token: string,
+  label?: string | null
+): Promise<void> {
+  if (!isMultiTenant() || !token) return;
+  await centralPool().query(
+    `INSERT INTO dispositivo (id, negocio_id, token, habilitado, fecha_alta, label)
+     VALUES (gen_random_uuid()::text, $1, $2, true, now(), $3)
+     ON CONFLICT DO NOTHING`,
+    [negocioId, token, (label ?? "").trim() || "App móvil"]
+  );
+}
+
+/**
  * Marca el dispositivo como visto y guarda lo que reportó (plataforma, versión
  * de la app, IP). Es lo que el panel de Case muestra en la ficha del comercio.
  * Nunca tira: si la central falla, la request del negocio igual debe responder.

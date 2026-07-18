@@ -6,7 +6,6 @@ import {
   CalendarClock,
   Flower2,
   Home,
-  IdCard,
   LineChart,
   ListOrdered,
   LogOut,
@@ -14,8 +13,8 @@ import {
   Plus,
   PlusSquare,
   Settings,
+  ShoppingCart,
   Truck,
-  Users,
   X,
 } from "lucide-react";
 import { useAuth, useBusiness } from "@/context/StoreProvider";
@@ -25,6 +24,9 @@ import { Icon } from "@/components/Icon";
 import { EASYPOS } from "@/lib/easypos";
 import type { ModuleId } from "@/lib/modules";
 import { PrimaryButton } from "@/components/ui";
+import { InicioScreen } from "./InicioScreen";
+import { CurvedHeader } from "./kit";
+import { VentasScreen } from "./VentasScreen";
 import { NewOrderPage } from "./NewOrderPage";
 import { OrdersPage } from "./OrdersPage";
 import { ClientsPage } from "./ClientsPage";
@@ -40,6 +42,7 @@ import { DebugReporter } from "../DebugReporter";
 
 type Section =
   | "inicio"
+  | "ventas"
   | "nuevoPedido"
   | "pedidos"
   | "agenda"
@@ -62,21 +65,35 @@ interface NavDef {
 }
 
 const NAV: NavDef[] = [
+  { s: "ventas", icon: <ShoppingCart size={19} />, label: "Ventas", mod: "ventas" },
   { s: "pedidos", icon: <ListOrdered size={19} />, label: "Pedidos" },
   { s: "agenda", icon: <CalendarClock size={19} />, label: "Agenda", mod: "agenda" },
-  { s: "clientes", icon: <Users size={19} />, label: "Clientes", mod: "clientes" },
   { s: "productos", icon: <Flower2 size={19} />, label: "Productos", mod: "productos" },
   { s: "entregas", icon: <Truck size={19} />, label: "Entregas", mod: "entregas" },
   { s: "reportes", icon: <LineChart size={19} />, label: "Reportes", mod: "reportes" },
   { s: "configuracion", icon: <Settings size={19} />, label: "Configuración" },
-  { s: "usuarios", icon: <IdCard size={19} />, label: "Usuarios", mod: "usuarios" },
+  // Usuarios y Clientes se administran desde Case, no desde el CRM del negocio.
 ];
 
+// Secciones ya convertidas al diseño de la app (header curvo + kit). Se van
+// sumando a medida que se rehace cada pantalla para la paridad web ↔ móvil.
+const KIT_SECTIONS = new Set<Section>(["inicio"]);
+const SECTION_TITLE: Partial<Record<Section, string>> = {
+  inicio: "Inicio",
+  ventas: "Ventas",
+  pedidos: "Pedidos",
+  productos: "Productos",
+  reportes: "Reportes",
+  configuracion: "Configuración",
+};
+
 export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
-  const [section, setSection] = useState<Section>("inicio");
   const [drawer, setDrawer] = useState(false);
   // Qué secciones usa este negocio (Configuración → Módulos del CRM).
   const modules = useBusiness().modules;
+  // En rubros de mostrador el CRM abre directo en Ventas (el POS); en los de
+  // reparto (florería, restaurante) abre en Inicio.
+  const [section, setSection] = useState<Section>(modules.ventas ? "ventas" : "inicio");
 
   const go = (s: Section) => {
     setSection(s);
@@ -93,7 +110,15 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
   const page = () => {
     switch (seccion) {
       case "inicio":
-        return <DashboardPage />;
+        return (
+          <InicioScreen
+            onVentas={() => go("ventas")}
+            onProductos={() => go("productos")}
+            onPedidos={() => go("pedidos")}
+          />
+        );
+      case "ventas":
+        return <VentasScreen />;
       case "nuevoPedido":
         return <NewOrderPage onDone={() => go("pedidos")} />;
       case "pedidos":
@@ -135,15 +160,29 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
       )}
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* App bar (mobile) */}
-        <div className="flex items-center gap-3 border-b border-line bg-white px-4 py-3 lg:hidden">
-          <button onClick={() => setDrawer(true)} className="text-ink">
-            <Menu size={24} />
-          </button>
-          <BrandMark size={28} />
-          <Wordmark />
-        </div>
-        <div className="flex-1 overflow-hidden">{page()}</div>
+        {KIT_SECTIONS.has(seccion) ? (
+          // Pantallas con el diseño de la app: header amarillo curvo + contenido.
+          <div className="flex h-full flex-col">
+            <CurvedHeader
+              title={SECTION_TITLE[seccion] ?? ""}
+              onMenu={() => setDrawer(true)}
+              onBell={() => {}}
+            />
+            <div className="-mt-3 flex-1 overflow-y-auto">{page()}</div>
+          </div>
+        ) : (
+          <>
+            {/* App bar (mobile) — pantallas aún no convertidas al kit. */}
+            <div className="flex items-center gap-3 border-b border-line bg-white px-4 py-3 lg:hidden">
+              <button onClick={() => setDrawer(true)} className="text-ink">
+                <Menu size={24} />
+              </button>
+              <BrandMark size={28} />
+              <Wordmark />
+            </div>
+            <div className="flex-1 overflow-hidden">{page()}</div>
+          </>
+        )}
       </div>
 
       <DebugReporter surface="crm" />
@@ -183,10 +222,10 @@ function Sidebar({
           active ? "bg-pinkSoft" : "hover:bg-surface2"
         }`}
       >
-        <span className={active ? "text-pink" : "text-faint"}>{n.icon}</span>
+        <span className={active ? "text-ink" : "text-faint"}>{n.icon}</span>
         <span
           className={`text-[13.5px] ${
-            active ? "font-semibold text-pink" : "font-medium text-ink2"
+            active ? "font-semibold text-ink" : "font-medium text-ink2"
           }`}
         >
           {n.label}
@@ -208,7 +247,7 @@ function Sidebar({
       </div>
       {/* Rubro activo: se cambia en Configuración → Rubro del negocio. */}
       <div className="px-5 pb-4">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-pinkSoft px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[1px] text-pink">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-pinkSoft px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[1px] text-ink">
           <Icon name={business.rubro.icon} size={12} />
           {business.rubro.label}
         </span>
@@ -230,14 +269,14 @@ function Sidebar({
       </div>
       <div className="h-px bg-line" />
       <div className="flex items-center gap-2.5 px-4 py-3.5">
-        <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-pink text-[13px] font-bold text-white">
+        <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-pink text-[13px] font-bold text-onAccent">
           {initials}
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-semibold text-ink">{auth.name}</p>
           <p className="text-[11px] text-faint">{auth.role}</p>
         </div>
-        <button onClick={auth.logout} title="Cerrar sesión" className="text-ink2 hover:text-pink">
+        <button onClick={auth.logout} title="Cerrar sesión" className="text-ink2 hover:text-ink">
           <LogOut size={19} />
         </button>
       </div>

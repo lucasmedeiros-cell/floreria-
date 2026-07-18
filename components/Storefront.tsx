@@ -10,6 +10,7 @@ import { useBusiness, useCart, useProducts } from "@/context/StoreProvider";
 import { openWhatsapp, useBusinessWhatsapp } from "@/lib/whatsapp";
 import { BrandMark, Wordmark } from "./Brand";
 import { Icon } from "./Icon";
+import { EASYPOS } from "@/lib/easypos";
 import { ProductCard } from "./ProductCard";
 import { WhatsAppIcon } from "./WhatsAppIcon";
 import { CartDrawer } from "./CartDrawer";
@@ -109,11 +110,11 @@ export function Storefront() {
             {/* Carrito */}
             <button
               onClick={openCart}
-              className="relative text-pink"
+              className="relative text-ink"
               aria-label="Carrito"
             >
               <ShoppingCart size={30} />
-              <span className="absolute -right-2 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-pink text-[.7rem] font-semibold text-white">
+              <span className="absolute -right-2 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-pink text-[.7rem] font-semibold text-onAccent">
                 {cart.count}
               </span>
             </button>
@@ -136,7 +137,7 @@ export function Storefront() {
                   key={label}
                   onClick={onClick}
                   className={`relative whitespace-nowrap pb-[18px] text-[.82rem] font-medium tracking-[1.5px] transition-colors ${
-                    active ? "text-pink" : "text-ink2 hover:text-ink"
+                    active ? "text-ink" : "text-ink2 hover:text-ink"
                   }`}
                 >
                   {label}
@@ -154,17 +155,17 @@ export function Storefront() {
         {/* ===================== HERO ===================== */}
         <section className="mt-[30px] grid grid-cols-1 items-center gap-8 rounded-[6px] bg-pinkHero px-7 py-9 md:grid-cols-2 md:px-14 md:py-[50px]">
           <div className="order-2 md:order-1">
-            <p className="mb-3.5 text-[.72rem] font-semibold tracking-[3px] text-pink">
+            <p className="mb-3.5 text-[.72rem] font-semibold tracking-[3px] text-ink">
               {hero.eyebrow}
             </p>
             <h1 className="text-[2.3rem] font-normal leading-[1.05] tracking-[-1px] text-ink md:text-[3rem]">
               {hero.title}
               {rubro.heroScript ? (
-                <span className="mt-0.5 block font-script text-[2.5rem] font-bold text-pinkDeep md:text-[3.2rem]">
+                <span className="mt-0.5 block font-script text-[2.5rem] font-bold text-ink md:text-[3.2rem]">
                   {hero.highlight}
                 </span>
               ) : (
-                <span className="mt-0.5 block font-semibold text-pinkDeep">
+                <span className="mt-0.5 block font-semibold text-ink">
                   {hero.highlight}
                 </span>
               )}
@@ -174,7 +175,7 @@ export function Storefront() {
             <div className="flex flex-wrap items-center gap-3.5">
               <button
                 onClick={() => scrollTo(productosRef, "PRODUCTOS")}
-                className="rounded-full border-[1.5px] border-pink px-7 py-[13px] text-[.78rem] font-semibold tracking-[1.5px] text-pink transition-colors hover:bg-pink hover:text-white"
+                className="rounded-full border-[1.5px] border-pink px-7 py-[13px] text-[.78rem] font-semibold tracking-[1.5px] text-ink transition-colors hover:bg-pink hover:text-onAccent"
               >
                 {rubro.hero.ctaPrimary}
               </button>
@@ -185,7 +186,7 @@ export function Storefront() {
                     waNumber
                   )
                 }
-                className="inline-flex items-center gap-2 rounded-full bg-pink px-7 py-[14px] text-[.78rem] font-semibold tracking-[1px] text-white transition-colors hover:bg-pinkDeep"
+                className="inline-flex items-center gap-2 rounded-full bg-pink px-7 py-[14px] text-[.78rem] font-semibold tracking-[1px] text-onAccent transition-colors hover:bg-pinkDeep"
               >
                 <WhatsAppIcon size={16} /> {rubro.hero.ctaSecondary}
               </button>
@@ -206,7 +207,7 @@ export function Storefront() {
                 />
               ) : (
                 <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-pinkSoft to-white">
-                  <span className="text-pink opacity-70">
+                  <span className="text-ink opacity-70">
                     <Icon name={rubro.icon} size={120} />
                   </span>
                 </div>
@@ -331,9 +332,30 @@ export function Storefront() {
             >
               <Lock size={13} /> Acceso empleados
             </Link>
-            <span className="text-[.75rem] text-white/40">
-              © 2026 {business.name} · {business.tagline.toLowerCase()}
-            </span>
+            <div className="flex items-center gap-4">
+              {/* La tienda es del negocio, pero corre sobre easy pos. */}
+              <a
+                href="https://easypos.bo"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 text-[.72rem] text-white/40 transition-colors hover:text-white/70"
+              >
+                Con tecnología de
+                <Image
+                  src={EASYPOS.logo}
+                  alt="easy pos"
+                  width={16}
+                  height={16}
+                  className="rounded-[3px]"
+                />
+                <span className="font-semibold" style={{ color: EASYPOS.yellow }}>
+                  easy pos
+                </span>
+              </a>
+              <span className="text-[.75rem] text-white/40">
+                © 2026 {business.name}
+              </span>
+            </div>
           </div>
         </div>
       </footer>
@@ -362,7 +384,7 @@ function Step({
       <span className="absolute right-4 top-3 text-[2rem] font-bold text-pinkSoft">
         {n}
       </span>
-      <span className="grid h-11 w-11 place-items-center rounded-[12px] bg-pinkSoft text-pink">
+      <span className="grid h-11 w-11 place-items-center rounded-[12px] bg-pinkSoft text-ink">
         {icon}
       </span>
       <h3 className="mt-3.5 text-[.95rem] font-semibold text-ink">{title}</h3>
@@ -382,7 +404,7 @@ function TrustItem({
 }) {
   return (
     <div className="flex items-center justify-center gap-3.5">
-      <span className="shrink-0 text-pink">{icon}</span>
+      <span className="shrink-0 text-ink">{icon}</span>
       <span className="text-[.82rem] font-semibold leading-tight text-ink">
         {title}
         <span className="block font-normal text-faint">{sub}</span>

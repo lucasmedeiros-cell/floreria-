@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../api.dart';
+import '../nav.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'login_screen.dart';
@@ -51,7 +52,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             email: _email.text,
           );
       if (mounted) await ofrecerBiometria(context);
-      // Al quedar logueado, el _Gate reemplaza toda la pila por el panel.
+      // El _Gate solo cambia el `home`: hay que sacar ESTA pantalla pusheada
+      // de encima para que el panel quede a la vista.
+      volverALaRaiz();
     } catch (e) {
       if (mounted) showToast(context, e.toString());
     } finally {

@@ -5,11 +5,12 @@ import '../api.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'login_screen.dart';
+import 'qr_scan_screen.dart';
 
-/// Primer inicio: el dispositivo todavía no pertenece a ningún negocio. El
-/// empleado (o el dueño) pide un código de 6 dígitos en el CRM
-/// (Configuración → Vincular dispositivo) y lo ingresa acá. Al canjearlo, el
-/// dispositivo queda pareado y ya no se vuelve a ver esta pantalla.
+/// Primer inicio: el dispositivo todavía no pertenece a ningún negocio. La forma
+/// principal de vincularlo es **escanear el QR** que muestra el panel (Case); al
+/// leerlo, el dispositivo queda pareado y la app adopta los colores y módulos
+/// del negocio. Como respaldo (QR ilegible), se puede ingresar el código a mano.
 class PairingScreen extends StatefulWidget {
   const PairingScreen({super.key});
   @override
@@ -17,30 +18,68 @@ class PairingScreen extends StatefulWidget {
 }
 
 class _PairingScreenState extends State<PairingScreen> {
-  final _code = TextEditingController();
-  bool _loading = false;
+  bool _procesando = false;
 
-  @override
-  void dispose() {
-    _code.dispose();
-    super.dispose();
+  Future<void> _escanearQr() async {
+    final contenido = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const QrScanScreen()),
+    );
+    if (contenido == null || !mounted) return;
+    await _vincular(() => context.read<Api>().vincularConQr(contenido));
   }
 
-  Future<void> _submit() async {
-    final code = _code.text.trim();
-    if (code.length != 6) {
-      showToast(context, 'El código tiene 6 dígitos.');
-      return;
-    }
-    setState(() => _loading = true);
+  Future<void> _codigoManual() async {
+    final code = await _pedirCodigo();
+    if (code == null || !mounted) return;
+    await _vincular(() => context.read<Api>().parear(code));
+  }
+
+  Future<void> _vincular(Future<void> Function() accion) async {
+    setState(() => _procesando = true);
     try {
-      await context.read<Api>().parear(code);
-      // Al parear, el _Gate de main.dart pasa solo a la pantalla de login.
+      await accion();
+      // Al vincular, el _Gate pasa solo a la pantalla de login.
     } catch (e) {
       if (mounted) showToast(context, e.toString());
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _procesando = false);
     }
+  }
+
+  Future<String?> _pedirCodigo() {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Ingresar código',
+            style: AppText.serif(size: 20, weight: FontWeight.w600)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          textAlign: TextAlign.center,
+          style: AppText.serif(size: 30, weight: FontWeight.w700, color: AppColors.ink)
+              .copyWith(letterSpacing: 8),
+          decoration: const InputDecoration(counterText: '', hintText: '••••••'),
+          onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Cancelar', style: AppText.sans(size: 13, color: AppColors.ink2)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(ctrl.text.trim()),
+            child: Text('Vincular',
+                style: AppText.sans(size: 13, weight: FontWeight.w600, color: AppColors.rose)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -48,43 +87,24 @@ class _PairingScreenState extends State<PairingScreen> {
     return AuthScaffold(
       title: 'Vinculá este dispositivo',
       subtitle:
-          'Pedí el código en el CRM: Configuración → Vincular dispositivo. '
-          'Vence a los 15 minutos.',
+          'Escaneá el código QR que aparece en el panel de easy pos '
+          '(Configuración → Vincular dispositivo).',
       children: [
-        TextField(
-          controller: _code,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          textAlign: TextAlign.center,
-          maxLength: 6,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          style: AppText.serif(
-              size: 40, weight: FontWeight.w700, color: AppColors.ink)
-            .copyWith(letterSpacing: 12),
-          decoration: InputDecoration(
-            counterText: '',
-            hintText: '••••••',
-            hintStyle: AppText.serif(size: 40, color: AppColors.faint)
-                .copyWith(letterSpacing: 12),
-            filled: true,
-            fillColor: AppColors.surface2,
-            contentPadding: const EdgeInsets.symmetric(vertical: 14),
-            enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.line)),
-            focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.rose, width: 1.5)),
-          ),
-          onSubmitted: (_) => _submit(),
-        ),
-        const SizedBox(height: 20),
         PrimaryButton(
-          label: 'Vincular',
-          icon: Icons.link_rounded,
+          label: 'Escanear código QR',
+          icon: Icons.qr_code_scanner_rounded,
           expand: true,
-          loading: _loading,
-          onTap: _submit,
+          loading: _procesando,
+          onTap: _escanearQr,
+        ),
+        const SizedBox(height: 14),
+        Center(
+          child: GestureDetector(
+            onTap: _procesando ? null : _codigoManual,
+            child: Text('El QR no se lee — ingresar código a mano',
+                style: AppText.sans(
+                    size: 13, weight: FontWeight.w600, color: AppColors.rose)),
+          ),
         ),
       ],
     );

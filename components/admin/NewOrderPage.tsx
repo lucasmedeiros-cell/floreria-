@@ -150,7 +150,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
       <div className="border-b border-line bg-bg px-6 pb-4 pt-5">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex-1">
-            <span className="eyebrow text-[10.5px] font-semibold text-pink">
+            <span className="eyebrow text-[10.5px] font-semibold text-ink">
               Pedidos › Nuevo Pedido
             </span>
             <h1 className="mt-1 text-[28px] font-semibold text-ink">
@@ -162,7 +162,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
             <OutlineButton
               label="Guardar borrador"
               icon={<Save size={18} />}
-              color={colors.accent}
+              color="#14110F"
               onClick={() => save("borrador")}
             />
             <PrimaryButton
@@ -200,7 +200,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
                   <button
                     onClick={newClient}
                     title="Nuevo cliente"
-                    className="flex h-12 w-12 items-center justify-center rounded-xl bg-pink text-white"
+                    className="flex h-12 w-12 items-center justify-center rounded-xl bg-pink text-onAccent"
                   >
                     <UserPlus size={20} />
                   </button>
@@ -226,7 +226,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
                 <Field label="Ubicación (lat, lng)" value={location} onChange={setLocation} placeholder="-17.7833, -63.1821" />
                 <div>
                   <Label>Mapa</Label>
-                  <OutlineButton label="Ver en mapa" icon={<MapPin size={18} />} color={colors.accent} full onClick={openMap} />
+                  <OutlineButton label="Ver en mapa" icon={<MapPin size={18} />} color="#14110F" full onClick={openMap} />
                 </div>
               </TwoCol>
               <Field label="Notas del cliente" value={clientNotes} onChange={setClientNotes} placeholder="Preferencias, horarios, etc." />
@@ -258,7 +258,7 @@ export function NewOrderPage({ onDone }: { onDone: () => void }) {
                 <OutlineButton
                   label="Agregar producto / servicio"
                   icon={<Plus size={18} />}
-                  color={colors.accent}
+                  color="#14110F"
                   onClick={() => setSheet(true)}
                 />
               </div>
@@ -499,7 +499,7 @@ function History({
       </div>
       <button
         onClick={() => showToast("Historial completo — próximamente")}
-        className="mt-2.5 text-[12.5px] font-semibold text-pink"
+        className="mt-2.5 text-[12.5px] font-semibold text-ink"
       >
         Ver historial completo →
       </button>
@@ -532,7 +532,7 @@ function ItemRow({
           {it.image ? (
             <Image src={it.image} alt={it.name} fill sizes="48px" className="object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-pink/10 text-pink">
+            <div className="flex h-full w-full items-center justify-center bg-pink/10 text-ink">
               🌿
             </div>
           )}
@@ -565,7 +565,7 @@ function ItemRow({
         </div>
         <div className="flex flex-col items-end">
           <span className="text-[10px] text-faint">Total</span>
-          <span className="text-[13px] font-bold text-pink">{bs2(itemTotal(it))}</span>
+          <span className="text-[13px] font-bold text-ink">{bs2(itemTotal(it))}</span>
         </div>
       </div>
     </div>
@@ -637,7 +637,7 @@ function Totals({
       <span
         className={
           big
-            ? "text-[22px] font-bold text-pink"
+            ? "text-[22px] font-bold text-ink"
             : "text-[13px] font-semibold text-ink"
         }
       >
@@ -716,7 +716,7 @@ function AddSheet({
                   {p.image ? (
                     <Image src={p.image} alt={p.name} fill sizes="52px" className="object-cover" />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-pink">
+                    <div className="flex h-full w-full items-center justify-center text-ink">
                       🌿
                     </div>
                   )}
@@ -739,7 +739,7 @@ function AddSheet({
                       image: p.image,
                     })
                   }
-                  className="p-3 text-pink"
+                  className="p-3 text-ink"
                 >
                   <PlusCircle size={24} />
                 </button>

@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { headers } from "next/headers";
 import { query, queryOne } from "./db";
 
 /**
@@ -14,12 +15,14 @@ import { query, queryOne } from "./db";
  * modo de un solo negocio, el registro vive en `device_pairing` de la base del
  * negocio. La app funciona igual en los dos: manda `X-Device-Token` y el backend
  * lo valida donde corresponda.
+ *
+ * NOTA (multi-tenant): en ese modo el token lo tiene que emitir/validar la
+ * central de Case (tabla `dispositivo`), no esta tabla. La app ya manda el
+ * header; falta el emisor del lado de Case. Ver mobile/README.md.
  */
 
 /** Vida del código antes de canjearse. Corto a propósito. */
 export const PAIR_CODE_TTL_MIN = 15;
-/** Canjes fallidos permitidos antes de invalidar el código (anti fuerza bruta). */
-const MAX_ATTEMPTS = 5;
 
 /** Genera un código de 6 dígitos con azar criptográfico (no Math.random). */
 function genCode(): string {
@@ -38,6 +41,17 @@ function genToken(): string {
   return crypto.randomBytes(24).toString("hex");
 }
 
+/**
+ * Normaliza un teléfono a una forma canónica: SOLO dígitos (sin `+`, espacios ni
+ * guiones). Así "+591 700-2233", "591 7002233" y "5917002233" son la misma
+ * cuenta y entran igual al login, sin importar cómo se tipeó. La MISMA función la
+ * usan el alta (al guardar) y el login (al buscar), que es lo que garantiza que
+ * coincidan.
+ */
+export function normalizePhone(raw: string): string {
+  return raw.replace(/\D/g, "");
+}
+
 export interface EmittedCode {
   code: string;
   expiresAt: string; // ISO
@@ -45,10 +59,16 @@ export interface EmittedCode {
 
 /**
  * Emite un código de pareo. Lo llama una ruta autenticada del CRM; `employeeId`
- * es quién lo generó (para la ficha del dispositivo). Devuelve el código EN
- * CLARO una sola vez: no se puede volver a leer, solo verificar.
+ * es quién lo generó. Devuelve el código EN CLARO una sola vez: no se puede
+ * volver a leer, solo verificar.
+ *
+ * De paso limpia los códigos vencidos sin canjear: si no, se acumularían para
+ * siempre y cada canje tendría que compararlos con bcrypt uno por uno.
  */
 export async function emitPairCode(employeeId: string): Promise<EmittedCode> {
+  await query(
+    `DELETE FROM device_pairing WHERE token IS NULL AND expires_at < now()`
+  );
   const code = genCode();
   const row = await queryOne<{ expires_at: string }>(
     `INSERT INTO device_pairing (code_hash, expires_at, created_by)
@@ -61,14 +81,17 @@ export async function emitPairCode(employeeId: string): Promise<EmittedCode> {
 
 export type RedeemResult =
   | { ok: true; token: string }
-  | { ok: false; reason: "invalid" | "expired" | "too_many" };
+  | { ok: false; reason: "invalid" };
 
 /**
  * Canjea un código por un token de dispositivo. Un solo uso: al primer acierto,
  * el registro pasa a "pareado" y el código deja de valer.
  *
- * `meta` es lo que la app reporta de sí misma (headers X-Device-*), que se guarda
- * para la ficha del dispositivo.
+ * Solo compara contra códigos VIGENTES y sin canjear (`expires_at > now()`), así
+ * que el conjunto de comparaciones bcrypt está acotado por el TTL (a lo sumo los
+ * códigos de los últimos 15 min) y un código vencido simplemente no matchea. La
+ * protección contra fuerza bruta es la entropía (1.000.000) más el TTL corto: un
+ * código equivocado no "gasta" ni bloquea a los códigos legítimos de nadie.
  */
 export async function redeemPairCode(
   code: string,
@@ -84,28 +107,15 @@ export async function redeemPairCode(
   const clean = code.trim();
   if (!/^\d{6}$/.test(clean)) return { ok: false, reason: "invalid" };
 
-  // Candidatos: pendientes de canje y no revocados. Se compara el hash de a uno;
-  // son pocos (los vigentes) y así el código nunca viaja en el WHERE en claro.
-  const candidates = await query<{
-    id: string;
-    expired: boolean;
-    attempts: number;
-    matches: boolean;
-  }>(
-    `SELECT id,
-            expires_at < now()                    AS expired,
-            attempts,
-            code_hash = crypt($1, code_hash)       AS matches
+  const match = await queryOne<{ id: string }>(
+    `SELECT id
        FROM device_pairing
-      WHERE token IS NULL AND NOT revoked
-      ORDER BY created_at DESC`,
+      WHERE token IS NULL AND NOT revoked AND expires_at > now()
+        AND code_hash = crypt($1, code_hash)
+      LIMIT 1`,
     [clean]
   );
-
-  const match = candidates.find((c) => c.matches);
   if (!match) return { ok: false, reason: "invalid" };
-  if (match.attempts >= MAX_ATTEMPTS) return { ok: false, reason: "too_many" };
-  if (match.expired) return { ok: false, reason: "expired" };
 
   const token = genToken();
   const paired = await queryOne<{ token: string }>(
@@ -132,23 +142,43 @@ export async function redeemPairCode(
   return { ok: true, token: paired.token };
 }
 
-/** Suma un intento fallido a los códigos vigentes (freno a la fuerza bruta). */
-export async function bumpFailedAttempts(): Promise<void> {
-  await query(
-    `UPDATE device_pairing
-        SET attempts = attempts + 1
-      WHERE token IS NULL AND NOT revoked AND expires_at > now()`
-  );
-}
+/**
+ * Valida el token de dispositivo de la request (header `X-Device-Token`, o el
+ * Bearer si es un token de pareo). Devuelve el id del registro si el dispositivo
+ * está pareado y NO revocado; null si no hay token, no existe o fue revocado.
+ *
+ * Es lo que hace efectiva la revocación: un `revoked = true` corta el acceso del
+ * dispositivo aunque su sesión de empleado siga firmada. De paso registra el
+ * `last_seen`.
+ */
+const DEVICE_TOKEN_RE = /^[a-f0-9]{32,}$/i;
 
-/** Valida un token de dispositivo (lo usa la API en cada request de la app). */
-export async function deviceByToken(token: string): Promise<{ id: string } | null> {
-  if (!/^[a-f0-9]{32,}$/i.test(token)) return null;
-  const row = await queryOne<{ id: string }>(
+export async function deviceFromRequest(): Promise<{ id: string } | null> {
+  const h = headers();
+  let token = h.get("x-device-token")?.trim() ?? "";
+  if (!token) {
+    const auth = h.get("authorization") ?? "";
+    if (auth.toLowerCase().startsWith("bearer ")) {
+      const b = auth.slice(7).trim();
+      if (DEVICE_TOKEN_RE.test(b)) token = b;
+    }
+  }
+  if (!token || !DEVICE_TOKEN_RE.test(token)) return null;
+  return queryOne<{ id: string }>(
     `UPDATE device_pairing SET last_seen = now()
       WHERE token = $1 AND NOT revoked
       RETURNING id`,
     [token]
   );
-  return row;
+}
+
+/** ¿La request trae un header de token de dispositivo (válido o no)? */
+export function hasDeviceToken(): boolean {
+  const h = headers();
+  if (h.get("x-device-token")?.trim()) return true;
+  const auth = h.get("authorization") ?? "";
+  if (auth.toLowerCase().startsWith("bearer ")) {
+    return DEVICE_TOKEN_RE.test(auth.slice(7).trim());
+  }
+  return false;
 }

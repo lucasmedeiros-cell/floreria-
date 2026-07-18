@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { Smartphone, Loader2, RefreshCw } from "lucide-react";
-import { apiUrl } from "@/lib/apiBase";
+import { apiBase, apiUrl } from "@/lib/apiBase";
 import { useToast } from "@/context/StoreProvider";
 import { PrimaryButton } from "@/components/ui";
 
@@ -54,10 +55,17 @@ export function VincularDispositivo() {
 
   const mmss = `${Math.floor(restante / 60)}:${String(restante % 60).padStart(2, "0")}`;
 
+  // Contenido del QR: el servidor de este panel + el código. La app lo escanea,
+  // adopta el servidor y canjea el código en un solo paso (sin escribir nada).
+  const qrValue =
+    code && typeof window !== "undefined"
+      ? JSON.stringify({ server: window.location.origin + apiBase(), code })
+      : "";
+
   return (
     <div className="rounded-[18px] border border-line bg-surface p-5 shadow-soft">
       <h3 className="flex items-center gap-2 text-[15px] font-semibold text-ink">
-        <span className="text-pink">
+        <span className="text-ink">
           <Smartphone size={18} />
         </span>
         Vincular dispositivo
@@ -68,16 +76,24 @@ export function VincularDispositivo() {
       </p>
 
       {code ? (
-        <div className="mt-4 flex flex-col items-center gap-2 rounded-[14px] border border-line bg-surface2 py-6">
-          <span className="font-mono text-[44px] font-bold tracking-[0.35em] text-ink">
+        <div className="mt-4 flex flex-col items-center gap-3 rounded-[14px] border border-line bg-surface2 py-6">
+          {qrValue && (
+            <div className="rounded-[12px] bg-white p-3 shadow-soft">
+              <QRCodeSVG value={qrValue} size={168} level="M" />
+            </div>
+          )}
+          <span className="text-[12px] text-ink2">
+            Escaneá el QR desde la app, o escribí el código:
+          </span>
+          <span className="font-mono text-[40px] font-bold tracking-[0.35em] text-ink">
             {code}
           </span>
           <span className="text-[12px] text-ink2">
-            Vence en <span className="font-semibold text-pink">{mmss}</span>
+            Vence en <span className="font-semibold text-ink">{mmss}</span>
           </span>
           <button
             onClick={generar}
-            className="mt-1 flex items-center gap-1 text-[12px] font-medium text-pink hover:underline"
+            className="mt-1 flex items-center gap-1 text-[12px] font-medium text-ink hover:underline"
           >
             <RefreshCw size={13} /> Generar otro
           </button>

@@ -106,7 +106,14 @@ CREATE TABLE IF NOT EXISTS products (
   -- Código de barras físico del producto (EAN/UPC/Code128). Distinto del SKU:
   -- viene impreso de fábrica. Ver db/migrations/004_barcode.sql.
   barcode     text           NOT NULL DEFAULT '',
+  -- Imagen principal (la primera de `images`). Se mantiene para la tienda y la
+  -- app, que la leen directo. Ver db/migrations/005_product_images.sql.
   image       text           NOT NULL DEFAULT '',
+  -- Todas las imágenes del producto (URLs). La primera es la principal.
+  images      text[]         NOT NULL DEFAULT '{}',
+  -- Datos propios del rubro (marca, compatibilidad, vencimiento…), como JSON
+  -- flexible. El formulario de la app decide qué pedir. Ver migración 006.
+  attributes  jsonb          NOT NULL DEFAULT '{}',
   category    text           NOT NULL,
   featured    boolean        NOT NULL DEFAULT false,
   stock       integer        NOT NULL DEFAULT 0,
@@ -195,7 +202,7 @@ CREATE TABLE IF NOT EXISTS expenses (
 CREATE TABLE IF NOT EXISTS order_items (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id     uuid          NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-  product_id   text          REFERENCES products(id) ON DELETE SET NULL,
+  product_id   text          REFERENCES products(id) ON DELETE SET NULL ON UPDATE CASCADE,
   name         text          NOT NULL,
   detail       text          NOT NULL DEFAULT '',
   qty          integer       NOT NULL DEFAULT 1,
@@ -239,3 +246,116 @@ FROM clients c
 LEFT JOIN orders o        ON o.client_id = c.id
 LEFT JOIN order_totals t  ON t.id = o.id
 GROUP BY c.id;
+
+-- ---------- Ventas (POS) + proformas/facturas ----------
+-- Ver db/migrations/007_sales.sql. factura = venta real (baja stock);
+-- proforma = cotización (no toca stock).
+DO $$ BEGIN
+  CREATE TYPE sale_kind AS ENUM ('proforma', 'factura');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+CREATE TABLE IF NOT EXISTS sales (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code         text        NOT NULL UNIQUE,
+  kind         sale_kind   NOT NULL DEFAULT 'factura',
+  client_name  text        NOT NULL DEFAULT 'Consumidor final',
+  client_phone text        NOT NULL DEFAULT '',
+  client_nit   text        NOT NULL DEFAULT '',
+  subtotal     numeric(12,2) NOT NULL DEFAULT 0,
+  discount     numeric(12,2) NOT NULL DEFAULT 0,
+  total        numeric(12,2) NOT NULL DEFAULT 0,
+  pay_method   text        NOT NULL DEFAULT 'Efectivo',
+  notes        text        NOT NULL DEFAULT '',
+  created_by   text        NOT NULL DEFAULT '',
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  -- Clave de idempotencia de la app: evita ventas duplicadas cuando la cola
+  -- offline reintenta un POST que en realidad ya había entrado (ver 011).
+  client_ref   text
+);
+CREATE UNIQUE INDEX IF NOT EXISTS sales_client_ref_key
+  ON sales (client_ref) WHERE client_ref IS NOT NULL AND client_ref <> '';
+CREATE TABLE IF NOT EXISTS sale_items (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  sale_id      uuid        NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+  product_id   text        REFERENCES products(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  sku          text        NOT NULL DEFAULT '',
+  name         text        NOT NULL,
+  qty          integer     NOT NULL DEFAULT 1,
+  unit_price   numeric(12,2) NOT NULL DEFAULT 0,
+  discount_pct numeric(5,2)  NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS sales_created_at ON sales (created_at DESC);
+CREATE INDEX IF NOT EXISTS sale_items_sale ON sale_items (sale_id);
+
+-- ---------- Pedidos a proveedor (reposición) ----------
+-- Ver db/migrations/008_purchase_orders.sql. Al recibir, sube el stock.
+DO $$ BEGIN
+  CREATE TYPE purchase_status AS ENUM ('solicitado', 'recibido', 'cancelado');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+CREATE TABLE IF NOT EXISTS purchase_orders (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code text NOT NULL UNIQUE,
+  supplier text NOT NULL DEFAULT '',
+  status purchase_status NOT NULL DEFAULT 'solicitado',
+  notes text NOT NULL DEFAULT '',
+  received_at timestamptz,
+  created_by text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS purchase_order_items (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  purchase_id uuid NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+  product_id text REFERENCES products(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  sku text NOT NULL DEFAULT '',
+  name text NOT NULL,
+  qty integer NOT NULL DEFAULT 1,
+  unit_cost numeric(12,2) NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS purchase_orders_created ON purchase_orders (created_at DESC);
+CREATE INDEX IF NOT EXISTS purchase_order_items_po ON purchase_order_items (purchase_id);
+-- ============================================================
+--  Núcleo POS (Fase 1): anulación de ventas + corte de caja
+-- ------------------------------------------------------------
+--  · sales.voided        → una factura anulada deja de contar y devuelve stock.
+--  · cash_closes         → arqueo/corte de caja: foto de lo vendido en el turno,
+--                          efectivo contado y diferencia.
+--  Idempotente.
+-- ============================================================
+
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS voided boolean NOT NULL DEFAULT false;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS voided_at timestamptz;
+
+CREATE TABLE IF NOT EXISTS cash_closes (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  from_at        timestamptz NOT NULL,               -- desde el corte anterior
+  closed_at      timestamptz NOT NULL DEFAULT now(),
+  num_ventas     int         NOT NULL DEFAULT 0,
+  total_ventas   numeric(12,2) NOT NULL DEFAULT 0,
+  total_efectivo numeric(12,2) NOT NULL DEFAULT 0,
+  total_qr       numeric(12,2) NOT NULL DEFAULT 0,
+  total_otros    numeric(12,2) NOT NULL DEFAULT 0,
+  counted_cash   numeric(12,2) NOT NULL DEFAULT 0,   -- efectivo contado en caja
+  difference     numeric(12,2) NOT NULL DEFAULT 0,   -- contado - efectivo esperado
+  created_by     text        NOT NULL DEFAULT '',
+  notes          text        NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS cash_closes_closed_at_idx ON cash_closes (closed_at DESC);
+-- ============================================================
+--  Ajustes manuales de stock (Fase 2)
+-- ------------------------------------------------------------
+--  Registro de cada ajuste manual (merma, conteo físico, corrección) con su
+--  motivo, para tener trazabilidad de por qué cambió el stock. Idempotente.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS stock_moves (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id  text        NOT NULL REFERENCES products(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  delta       int         NOT NULL,                 -- +/- unidades
+  reason      text        NOT NULL DEFAULT '',
+  stock_after int         NOT NULL DEFAULT 0,
+  created_by  text        NOT NULL DEFAULT '',
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS stock_moves_product_idx ON stock_moves (product_id, created_at DESC);

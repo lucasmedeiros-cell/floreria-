@@ -27,7 +27,7 @@ export function BrandMark({ size = 40 }: { size?: number }) {
   return (
     <span
       aria-label={b.name}
-      className="grid shrink-0 place-items-center rounded-[12px] bg-pinkSoft text-pink"
+      className="grid shrink-0 place-items-center rounded-[12px] bg-pinkSoft text-ink"
       style={{ width: size, height: size }}
     >
       <Icon name={b.rubro.icon} size={Math.round(size * 0.58)} />
@@ -81,7 +81,7 @@ export function SectionHeading({
 }) {
   return (
     <div className={`flex flex-col ${center ? "items-center text-center" : "items-start"}`}>
-      <span className="eyebrow text-[11px] font-semibold text-pink">{eyebrow}</span>
+      <span className="eyebrow text-[11px] font-semibold text-ink">{eyebrow}</span>
       <h2
         className={`mt-2.5 text-[34px] font-semibold leading-tight ${
           light ? "text-white" : "text-ink"

@@ -26,7 +26,7 @@ export const GET = handler(async (_req: NextRequest, { params }: { params: { cod
   if (!code) return notFound("Código vacío");
 
   const row = await queryOne(
-    `SELECT id, name, description AS desc, price, cost, barcode, image, category,
+    `SELECT id, name, description AS desc, price, cost, barcode, image, images, attributes, category,
             featured, stock, status
        FROM products
       WHERE barcode = $1`,

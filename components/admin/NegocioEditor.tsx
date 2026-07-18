@@ -110,7 +110,7 @@ export function NegocioEditor() {
       <Card
         icon={<Store size={18} />}
         title="Rubro del negocio"
-        hint="Define colores, textos de la tienda, categorías, catálogo demo, landing y la persona del Vendedor 24/7."
+        hint="Define textos de la tienda, categorías, catálogo demo, landing y la persona del Vendedor 24/7."
       >
         <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
           {RUBRO_LIST.map((r) => {
@@ -135,7 +135,7 @@ export function NegocioEditor() {
                 <span className="text-[13.5px] font-semibold text-ink">{r.label}</span>
                 <span className="text-[11.5px] leading-snug text-ink2">{r.hint}</span>
                 {active && (
-                  <span className="absolute right-2.5 top-2.5 grid h-5 w-5 place-items-center rounded-full bg-pink text-white">
+                  <span className="absolute right-2.5 top-2.5 grid h-5 w-5 place-items-center rounded-full bg-pink text-onAccent">
                     <Check size={13} />
                   </span>
                 )}
@@ -169,42 +169,28 @@ export function NegocioEditor() {
         )}
       </Card>
 
-      {/* ---------- Marca ---------- */}
-      <Card icon={<Palette size={18} />} title="Marca">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Nombre comercial" value={cfg.name} onChange={(v) => set("name", v)} />
-          <Field
-            label="Prefijo en tipografía fina"
-            value={cfg.nameLight}
-            onChange={(v) => set("nameLight", v)}
-            placeholder="Ferre (de FerreTotal)"
-          />
-        </div>
-        <Field label="Bajada de la marca" value={cfg.tagline} onChange={(v) => set("tagline", v)} />
+      {/* ---------- Marca: solo nombre y logo ----------
+          Los colores son los de easy pos (fijos) y el resto de los textos salen
+          del rubro; acá el negocio solo pone su nombre y su logo. */}
+      <Card
+        icon={<Palette size={18} />}
+        title="Marca"
+        hint="Los colores son los de easy pos. Aquí defines el nombre y el logo de tu tienda."
+      >
+        <Field label="Nombre comercial" value={cfg.name} onChange={(v) => set("name", v)} />
         <Field
           label="Logo (URL o ruta en /public). Vacío = icono del rubro"
           value={cfg.logoUrl}
           onChange={(v) => set("logoUrl", v)}
-          placeholder="/images/logo-mark.png"
+          placeholder="/images/mi-logo.png"
         />
-
-        <div className="grid gap-3 sm:grid-cols-4">
-          <Color label="Principal" value={cfg.colors.accent} onChange={(v) => set("colors", { ...cfg.colors, accent: v })} />
-          <Color label="Oscuro (hover)" value={cfg.colors.accentDeep} onChange={(v) => set("colors", { ...cfg.colors, accentDeep: v })} />
-          <Color label="Suave (chips)" value={cfg.colors.soft} onChange={(v) => set("colors", { ...cfg.colors, soft: v })} />
-          <Color label="Hero (fondo)" value={cfg.colors.hero} onChange={(v) => set("colors", { ...cfg.colors, hero: v })} />
-        </div>
-      </Card>
-
-      {/* ---------- Portada de la tienda ---------- */}
-      <Card icon={<Store size={18} />} title="Portada de la tienda">
-        <Field label="Antetítulo" value={cfg.hero.eyebrow} onChange={(v) => set("hero", { ...cfg.hero, eyebrow: v })} />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Título" value={cfg.hero.title} onChange={(v) => set("hero", { ...cfg.hero, title: v })} />
-          <Field label="Segunda línea (destacada)" value={cfg.hero.highlight} onChange={(v) => set("hero", { ...cfg.hero, highlight: v })} />
-        </div>
-        <Field label="Bajada" value={cfg.hero.subtitle} rows={2} onChange={(v) => set("hero", { ...cfg.hero, subtitle: v })} />
-        <Field label="Texto del pie de página" value={cfg.about} rows={2} onChange={(v) => set("about", v)} />
+        {cfg.logoUrl.trim() !== "" && (
+          <div className="flex items-center gap-3 rounded-xl border border-line bg-surface2 p-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={cfg.logoUrl} alt="Logo" className="h-12 w-12 rounded-lg object-contain" />
+            <span className="text-[12.5px] text-ink2">Vista previa del logo</span>
+          </div>
+        )}
       </Card>
 
       {/* ---------- Categorías ---------- */}
@@ -280,7 +266,7 @@ function Card({
   return (
     <div className="rounded-[18px] border border-line bg-surface p-5 shadow-soft">
       <h3 className="flex items-center gap-2 text-[15px] font-semibold text-ink">
-        <span className="text-pink">{icon}</span>
+        <span className="text-ink">{icon}</span>
         {title}
       </h3>
       {hint && <p className="mt-1 text-[12.5px] text-ink2">{hint}</p>}
@@ -318,32 +304,3 @@ function Field({
   );
 }
 
-function Color({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <label className="block">
-      <span className="text-[12px] font-semibold text-ink2">{label}</span>
-      <span className="mt-1.5 flex items-center gap-2 rounded-xl border border-line bg-surface2 px-2.5 py-2">
-        <input
-          type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value.toUpperCase())}
-          className="h-7 w-9 cursor-pointer rounded border-0 bg-transparent p-0"
-          aria-label={label}
-        />
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value.toUpperCase())}
-          className="w-full bg-transparent text-[13px] text-ink outline-none"
-        />
-      </span>
-    </label>
-  );
-}

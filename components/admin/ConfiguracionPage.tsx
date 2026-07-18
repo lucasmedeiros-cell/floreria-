@@ -2,7 +2,6 @@
 
 import { NegocioEditor } from "./NegocioEditor";
 import { ModulosEditor } from "./ModulosEditor";
-import { VincularDispositivo } from "./VincularDispositivo";
 import { PromoEditor } from "./PromoEditor";
 import { AnimationEditor } from "./AnimationEditor";
 import { VendedorEditor } from "./VendedorEditor";
@@ -24,8 +23,8 @@ export function ConfiguracionPage() {
         {/* Qué secciones del CRM usa este negocio */}
         <ModulosEditor />
 
-        {/* Código para conectar la app móvil (easy pos) a este negocio */}
-        <VincularDispositivo />
+        {/* La vinculación de dispositivos (QR) se hace desde Case
+            (case.easypaybo.com), no desde el CRM del negocio. */}
 
         {/* Vendedor 24/7 (bot de WhatsApp con IA) */}
         <VendedorEditor />

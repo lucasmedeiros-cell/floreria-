@@ -17,3 +17,6 @@ next-env.d.ts
 /backups
 *.dump
 *.sql.gz
+
+# Build aislado del CRM web (NEXT_DIST, no pisar el .next del server móvil)
+.next-web/

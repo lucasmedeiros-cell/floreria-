@@ -5,14 +5,14 @@
 :root {
   --shell: 1180px;
 
-  /* Color de marca del rubro activo (canales RGB, sin coma: los consume
-     Tailwind como rgb(var(--c-accent) / <alpha-value>)).
-     app/layout.tsx los sobrescribe en <body> con la config del negocio;
-     estos valores son solo el respaldo si aún no hay config guardada. */
-  --c-accent: 232 54 107;
-  --c-accent-deep: 216 27 96;
-  --c-accent-soft: 252 233 239;
-  --c-accent-hero: 253 241 244;
+  /* Colores de easy pos — FIJOS para toda la web y el CRM (amarillo + negro).
+     Ya no dependen del rubro ni del negocio: la marca del producto es una sola.
+     Canales RGB sin coma: los consume Tailwind como rgb(var(--c-accent)/<a>). */
+  --c-accent: 254 187 3;        /* #FEBB03 amarillo easy pos (fondos/botones) */
+  --c-accent-deep: 224 161 0;   /* #E0A100 amarillo profundo (hover/gradiente) */
+  --c-accent-soft: 255 243 210; /* #FFF3D2 amarillo claro (chips/íconos) */
+  --c-accent-hero: 255 250 235; /* #FFFAEB amarillo muy claro (hero) */
+  --c-on-accent: 26 18 0;       /* #1A1200 negro — texto SOBRE el amarillo */
 }
 
 html,
@@ -26,6 +26,14 @@ body {
 
 * {
   box-sizing: border-box;
+}
+
+/* Cormorant Garamond dibuja los números con estilo antiguo (el 1 parece "I",
+   el 0 parece "O"). Figuras "lining" + tabulares para que los números serif se
+   lean bien, igual que la app móvil (fontFeatures liningFigures+tabularFigures). */
+.font-serif {
+  font-feature-settings: "lnum" 1, "tnum" 1;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 /* Eyebrow tracking-wide label */

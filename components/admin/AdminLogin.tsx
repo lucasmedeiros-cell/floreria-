@@ -104,13 +104,13 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
       </form>
 
       <GhostButton
-        icon={<UserPlus size={18} className="text-pink" />}
+        icon={<UserPlus size={18} className="text-ink" />}
         label="Crear una cuenta nueva"
         onClick={onRegister}
       />
 
       <div className="mt-4 flex items-start gap-2 rounded-xl border border-line bg-surface2 p-3">
-        <Info size={16} className="mt-px shrink-0 text-pink" />
+        <Info size={16} className="mt-px shrink-0 text-ink" />
         <span className="text-[11.5px] leading-relaxed text-ink2">
           Ingresa con el correo de tu cuenta de empleado.
         </span>
@@ -223,7 +223,7 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
       </form>
 
       <GhostButton
-        icon={<LogIn size={18} className="text-pink" />}
+        icon={<LogIn size={18} className="text-ink" />}
         label="Ya tengo una cuenta"
         onClick={onLogin}
       />
@@ -261,7 +261,7 @@ function FormShell({ children }: { children: React.ReactNode }) {
 function Header({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <>
-      <p className="text-[.72rem] font-semibold tracking-[3px] text-pink">
+      <p className="text-[.72rem] font-semibold tracking-[3px] text-ink">
         PANEL DE GESTIÓN
       </p>
       <h1 className="mt-2 text-[32px] font-semibold leading-tight text-ink">
@@ -305,10 +305,10 @@ function BrandPanel() {
       {/* Tarjeta de muestra (ilustrativa, no son datos del comercio). */}
       <div className="relative my-8 max-w-[300px] rounded-[18px] border border-line bg-white p-4 shadow-soft">
         <div className="flex items-center justify-between">
-          <span className="text-[10.5px] font-semibold tracking-[2px] text-pink">
+          <span className="text-[10.5px] font-semibold tracking-[2px] text-ink">
             {reparte ? "PEDIDO" : "VENTA"} · EJEMPLO
           </span>
-          <span className="rounded-full bg-pinkSoft px-2.5 py-0.5 text-[10.5px] font-semibold text-pink">
+          <span className="rounded-full bg-pinkSoft px-2.5 py-0.5 text-[10.5px] font-semibold text-ink">
             {reparte ? "Programado" : "Cobrado"}
           </span>
         </div>
@@ -320,12 +320,12 @@ function BrandPanel() {
         </div>
         <div className="mt-3 flex items-center justify-between border-t border-line pt-2.5">
           <span className="text-[11.5px] text-ink2">Total</span>
-          <span className="text-[15px] font-bold text-pink">Bs 185,00</span>
+          <span className="text-[15px] font-bold text-ink">Bs 185,00</span>
         </div>
       </div>
 
       <div className="relative">
-        <p className="text-[.72rem] font-semibold tracking-[3px] text-pink">
+        <p className="text-[.72rem] font-semibold tracking-[3px] text-ink">
           {eyebrow}
         </p>
         <h2 className="mt-3 whitespace-pre-line text-[38px] font-semibold leading-[1.1] text-ink">
@@ -335,7 +335,7 @@ function BrandPanel() {
           {bullets.map((t) => (
             <div key={t} className="flex items-start gap-2.5">
               <span className="mt-0.5 grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-pink">
-                <Check size={12} className="text-white" />
+                <Check size={12} className="text-onAccent" />
               </span>
               <span className="text-[13px] text-ink2">{t}</span>
             </div>
@@ -458,7 +458,7 @@ function GhostButton({
     <button
       type="button"
       onClick={onClick}
-      className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-line bg-surface px-[26px] py-[13px] text-[13px] font-semibold text-ink transition-colors hover:border-pink hover:text-pink"
+      className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-line bg-surface px-[26px] py-[13px] text-[13px] font-semibold text-ink transition-colors hover:border-pink hover:text-ink"
     >
       {icon}
       {label}
@@ -483,9 +483,9 @@ function BackToStore() {
   return (
     <Link
       href={link("/")}
-      className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-line bg-surface px-[26px] py-[13px] text-[13px] font-semibold text-ink transition-colors hover:border-pink hover:text-pink"
+      className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-line bg-surface px-[26px] py-[13px] text-[13px] font-semibold text-ink transition-colors hover:border-pink hover:text-ink"
     >
-      <ArrowLeft size={18} className="text-pink" /> Volver a la tienda
+      <ArrowLeft size={18} className="text-ink" /> Volver a la tienda
     </Link>
   );
 }

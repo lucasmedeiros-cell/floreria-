@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>easy pos · Provisión</title>
+<style>
+  :root{--yellow:#FEBB03;--yellow2:#E0A100;--ink:#201A17;--dark:#17120F;--bg:#F6F4F1;--line:#E7E1DA;--ink2:#6B615B}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  .top{background:linear-gradient(120deg,#FFC93C,var(--yellow),#F5A800);padding:26px 20px 40px;position:relative;overflow:hidden}
+  .top h1{margin:0;font-size:24px;font-weight:800}.top p{margin:4px 0 0;font-size:13px;color:#5b4a10}
+  .wrap{max-width:760px;margin:-22px auto 40px;padding:0 16px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:16px;box-shadow:0 8px 24px rgba(0,0,0,.06)}
+  .card h2{margin:0 0 4px;font-size:17px}.card .sub{color:var(--ink2);font-size:12.5px;margin-bottom:14px}
+  label{display:block;font-size:12px;font-weight:600;color:var(--ink2);margin:10px 0 4px}
+  input,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:11px;font-size:14px;background:#fff}
+  .row{display:flex;gap:10px}.row>*{flex:1}
+  button{background:linear-gradient(120deg,var(--yellow),var(--yellow2));color:#201A17;font-weight:700;border:0;border-radius:12px;padding:12px 16px;font-size:14px;cursor:pointer;width:100%;margin-top:14px}
+  button.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .biz{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
+  .biz b{font-size:14px}.biz .m{font-size:11.5px;color:var(--ink2)}
+  .pill{margin-left:auto;background:#FEF3D6;color:#9a6b00;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700}
+  .qrbox{text-align:center;padding:8px}
+  .qrbox img{width:250px;height:250px;background:#fff;border-radius:14px;border:1px solid var(--line);padding:10px}
+  .msg{font-size:13px;padding:10px 12px;border-radius:10px;margin-top:10px;display:none}
+  .msg.ok{background:#E7F6EE;color:#1c7a4b;display:block}.msg.err{background:#FBEAEE;color:#b02a44;display:block}
+  .hidden{display:none}
+  .gate{max-width:380px;margin:40px auto;text-align:center}
+</style>
+</head>
+<body>
+  <div class="top"><h1>easy <span style="color:#7a2f00">pos</span> · Provisión</h1><p>Crear negocios y dar de alta dispositivos</p></div>
+
+  <div id="gate" class="wrap gate">
+    <div class="card">
+      <h2>Acceso</h2><div class="sub">Ingresá la clave de provisión.</div>
+      <input id="key" type="password" placeholder="Clave">
+      <button onclick="entrar()">Entrar</button>
+      <div id="gateMsg" class="msg"></div>
+    </div>
+  </div>
+
+  <div id="app" class="wrap hidden">
+    <div class="card">
+      <h2>Crear negocio</h2><div class="sub">Se crea su base de datos y queda activo.</div>
+      <div class="row">
+        <div><label>Nombre comercial</label><input id="bNombre" placeholder="AutoPartes Sur"></div>
+        <div><label>Slug (URL)</label><input id="bSlug" placeholder="autopartes_sur"></div>
+      </div>
+      <label>Rubro</label>
+      <select id="bRubro">
+        <option value="repuestos">Repuestos / autopartes</option>
+        <option value="ferreteria">Ferretería</option>
+        <option value="farmacia">Farmacia</option>
+        <option value="tienda">Tienda general</option>
+      </select>
+      <div class="row">
+        <div><label>Admin — nombre</label><input id="aNombre" placeholder="Juan Pérez"></div>
+        <div><label>Admin — correo (con esto entra a la app)</label><input id="aEmail" placeholder="admin@negocio.com"></div>
+      </div>
+      <label>Admin — contraseña (6+)</label><input id="aPass" type="text" placeholder="clave del administrador">
+      <button onclick="crearNegocio()">Crear negocio</button>
+      <div id="bMsg" class="msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Dar de alta un dispositivo</h2><div class="sub">Genera el QR para vincular la app easy pos.</div>
+      <label>Negocio</label><select id="dSlug"></select>
+      <label>Etiqueta (ej. "Caja 1")</label><input id="dLabel" placeholder="Caja 1">
+      <button onclick="crearDispositivo()">Generar QR</button>
+      <div id="dMsg" class="msg"></div>
+      <div id="qrResult" class="qrbox hidden">
+        <img id="qrImg" alt="QR">
+        <div class="sub" style="margin-top:10px">Escaneá este código con la app easy pos.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Dispositivos conectados</h2><div class="sub">Los equipos vinculados a un negocio. Podés bloquear o eliminar.</div>
+      <label>Negocio</label><select id="vSlug" onchange="cargarDispositivos()"></select>
+      <div id="devList" style="margin-top:12px"></div>
+      <div id="vMsg" class="msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Cobros con QR (BCP)</h2><div class="sub">Credenciales BaaS del negocio: sus cobros QR acreditan en SU cuenta. La clave nunca se muestra; dejala vacía para conservar la guardada.</div>
+      <label>Negocio</label><select id="qSlug" onchange="cargarBaas()"></select>
+      <div class="row">
+        <div><label>Usuario BaaS</label><input id="qUser" placeholder="usuario"></div>
+        <div><label>Clave BaaS</label><input id="qPass" type="password" placeholder="(sin cambios)"></div>
+      </div>
+      <div class="row">
+        <div><label>Código de comercio</label><input id="qBiz" placeholder="businessCode"></div>
+        <div><label>Idnode</label><input id="qNode" placeholder="idnode"></div>
+      </div>
+      <button onclick="guardarBaas()">Guardar credenciales</button>
+      <div id="qMsg" class="msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Usuarios y roles</h2><div class="sub">Gestioná los usuarios de un negocio y sus roles.</div>
+      <label>Negocio</label><select id="uSlug" onchange="cargarUsuarios()"></select>
+      <div id="userList" style="margin-top:12px"></div>
+      <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+        <div class="sub" style="font-weight:600;color:var(--ink)">Agregar usuario</div>
+        <div class="row">
+          <div><label>Nombre</label><input id="uNombre" placeholder="Nombre"></div>
+          <div><label>Correo (usuario)</label><input id="uEmail" placeholder="correo@negocio.com"></div>
+        </div>
+        <div class="row">
+          <div><label>Contraseña (6+)</label><input id="uPass" type="text" placeholder="clave"></div>
+          <div><label>Rol</label><select id="uRole"><option>Vendedora</option><option>Administrador</option><option>Repartidor</option></select></div>
+        </div>
+        <button onclick="crearUsuario()">Agregar usuario</button>
+      </div>
+      <div id="uMsg" class="msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Negocios</h2><div class="sub">easy pos activos.</div>
+      <div id="bizList"></div>
+      <button class="ghost" onclick="cargarNegocios()">Actualizar</button>
+    </div>
+  </div>
+
+<script>
+let KEY = "";
+const $ = (id) => document.getElementById(id);
+function show(el, type, text){ el.className = "msg " + type; el.textContent = text; }
+// Escapa texto que viene del servidor antes de meterlo en innerHTML: un nombre
+// de negocio/usuario/label malicioso no debe poder ejecutar JS en este panel.
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+async function api(method, body){
+  const opt = { method, headers: { "Content-Type":"application/json", "x-provision-key": KEY } };
+  if (body) opt.body = JSON.stringify({ ...body, key: KEY });
+  const r = await fetch("/api/provision", opt);
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(d.error || ("HTTP "+r.status));
+  return d;
+}
+
+async function entrar(){
+  KEY = $("key").value.trim();
+  try { await api("GET"); $("gate").classList.add("hidden"); $("app").classList.remove("hidden"); cargarNegocios(); }
+  catch(e){ show($("gateMsg"),"err", e.message); }
+}
+
+async function cargarNegocios(){
+  try{
+    const d = await api("GET");
+    const list = $("bizList"); const sel = $("dSlug"); const usel = $("uSlug"); const vsel = $("vSlug"); const qsel = $("qSlug");
+    list.innerHTML = ""; sel.innerHTML = "";
+    const prevU = usel.value, prevV = vsel.value, prevQ = qsel.value;
+    usel.innerHTML = ""; vsel.innerHTML = ""; qsel.innerHTML = "";
+    (d.businesses||[]).forEach(b=>{
+      const row = document.createElement("div"); row.className="biz";
+      row.innerHTML = '<div><b>'+esc(b.nombre)+'</b><div class="m">'+esc(b.slug)+' · '+esc(b.db_name)+'</div></div><span class="pill">'+esc(b.dispositivos)+' disp.</span>';
+      list.appendChild(row);
+      [sel,usel,vsel,qsel].forEach(s=>{ const o=document.createElement("option"); o.value=b.slug; o.textContent=b.nombre; s.appendChild(o); });
+    });
+    if(!(d.businesses||[]).length) list.innerHTML = '<div class="m" style="color:#6B615B">Todavía no hay negocios.</div>';
+    if(prevU) usel.value = prevU; if(prevV) vsel.value = prevV; if(prevQ) qsel.value = prevQ;
+    if(usel.value) cargarUsuarios();
+    if(vsel.value) cargarDispositivos();
+    if(qsel.value) cargarBaas();
+  }catch(e){ show($("bMsg"),"err", e.message); }
+}
+
+async function cargarDispositivos(){
+  const slug = $("vSlug").value; if(!slug) return;
+  const box = $("devList"); box.innerHTML = '<div class="m" style="color:#6B615B">Cargando…</div>';
+  try{
+    const d = await api("POST", { action:"listDevices", slug });
+    box.innerHTML = "";
+    (d.devices||[]).forEach(v=>{
+      const est = v.habilitado ? '<span class="pill" style="background:#E7F6EE;color:#1c7a4b">activo</span>' : '<span class="pill" style="background:#FBEAEE;color:#b02a44">bloqueado</span>';
+      const info = [v.modelo, v.plataforma, v.appVersion?('v'+v.appVersion):null, v.lastSeen?('visto '+new Date(v.lastSeen).toLocaleString()):'sin conexión aún'].filter(Boolean).join(' · ');
+      const row = document.createElement("div"); row.className="biz"; row.style.flexWrap="wrap";
+      row.innerHTML = '<div style="flex:1;min-width:60%"><b>'+esc(v.label||'Dispositivo')+'</b> '+est+'<div class="m">'+esc(info)+'</div><div class="m">token '+esc(v.tokenHint)+'…</div></div>';
+      const bBloq = document.createElement("button");
+      bBloq.className = "ghost"; bBloq.style.cssText = "width:auto;margin:0;padding:8px 12px;font-size:12px";
+      bBloq.textContent = v.habilitado ? "Bloquear" : "Activar";
+      bBloq.addEventListener("click", () => bloquearDispositivo(v.id, v.habilitado));
+      const bDel = document.createElement("button");
+      bDel.className = "ghost"; bDel.style.cssText = "width:auto;margin:0 0 0 8px;padding:8px 12px;font-size:12px;color:#b02a44";
+      bDel.textContent = "Eliminar";
+      bDel.addEventListener("click", () => eliminarDispositivo(v.id));
+      row.appendChild(bBloq); row.appendChild(bDel);
+      box.appendChild(row);
+    });
+    if(!(d.devices||[]).length) box.innerHTML = '<div class="m" style="color:#6B615B">Sin dispositivos vinculados.</div>';
+  }catch(e){ box.innerHTML=""; show($("vMsg"),"err", e.message); }
+}
+async function bloquearDispositivo(id, activo){
+  try{ await api("POST", { action:"blockDevice", deviceId:id, blocked: activo }); show($("vMsg"),"ok", activo?"Dispositivo bloqueado.":"Dispositivo activado."); cargarDispositivos(); }
+  catch(e){ show($("vMsg"),"err", e.message); }
+}
+async function eliminarDispositivo(id){
+  if(!confirm("¿Eliminar este dispositivo? Tendrá que volver a escanear un QR.")) return;
+  try{ await api("POST", { action:"deleteDevice", deviceId:id }); show($("vMsg"),"ok","Dispositivo eliminado."); cargarDispositivos(); cargarNegocios(); }
+  catch(e){ show($("vMsg"),"err", e.message); }
+}
+
+async function cargarBaas(){
+  const slug = $("qSlug").value; if(!slug) return;
+  try{
+    const d = await api("POST", { action:"getBaas", slug });
+    $("qUser").value = d.user || "";
+    $("qBiz").value = d.businessCode || "";
+    $("qNode").value = d.idnode || "";
+    $("qPass").value = "";
+    $("qPass").placeholder = d.hasPass ? "(guardada — dejá vacío para conservarla)" : "clave BaaS";
+    $("qMsg").className = "msg"; $("qMsg").textContent = "";
+  }catch(e){ show($("qMsg"),"err", e.message); }
+}
+async function guardarBaas(){
+  const slug = $("qSlug").value; if(!slug){ show($("qMsg"),"err","Elegí un negocio."); return; }
+  try{
+    await api("POST", { action:"setBaas", slug,
+      user:$("qUser").value, pass:$("qPass").value,
+      businessCode:$("qBiz").value, idnode:$("qNode").value });
+    show($("qMsg"),"ok","Credenciales guardadas. Los cobros QR de este negocio ya acreditan en su cuenta.");
+    $("qPass").value = "";
+    cargarBaas();
+  }catch(e){ show($("qMsg"),"err", e.message); }
+}
+
+const ROLES = ["Administrador","Vendedora","Repartidor"];
+async function cargarUsuarios(){
+  const slug = $("uSlug").value; if(!slug) return;
+  const box = $("userList"); box.innerHTML = '<div class="m" style="color:#6B615B">Cargando…</div>';
+  try{
+    const d = await api("POST", { action:"listEmployees", slug });
+    box.innerHTML = "";
+    (d.employees||[]).forEach(u=>{
+      const row = document.createElement("div"); row.className="biz";
+      row.innerHTML = '<div><b>'+esc(u.name)+'</b><div class="m">'+esc(u.email||u.phone||'')+'</div></div>';
+      const selRol = document.createElement("select");
+      selRol.style.maxWidth = "150px";
+      ROLES.forEach(r => { const o = document.createElement("option"); o.textContent = r; o.selected = (r === u.role); selRol.appendChild(o); });
+      selRol.addEventListener("change", () => cambiarRol(slug, u.id, selRol.value));
+      row.appendChild(selRol);
+      box.appendChild(row);
+    });
+    if(!(d.employees||[]).length) box.innerHTML = '<div class="m" style="color:#6B615B">Sin usuarios.</div>';
+  }catch(e){ box.innerHTML = ""; show($("uMsg"),"err", e.message); }
+}
+async function crearUsuario(){
+  const b = { action:"createEmployee", slug:$("uSlug").value, name:$("uNombre").value, email:$("uEmail").value, pass:$("uPass").value, role:$("uRole").value };
+  show($("uMsg"),"ok","Agregando…");
+  try{
+    await api("POST", b);
+    show($("uMsg"),"ok","Usuario agregado.");
+    $("uNombre").value=""; $("uEmail").value=""; $("uPass").value="";
+    cargarUsuarios();
+  }catch(e){ show($("uMsg"),"err", e.message); }
+}
+async function cambiarRol(slug, id, role){
+  try{ await api("POST", { action:"setRole", slug, employeeId:id, role }); show($("uMsg"),"ok","Rol actualizado."); }
+  catch(e){ show($("uMsg"),"err", e.message); }
+}
+
+async function crearNegocio(){
+  const b = { action:"createBusiness", nombre:$("bNombre").value, slug:$("bSlug").value,
+    rubro:$("bRubro").value, adminName:$("aNombre").value, adminEmail:$("aEmail").value, adminPass:$("aPass").value };
+  $("bMsg").className="msg ok"; $("bMsg").textContent="Creando la base del negocio…";
+  try{
+    const d = await api("POST", b);
+    show($("bMsg"),"ok", "Negocio creado: "+d.business.nombre+" ("+d.business.slug+")."); // show() usa textContent: sin XSS
+    $("bNombre").value=""; $("bSlug").value=""; $("aNombre").value=""; $("aEmail").value=""; $("aPass").value="";
+    cargarNegocios();
+  }catch(e){ show($("bMsg"),"err", e.message); }
+}
+
+async function crearDispositivo(){
+  const b = { action:"createDevice", slug:$("dSlug").value, label:$("dLabel").value };
+  show($("dMsg"),"ok", "Generando QR…");
+  try{
+    const d = await api("POST", b);
+    $("qrImg").src = d.qrImage; $("qrResult").classList.remove("hidden");
+    show($("dMsg"),"ok", "Dispositivo dado de alta para "+d.negocio+".");
+    cargarNegocios();
+  }catch(e){ $("qrResult").classList.add("hidden"); show($("dMsg"),"err", e.message); }
+}
+</script>
+</body>
+</html>

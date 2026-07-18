@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { queryOne } from "@/lib/db";
 import { bad, handler, ok, unauthorized } from "@/lib/api";
 import { setSessionCookie, signToken } from "@/lib/auth";
+import { normalizePhone } from "@/lib/pairing";
 
 export const runtime = "nodejs";
 
@@ -20,7 +21,10 @@ export const POST = handler(async (req: NextRequest) => {
   }
 
   // Coincide por teléfono O por correo (ambos únicos), sin distinguir mayúsculas
-  // en el correo. La contraseña se verifica con crypt contra el hash guardado.
+  // en el correo. El teléfono se normaliza (mismos dígitos que guardó el alta),
+  // para que "+591 700-1234" y "5917001234" entren igual. La contraseña se
+  // verifica con crypt contra el hash guardado.
+  const phone = normalizePhone(identifier);
   const row = await queryOne<{
     id: string;
     name: string;
@@ -31,9 +35,9 @@ export const POST = handler(async (req: NextRequest) => {
     `SELECT id, name, email, phone, role
        FROM employees
       WHERE active
-        AND (phone = $1 OR lower(email) = lower($1))
-        AND pass_hash = crypt($2, pass_hash)`,
-    [identifier, pass]
+        AND (phone = $1 OR lower(email) = lower($2))
+        AND pass_hash = crypt($3, pass_hash)`,
+    [phone, identifier, pass]
   );
 
   if (!row) return unauthorized("Datos incorrectos. Revisá e intentá de nuevo.");

@@ -19,6 +19,7 @@ import type { RubroId } from "./rubros";
  * Configuración no habría forma de volver a prender lo que se apagó).
  */
 export type ModuleId =
+  | "ventas"
   | "agenda"
   | "clientes"
   | "productos"
@@ -34,6 +35,7 @@ export interface ModuleDef {
 }
 
 export const MODULE_LIST: ModuleDef[] = [
+  { id: "ventas", label: "Ventas", hint: "Punto de venta: vende del inventario (descuenta stock) y genera proformas/facturas." },
   { id: "agenda", label: "Agenda", hint: "Calendario de pedidos por fecha de entrega." },
   { id: "clientes", label: "Clientes", hint: "Libreta de clientes con su historial de compras." },
   { id: "productos", label: "Productos", hint: "Catálogo: altas, precios y stock." },
@@ -49,6 +51,7 @@ export const MODULE_LIST: ModuleDef[] = [
 export type Modules = Record<ModuleId, boolean>;
 
 const TODOS: Modules = {
+  ventas: false,
   agenda: true,
   clientes: true,
   productos: true,
@@ -66,12 +69,12 @@ const TODOS: Modules = {
  */
 const POR_RUBRO: Partial<Record<RubroId, Partial<Modules>>> = {
   // Mostrador: se vende y se entrega en el acto, no hay reparto ni agenda.
-  ferreteria: { entregas: false, agenda: false },
-  repuestos: { entregas: false, agenda: false },
-  tecnologia: { entregas: false, agenda: false },
-  boutique: { entregas: false, agenda: false },
-  minimarket: { entregas: false, agenda: false },
-  farmacia: { agenda: false },
+  ferreteria: { ventas: true, entregas: false, agenda: false },
+  repuestos: { ventas: true, entregas: false, agenda: false },
+  tecnologia: { ventas: true, entregas: false, agenda: false },
+  boutique: { ventas: true, entregas: false, agenda: false },
+  minimarket: { ventas: true, entregas: false, agenda: false },
+  farmacia: { ventas: true, agenda: false },
   // Florería y restaurante sí reparten (el default ya es todo prendido).
 };
 

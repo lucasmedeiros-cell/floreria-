@@ -52,7 +52,7 @@ export function ModulosEditor() {
   return (
     <div className="rounded-[18px] border border-line bg-surface p-5 shadow-soft">
       <h3 className="flex items-center gap-2 text-[15px] font-semibold text-ink">
-        <span className="text-pink">
+        <span className="text-ink">
           <LayoutGrid size={18} />
         </span>
         Módulos del CRM

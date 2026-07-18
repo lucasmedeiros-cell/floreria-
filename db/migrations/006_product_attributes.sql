@@ -1,0 +1,12 @@
+-- ============================================================
+--  Atributos de producto por rubro
+-- ------------------------------------------------------------
+--  Cada rubro tiene datos propios que no encajan en las columnas fijas: una
+--  tienda de repuestos necesita marca, compatibilidad de vehículo y N.º de
+--  parte; una farmacia, principio activo y vencimiento; etc.
+--
+--  En vez de una columna por cada uno (que ensuciaría el esquema para todos los
+--  rubros), se guardan como un JSON flexible. El formulario de la app decide qué
+--  campos pedir según el rubro del negocio. Idempotente.
+-- ============================================================
+ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes jsonb NOT NULL DEFAULT '{}';

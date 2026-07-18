@@ -171,7 +171,7 @@ export function PaymentPanel({ onDone }: { onDone: () => void }) {
   if (!paid) {
     return (
       <div className="flex flex-col items-center">
-        <div className="mx-auto mb-4 mt-8 text-pink">
+        <div className="mx-auto mb-4 mt-8 text-ink">
           <QrCode size={46} />
         </div>
         <h2 className="text-center text-[1.55rem] font-semibold leading-tight text-ink">
@@ -197,11 +197,11 @@ export function PaymentPanel({ onDone }: { onDone: () => void }) {
             </div>
           ) : qrError ? (
             <div className="flex flex-col items-center gap-2 px-3 text-center">
-              <AlertCircle size={26} className="text-pink" />
+              <AlertCircle size={26} className="text-ink" />
               <span className="text-[.78rem] text-ink2">{qrError}</span>
               <button
                 onClick={genQR}
-                className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-pink px-3 py-1.5 text-[.78rem] text-pink"
+                className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-pink px-3 py-1.5 text-[.78rem] text-ink"
               >
                 <RefreshCw size={14} /> Reintentar
               </button>
@@ -221,14 +221,14 @@ export function PaymentPanel({ onDone }: { onDone: () => void }) {
         {process.env.NODE_ENV !== "production" && qr && (
           <button
             onClick={() => setPaid(true)}
-            className="mt-[14px] rounded-full border border-dashed border-pink bg-white px-[18px] py-2 text-[.74rem] text-pink"
+            className="mt-[14px] rounded-full border border-dashed border-pink bg-white px-[18px] py-2 text-[.74rem] text-ink"
           >
             Simular pago confirmado (solo dev)
           </button>
         )}
 
         <div className="mt-auto pt-8 text-center">
-          <div className="mx-auto flex justify-center text-pink [animation:pulse-soft_1.6s_ease-in-out_infinite]">
+          <div className="mx-auto flex justify-center text-ink [animation:pulse-soft_1.6s_ease-in-out_infinite]">
             <Clock size={30} />
           </div>
           <div className="mt-2 text-[.95rem] text-faint">
@@ -263,7 +263,7 @@ export function PaymentPanel({ onDone }: { onDone: () => void }) {
       <button
         onClick={whatsapp}
         disabled={sending}
-        className="mt-[26px] flex w-full items-center justify-center gap-2.5 rounded-[12px] bg-pink py-[15px] text-[.98rem] font-semibold text-white transition-colors hover:bg-pinkDeep disabled:opacity-60"
+        className="mt-[26px] flex w-full items-center justify-center gap-2.5 rounded-[12px] bg-pink py-[15px] text-[.98rem] font-semibold text-onAccent transition-colors hover:bg-pinkDeep disabled:opacity-60"
       >
         <WhatsAppIcon size={20} /> {sending ? "Registrando…" : "Continuar por WhatsApp"}
       </button>

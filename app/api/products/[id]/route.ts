@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { plainAttrs } from "@/lib/products";
 import { queryOne } from "@/lib/db";
 import { bad, handler, notFound, ok, unauthorized } from "@/lib/api";
 import { getSession } from "@/lib/auth";
@@ -13,7 +14,7 @@ type Params = { params: { id: string } };
 
 export const GET = handler(async (_req: NextRequest, { params }: Params) => {
   const row = await queryOne(
-    `SELECT id, name, description AS desc, price, cost, barcode, image, category,
+    `SELECT id, name, description AS desc, price, cost, barcode, image, images, attributes, category,
             featured, stock, status
        FROM products WHERE id = $1`,
     [params.id]
@@ -48,6 +49,22 @@ export const PATCH = handler(async (req: NextRequest, { params }: Params) => {
     }
   }
 
+  // Imágenes: si llega `images` (arreglo), reemplaza todas y `image` pasa a ser
+  // la primera. Si no llega, ambas quedan igual (COALESCE con null).
+  let images: string[] | null = null;
+  let primary: string | null = b.image ?? null;
+  if (Array.isArray(b.images)) {
+    const filtered = b.images.filter(
+      (u: unknown): u is string => typeof u === "string" && u.trim() !== ""
+    );
+    images = filtered;
+    primary = filtered[0] ?? "";
+  }
+
+  // Atributos del rubro: si llegan, reemplazan el JSON; si no, queda igual.
+  const attributes =
+    b.attributes != null ? JSON.stringify(plainAttrs(b.attributes)) : null;
+
   const row = await queryOne(
     `UPDATE products SET
        id          = $2,
@@ -57,13 +74,15 @@ export const PATCH = handler(async (req: NextRequest, { params }: Params) => {
        cost        = COALESCE($6, cost),
        barcode     = COALESCE($7, barcode),
        image       = COALESCE($8, image),
-       category    = COALESCE($9, category),
-       featured    = COALESCE($10, featured),
-       stock       = COALESCE($11, stock),
-       status      = COALESCE($12::product_status, status),
+       images      = COALESCE($9, images),
+       attributes  = COALESCE($10::jsonb, attributes),
+       category    = COALESCE($11, category),
+       featured    = COALESCE($12, featured),
+       stock       = COALESCE($13, stock),
+       status      = COALESCE($14::product_status, status),
        updated_at  = now()
      WHERE id = $1
-     RETURNING id, name, description AS desc, price, cost, barcode, image, category,
+     RETURNING id, name, description AS desc, price, cost, barcode, image, images, attributes, category,
                featured, stock, status`,
     [
       params.id,
@@ -73,7 +92,9 @@ export const PATCH = handler(async (req: NextRequest, { params }: Params) => {
       b.price != null ? Math.round(Number(b.price)) : null,
       b.cost != null ? Math.round(Number(b.cost)) : null,
       barcode,
-      b.image ?? null,
+      primary,
+      images,
+      attributes,
       b.category ?? null,
       typeof b.featured === "boolean" ? b.featured : null,
       b.stock != null ? Math.round(Number(b.stock)) : null,

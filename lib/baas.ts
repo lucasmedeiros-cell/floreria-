@@ -3,34 +3,68 @@
 //  El servidor le pide al BaaS que genere un QR de monto fijo y
 //  luego consulta si fue pagado.
 //
-//  La identidad/credenciales del comercio (usuario, clave y códigos)
-//  se leen del entorno (.env.local) y nunca van en el código:
-//    BAAS_USER, BAAS_PASS, QR_BUSINESS_CODE, QR_IDNODE
+//  Las credenciales del comercio son POR NEGOCIO: viven en la base del
+//  tenant (`settings`, clave "baas") y se cargan en el panel de provisión.
+//  Sin eso, cada negocio cobraría contra la misma cuenta BCP global.
+//  Si el negocio no tiene credenciales propias se cae a las del entorno
+//  (BAAS_USER, BAAS_PASS, QR_BUSINESS_CODE, QR_IDNODE) — el modo de un
+//  solo negocio sigue funcionando igual que siempre.
 //  El dominio del BaaS (no es secreto) tiene un valor por defecto para
 //  que la URL nunca quede relativa (evita "Failed to parse URL").
 // ============================================================
 
+import { queryOne } from "./db";
+
 const BAAS_BASE_URL =
   process.env.BAAS_BASE_URL || "https://baas-bcp.petroboxinc.com";
-const BAAS_USER = process.env.BAAS_USER ?? "";
-const BAAS_PASS = process.env.BAAS_PASS ?? "";
-const QR_BUSINESS_CODE = process.env.QR_BUSINESS_CODE ?? "";
-const QR_IDNODE = process.env.QR_IDNODE ?? "";
+
+export interface BaasCreds {
+  user: string;
+  pass: string;
+  businessCode: string;
+  idnode: string;
+}
+
+export const BAAS_SETTINGS_KEY = "baas";
+
+/**
+ * Credenciales efectivas del negocio de ESTA request: primero las suyas
+ * (settings del tenant), si no las del entorno. Nunca tira: sin fila en
+ * settings (o sin tabla) simplemente se usa el fallback.
+ */
+async function credenciales(): Promise<BaasCreds> {
+  let propio: Partial<BaasCreds> = {};
+  try {
+    const row = await queryOne<{ value: Partial<BaasCreds> }>(
+      `SELECT value FROM settings WHERE key = $1`,
+      [BAAS_SETTINGS_KEY]
+    );
+    propio = row?.value ?? {};
+  } catch {
+    // sin settings accesibles: se sigue con el entorno
+  }
+  return {
+    user: propio.user || process.env.BAAS_USER || "",
+    pass: propio.pass || process.env.BAAS_PASS || "",
+    businessCode: propio.businessCode || process.env.QR_BUSINESS_CODE || "",
+    idnode: propio.idnode || process.env.QR_IDNODE || "",
+  };
+}
 
 /** Faltan credenciales del comercio → no se puede cobrar por QR. */
-function configError(): string | null {
+function configError(c: BaasCreds): string | null {
   const faltan: string[] = [];
-  if (!BAAS_USER) faltan.push("BAAS_USER");
-  if (!BAAS_PASS) faltan.push("BAAS_PASS");
-  if (!QR_BUSINESS_CODE) faltan.push("QR_BUSINESS_CODE");
-  if (!QR_IDNODE) faltan.push("QR_IDNODE");
+  if (!c.user) faltan.push("usuario");
+  if (!c.pass) faltan.push("clave");
+  if (!c.businessCode) faltan.push("código de comercio");
+  if (!c.idnode) faltan.push("idnode");
   return faltan.length
-    ? `Pago QR no configurado (faltan: ${faltan.join(", ")}).`
+    ? `Pago QR no configurado para este negocio (falta: ${faltan.join(", ")}). Cargalo en el panel.`
     : null;
 }
 
-function authHeader(): string {
-  const basic = Buffer.from(`${BAAS_USER}:${BAAS_PASS}`).toString("base64");
+function authHeader(c: BaasCreds): string {
+  const basic = Buffer.from(`${c.user}:${c.pass}`).toString("base64");
   return `Basic ${basic}`;
 }
 
@@ -49,19 +83,20 @@ export async function generarQR(
   amount: number,
   gloss: string
 ): Promise<QRGenerado> {
-  const cfg = configError();
+  const creds = await credenciales();
+  const cfg = configError(creds);
   if (cfg) return { ok: false, error: cfg };
   try {
     const res = await fetch(`${BAAS_BASE_URL}/api/qr_dinamico/generar`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: authHeader(),
+        Authorization: authHeader(creds),
       },
       body: JSON.stringify({
         amount,
-        businessCode: QR_BUSINESS_CODE,
-        idnode: QR_IDNODE,
+        businessCode: creds.businessCode,
+        idnode: creds.idnode,
         gloss: gloss.slice(0, 120),
         teller: "1", // el BCP exige Teller no vacío
       }),
@@ -102,12 +137,13 @@ export async function consultarEstado(
   correlativo: string,
   qrId?: string | number | null
 ): Promise<EstadoPago> {
+  const creds = await credenciales();
   try {
     const res = await fetch(`${BAAS_BASE_URL}/api/qr_dinamico/estado`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: authHeader(),
+        Authorization: authHeader(creds),
       },
       // El BCP manda el callback con correlativoid VACÍO; matcheamos por qr_id.
       body: JSON.stringify({

@@ -33,15 +33,17 @@ export const POST = handler(async (req: NextRequest) => {
   if (!Number.isFinite(amount) || amount <= 0)
     return bad("El monto del gasto debe ser mayor a 0.");
 
+  // Fecha validada acá: un formato inválido reventaría el cast `::date` con 500.
+  const spentAt = /^\d{4}-\d{2}-\d{2}$/.test(String(b.spentAt ?? "")) ? b.spentAt : null;
   const row = await queryOne(
     `INSERT INTO expenses (category, description, amount, spent_at, created_by)
      VALUES ($1, $2, $3, COALESCE($4::date, current_date), $5)
      RETURNING id`,
     [
-      (b.category ?? "General").trim() || "General",
-      (b.description ?? "").trim(),
+      String(b.category ?? "General").trim() || "General",
+      String(b.description ?? "").trim(),
       amount,
-      b.spentAt || null,
+      spentAt,
       emp.name,
     ]
   );

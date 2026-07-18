@@ -44,7 +44,7 @@ export function ProductCard({
 
       {/* Nombre */}
       <div className="min-h-[38px] px-1 text-center text-[12.5px] font-semibold leading-snug text-ink">
-        <span className="text-pink">{num}.</span> {p.id} · {p.name}
+        <span className="text-ink">{num}.</span> {p.id} · {p.name}
       </div>
 
       {/* Precio */}
@@ -79,8 +79,8 @@ export function ProductCard({
           type="button"
           onClick={add}
           aria-label={`Agregar ${p.name} al carrito`}
-          className={`grid h-[40px] w-[52px] place-items-center rounded-[10px] text-white transition-colors ${
-            added ? "bg-greenOk" : "bg-pink hover:bg-pinkDeep"
+          className={`grid h-[40px] w-[52px] place-items-center rounded-[10px] transition-colors ${
+            added ? "bg-greenOk text-white" : "bg-pink text-onAccent hover:bg-pinkDeep"
           }`}
         >
           {added ? <Check size={20} /> : <ShoppingCart size={19} />}

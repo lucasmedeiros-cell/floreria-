@@ -39,7 +39,7 @@ export function ProductImage({
       aria-label={alt}
       className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-pinkSoft to-pinkHero p-3 text-center"
     >
-      <span className="text-pink opacity-80">
+      <span className="text-ink opacity-80">
         <Icon name={icon ?? business.rubro.icon} size={iconSize} />
       </span>
       <span className="line-clamp-2 text-[11px] font-medium leading-tight text-ink2">

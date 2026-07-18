@@ -61,7 +61,7 @@ export function AnimationEditor() {
   return (
     <div className="rounded-[18px] border border-line bg-surface p-5 shadow-soft">
       <h3 className="flex items-center gap-2 text-[15px] font-semibold text-ink">
-        <span className="text-pink">
+        <span className="text-ink">
           <Sparkles size={18} />
         </span>
         Animaciones de inicio
@@ -132,7 +132,7 @@ function ToggleRow({
         <p className="mt-0.5 text-[12px] text-ink2">{desc}</p>
         <button
           onClick={onPreview}
-          className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-pink"
+          className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink"
         >
           <Play size={13} /> Previsualizar
         </button>

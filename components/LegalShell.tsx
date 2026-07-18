@@ -57,7 +57,7 @@ export function LegalShell({
             acá y deja las páginas como puro contenido, sin clases repetidas. */}
         <div
           className="mt-10 font-sans text-[15px] leading-relaxed text-ink2
-            [&_a]:text-pinkDeep [&_a]:underline
+            [&_a]:text-ink [&_a]:underline
             [&_h2]:mb-3 [&_h2]:mt-10 [&_h2]:font-serif [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:text-ink
             [&_h2:first-child]:mt-0
             [&_li]:mb-1.5

@@ -187,7 +187,7 @@ export function VendedorEditor() {
   return (
     <div className="rounded-[18px] border border-line bg-surface p-5 shadow-soft">
       <h3 className="flex items-center gap-2 text-[15px] font-semibold text-ink">
-        <span className="text-pink"><Bot size={18} /></span>
+        <span className="text-ink"><Bot size={18} /></span>
         Vendedor 24/7 (WhatsApp con IA)
       </h3>
       <p className="mt-1 text-[12.5px] text-ink2">
@@ -232,7 +232,7 @@ export function VendedorEditor() {
       {/* Conectar WhatsApp por QR (Baileys) */}
       <div className="mt-5 rounded-2xl border border-line bg-surface2 p-4">
         <h4 className="flex items-center gap-2 text-[13px] font-semibold text-ink">
-          <Smartphone size={15} className="text-pink" /> Conectar WhatsApp (Baileys)
+          <Smartphone size={15} className="text-ink" /> Conectar WhatsApp (Baileys)
         </h4>
         <p className="mt-0.5 text-[11.5px] text-ink2">
           Vincula tu número escaneando un QR (WhatsApp → Dispositivos vinculados). Una vez
@@ -252,7 +252,7 @@ export function VendedorEditor() {
             <button
               onClick={disconnectWa}
               disabled={waBusy}
-              className="text-[12.5px] font-semibold text-ink2 hover:text-pink disabled:opacity-60"
+              className="text-[12.5px] font-semibold text-ink2 hover:text-ink disabled:opacity-60"
             >
               Desconectar
             </button>
@@ -270,7 +270,7 @@ export function VendedorEditor() {
             <button
               onClick={connectWa}
               disabled={waBusy || wa?.status === "connecting"}
-              className="inline-flex items-center gap-2 rounded-xl bg-pink px-4 py-2.5 text-[13px] font-semibold text-white disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-pink px-4 py-2.5 text-[13px] font-semibold text-onAccent disabled:opacity-60"
             >
               {waBusy || wa?.status === "connecting" ? (
                 <Loader2 size={15} className="animate-spin" />
@@ -301,7 +301,7 @@ export function VendedorEditor() {
           <button
             onClick={runTest}
             disabled={testing}
-            className="inline-flex items-center gap-2 rounded-xl bg-pink px-4 py-2.5 text-[13px] font-semibold text-white disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-pink px-4 py-2.5 text-[13px] font-semibold text-onAccent disabled:opacity-60"
           >
             {testing ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Enviar
           </button>

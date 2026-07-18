@@ -78,7 +78,7 @@ function ClientCard({ cl }: { cl: Client }) {
   return (
     <div className="rounded-[18px] border border-line bg-surface p-[18px] shadow-soft">
       <div className="flex items-center gap-3">
-        <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full border border-line bg-surface2 text-[18px] font-bold text-pink">
+        <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full border border-line bg-surface2 text-[18px] font-bold text-ink">
           {initials}
         </span>
         <div className="min-w-0">

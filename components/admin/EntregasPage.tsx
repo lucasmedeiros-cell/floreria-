@@ -3,6 +3,7 @@
 import { Bike, MapPin, Phone, Truck, PackageCheck, Navigation } from "lucide-react";
 import { fmtDate, orderTotal, statusColor, statusLabel } from "@/lib/adminData";
 import { bs2 } from "@/lib/products";
+import { onAccent } from "@/lib/business";
 import { useBusiness, useOrders, useToast } from "@/context/StoreProvider";
 import { openWhatsapp } from "@/lib/whatsapp";
 import { OutlineButton, PrimaryButton } from "@/components/ui";
@@ -50,7 +51,7 @@ export function EntregasPage() {
           {Object.entries(byCourier).map(([courier, list]) => (
             <div key={courier} className="rounded-[18px] border border-line bg-surface p-[18px] shadow-soft">
               <div className="flex items-center gap-2">
-                <Bike size={18} className="text-pink" />
+                <Bike size={18} className="text-ink" />
                 <span className="text-[14px] font-semibold text-ink">{courier}</span>
                 <span className="ml-auto rounded-full bg-surface2 px-2.5 py-1 text-[11.5px] font-semibold text-ink2">
                   {list.length} en ruta
@@ -61,12 +62,12 @@ export function EntregasPage() {
                 {list.map((o) => (
                   <div key={o.code} className="border-t border-line py-3.5 first:border-t-0">
                     <div className="flex items-center gap-2">
-                      <span className="eyebrow text-[10.5px] font-semibold text-pink">{o.code}</span>
+                      <span className="eyebrow text-[10.5px] font-semibold text-ink">{o.code}</span>
                       <span className="ml-auto"><StatusChip s={o.status} /></span>
                     </div>
                     <div className="mt-1 flex items-center">
                       <p className="text-[18px] font-semibold text-ink">{o.clientName}</p>
-                      <span className="ml-auto text-[16px] font-bold text-pink">{bs2(orderTotal(o))}</span>
+                      <span className="ml-auto text-[16px] font-bold text-ink">{bs2(orderTotal(o))}</span>
                     </div>
                     <p className="mt-0.5 flex items-center gap-1 text-[12px] text-ink2">
                       <MapPin size={13} className="shrink-0 text-faint" /> {o.address || "Sin dirección"}
@@ -121,7 +122,7 @@ export function EntregasPage() {
 function MiniStat({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
   return (
     <div className="flex items-center gap-3 rounded-[18px] border border-line bg-surface p-[18px] shadow-soft">
-      <span className="flex h-12 w-12 items-center justify-center rounded-2xl text-white" style={{ background: `linear-gradient(140deg, ${color}, ${color}cc)` }}>
+      <span className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: `linear-gradient(140deg, ${color}, ${color}cc)`, color: onAccent(color) }}>
         {icon}
       </span>
       <div>
