@@ -1,0 +1,31 @@
+{
+  "name": "coquito-pc",
+  "productName": "Auto Piezas Coquito",
+  "version": "0.1.0",
+  "description": "Programa de PC para Auto Piezas Coquito — POS de escritorio que comparte la base de easy pos vía su API HTTP local.",
+  "author": "Auto Piezas Coquito",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "bo.coquito.pc",
+    "productName": "Auto Piezas Coquito",
+    "files": ["main.js", "preload.js", "renderer/**"],
+    "win": {
+      "target": "nsis",
+      "artifactName": "AutoPiezasCoquito-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Auto Piezas Coquito"
+    }
+  }
+}
