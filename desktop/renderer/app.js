@@ -165,8 +165,24 @@ function navigate(s) {
   ({
     venta: screenVenta,
     catalogo: screenCatalogo,
+    historial: screenHistorial,
+    gastos: screenGastos,
+    caja: screenCaja,
+    reportes: screenReportes,
+    usuarios: screenUsuarios,
   }[s] || screenStub)(c, s);
 }
+
+// ------------------------------------------------------------------ modal
+function modal(html) {
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "position:fixed;inset:0;background:rgba(20,17,15,.45);display:grid;place-items:center;z-index:90";
+  wrap.innerHTML = `<div style="background:var(--surface);border-radius:20px;max-width:520px;width:92%;max-height:88vh;overflow:auto;box-shadow:0 30px 70px rgba(0,0,0,.4)">${html}</div>`;
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) wrap.remove(); });
+  document.body.appendChild(wrap);
+  return wrap;
+}
+const fmtDate = (iso) => { const d = new Date(iso); return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; };
 
 function screenStub(c, s) {
   c.innerHTML = `<div class="empty"><div style="opacity:.4;margin-bottom:10px">${svg(NAV.find(n=>n.s===s)?.ic || "reportes", 40)}</div><h3 class="serif" style="font-size:20px">${TITLE[s]}</h3><p style="margin-top:6px">Esta sección está en construcción (próxima etapa).</p></div>`;
@@ -175,8 +191,14 @@ function screenStub(c, s) {
 // ================================================================ CATÁLOGO
 async function screenCatalogo(c) {
   c.innerHTML = `
-    <div style="margin-bottom:14px"><input class="search" id="cat-q" placeholder="Buscar por código, nombre, código de barras…"/></div>
+    <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center">
+      <input class="search" id="cat-q" placeholder="Buscar por código, nombre, código de barras…" style="flex:1"/>
+      <button class="btn btn-outline" id="cat-import">Importar CSV</button>
+      <input type="file" id="cat-file" accept=".csv,text/csv" class="hidden"/>
+    </div>
     <div class="card"><table><thead><tr><th>SKU</th><th>Producto</th><th>Categoría</th><th class="right">Precio</th><th class="right">Costo</th><th class="right">Stock</th></tr></thead><tbody id="cat-body"><tr><td colspan="6" class="center" style="color:var(--faint);padding:30px">Cargando…</td></tr></tbody></table></div>`;
+  document.getElementById("cat-import").onclick = () => document.getElementById("cat-file").click();
+  document.getElementById("cat-file").onchange = (e) => importarCSV(e.target.files[0], () => load(document.getElementById("cat-q").value.trim()));
   const load = async (q) => {
     try {
       const rows = await api("GET", `/api/products${q ? "?q=" + encodeURIComponent(q) : ""}`);
@@ -305,4 +327,268 @@ async function cobrar() {
     toast(e.message, "err");
     btn.disabled = false; btn.textContent = "Cobrar y facturar";
   }
+}
+
+// ================================================================ HISTORIAL
+async function screenHistorial(c) {
+  c.innerHTML = `<div class="card"><table><thead><tr><th>Código</th><th>Tipo</th><th>Cliente</th><th class="center">Ítems</th><th class="right">Total</th><th>Método</th><th>Fecha</th><th></th></tr></thead><tbody id="h-body"><tr><td colspan="8" class="center" style="color:var(--faint);padding:30px">Cargando…</td></tr></tbody></table></div>`;
+  const load = async () => {
+    try {
+      const rows = await api("GET", "/api/sales");
+      const body = document.getElementById("h-body");
+      if (!rows.length) { body.innerHTML = `<tr><td colspan="8" class="center" style="color:var(--faint);padding:30px">Todavía no hay ventas.</td></tr>`; return; }
+      body.innerHTML = rows.map((s) => `
+        <tr style="${s.voided ? "opacity:.5" : ""}">
+          <td class="mono" style="font-weight:700">${esc(s.code)}</td>
+          <td><span class="chip ${s.kind === "factura" ? "ok" : ""}" style="${s.kind !== "factura" ? "background:var(--yellow-soft);color:var(--yellow-deep)" : ""}">${s.kind === "factura" ? "Factura" : "Proforma"}</span></td>
+          <td>${esc(s.clientName || "Consumidor final")}</td>
+          <td class="center">${s.itemCount}</td>
+          <td class="right mono" style="font-weight:700">${bs(s.total)}</td>
+          <td style="color:var(--ink2)">${esc(s.payMethod || "")}</td>
+          <td style="color:var(--ink2);font-size:12.5px">${fmtDate(s.createdAt)}</td>
+          <td class="right">
+            ${s.voided ? `<span class="chip bad">Anulada</span>` :
+              `<button class="btn btn-outline" style="padding:6px 12px" data-ver="${s.id}">Ver</button>
+               ${s.kind === "factura" ? `<button class="btn btn-outline" style="padding:6px 12px;color:var(--error);border-color:var(--error)" data-anular="${s.id}" data-code="${esc(s.code)}">Anular</button>` : ""}`}
+          </td>
+        </tr>`).join("");
+      body.querySelectorAll("[data-ver]").forEach((b) => b.onclick = () => verVenta(b.dataset.ver));
+      body.querySelectorAll("[data-anular]").forEach((b) => b.onclick = () => anularVenta(b.dataset.anular, b.dataset.code, load));
+    } catch (e) { toast(e.message, "err"); }
+  };
+  load();
+}
+
+async function verVenta(id) {
+  try {
+    const s = await api("GET", `/api/sales/${id}`);
+    const items = s.items || [];
+    const m = modal(`
+      <div class="printable" style="padding:22px 24px">
+        <div style="text-align:center;margin-bottom:10px">
+          <div class="serif" style="font-size:22px;font-weight:700">Auto Piezas Coquito</div>
+          <div style="font-size:12px;color:var(--ink2)">${s.kind === "factura" ? "FACTURA" : "PROFORMA"} · ${esc(s.code)}</div>
+          <div style="font-size:11px;color:var(--faint)">${fmtDate(s.createdAt)}</div>
+        </div>
+        <div style="border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);padding:8px 0;margin:8px 0">
+          ${items.map((it) => `<div style="display:flex;justify-content:space-between;font-size:12.5px;margin:3px 0"><span>${it.qty}× ${esc(it.name)}</span><span class="mono">${bs(it.qty * it.unit_price)}</span></div>`).join("")}
+        </div>
+        <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px"><span>TOTAL</span><span class="mono">${bs(s.total)}</span></div>
+        <div style="font-size:11.5px;color:var(--ink2);margin-top:6px">Cliente: ${esc(s.client_name || "Consumidor final")} · Pago: ${esc(s.pay_method || "")}</div>
+      </div>
+      <div style="padding:0 24px 20px;display:flex;gap:10px" class="no-print">
+        <button class="btn btn-outline btn-block" id="m-close">Cerrar</button>
+        <button class="btn btn-primary btn-block" id="m-print">Imprimir</button>
+      </div>`);
+    m.querySelector("#m-close").onclick = () => m.remove();
+    m.querySelector("#m-print").onclick = () => window.print();
+  } catch (e) { toast(e.message, "err"); }
+}
+
+async function anularVenta(id, code, onDone) {
+  const m = modal(`<div style="padding:24px">
+    <h3 class="serif" style="font-size:20px">Anular ${esc(code)}</h3>
+    <p style="color:var(--ink2);margin-top:8px;font-size:13.5px">Se marcará la venta como anulada y se devolverá el stock de los productos. Esta acción queda registrada.</p>
+    <div style="display:flex;gap:10px;margin-top:18px">
+      <button class="btn btn-outline btn-block" id="a-no">Cancelar</button>
+      <button class="btn btn-block" id="a-si" style="background:var(--error);color:#fff">Anular y devolver stock</button>
+    </div></div>`);
+  m.querySelector("#a-no").onclick = () => m.remove();
+  m.querySelector("#a-si").onclick = async () => {
+    try { await api("PATCH", `/api/sales/${id}`, { void: true }); toast(`${code} anulada · stock devuelto`, "ok"); m.remove(); onDone(); }
+    catch (e) { toast(e.message, "err"); }
+  };
+}
+
+// ================================================================ GASTOS
+async function screenGastos(c) {
+  c.innerHTML = `
+    <div style="display:flex;align-items:center;margin-bottom:14px">
+      <div><span class="eyebrow">Egresos</span><div id="g-total" class="serif" style="font-size:26px;font-weight:700">Bs 0.00</div></div>
+      <button class="btn btn-primary" id="g-new" style="margin-left:auto">+ Nuevo gasto</button>
+    </div>
+    <div class="card"><table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th class="right">Monto</th></tr></thead><tbody id="g-body"><tr><td colspan="4" class="center" style="color:var(--faint);padding:30px">Cargando…</td></tr></tbody></table></div>`;
+  const load = async () => {
+    try {
+      const rows = await api("GET", "/api/expenses");
+      const total = rows.reduce((a, r) => a + (r.amount || 0), 0);
+      document.getElementById("g-total").textContent = bs(total);
+      const body = document.getElementById("g-body");
+      body.innerHTML = rows.length ? rows.map((g) => `
+        <tr><td style="color:var(--ink2)">${esc(g.spentAt)}</td><td>${esc(g.category)}</td><td>${esc(g.description)}</td><td class="right mono" style="font-weight:700">${bs(g.amount)}</td></tr>`).join("")
+        : `<tr><td colspan="4" class="center" style="color:var(--faint);padding:30px">Sin gastos registrados.</td></tr>`;
+    } catch (e) { toast(e.message, "err"); }
+  };
+  document.getElementById("g-new").onclick = () => {
+    const hoy = new Date().toISOString().slice(0, 10);
+    const m = modal(`<div style="padding:24px">
+      <h3 class="serif" style="font-size:20px">Nuevo gasto</h3>
+      <label class="field"><span>Categoría</span><input id="g-cat" placeholder="Ej. Servicios, Alquiler…"/></label>
+      <label class="field"><span>Descripción</span><input id="g-desc" placeholder="Detalle del gasto"/></label>
+      <label class="field"><span>Monto (Bs)</span><input id="g-amt" type="number" value="0"/></label>
+      <label class="field"><span>Fecha</span><input id="g-date" type="date" value="${hoy}"/></label>
+      <div style="display:flex;gap:10px;margin-top:18px"><button class="btn btn-outline btn-block" id="g-x">Cancelar</button><button class="btn btn-primary btn-block" id="g-ok">Guardar</button></div></div>`);
+    m.querySelector("#g-x").onclick = () => m.remove();
+    m.querySelector("#g-ok").onclick = async () => {
+      const amount = parseFloat(m.querySelector("#g-amt").value) || 0;
+      if (amount <= 0) return toast("Ingresá un monto mayor a cero", "err");
+      try {
+        await api("POST", "/api/expenses", { category: m.querySelector("#g-cat").value.trim() || "General", description: m.querySelector("#g-desc").value.trim(), amount, spentAt: m.querySelector("#g-date").value });
+        toast("Gasto registrado", "ok"); m.remove(); load();
+      } catch (e) { toast(e.message, "err"); }
+    };
+  };
+  load();
+}
+
+// ================================================================ CORTE DE CAJA
+async function screenCaja(c) {
+  c.innerHTML = `<div id="caja"></div>`;
+  try {
+    const r = await api("GET", "/api/cash");
+    const box = document.getElementById("caja");
+    box.innerHTML = `
+      <p style="color:var(--ink2);margin-bottom:14px">Turno desde ${r.fromAt ? fmtDate(r.fromAt) : "el inicio del día"} · ${r.numVentas} venta(s).</p>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+        ${statCard("Total ventas", bs(r.totalVentas))}
+        ${statCard("Efectivo", bs(r.totalEfectivo))}
+        ${statCard("QR / Transf.", bs(r.totalQr))}
+        ${statCard("Otros", bs(r.totalOtros))}
+      </div>
+      <div class="card" style="padding:20px;margin-top:18px;max-width:460px">
+        <span class="eyebrow">Arqueo</span>
+        <label class="field"><span>Efectivo contado en caja (Bs)</span><input id="cj-count" type="number" value="0"/></label>
+        <div class="total-row" style="margin-top:14px"><span style="color:var(--ink2);font-weight:600">Diferencia</span><span class="amt" id="cj-diff">Bs 0.00</span></div>
+        <button class="btn btn-primary btn-block" id="cj-close" style="margin-top:14px">Cerrar caja</button>
+      </div>`;
+    const inp = document.getElementById("cj-count");
+    const diff = document.getElementById("cj-diff");
+    const upd = () => { const d = (parseFloat(inp.value) || 0) - r.totalEfectivo; diff.textContent = (d >= 0 ? "" : "-") + bs(Math.abs(d)); diff.style.color = Math.abs(d) < 0.005 ? "var(--success)" : "var(--error)"; };
+    inp.oninput = upd; upd();
+    document.getElementById("cj-close").onclick = async () => {
+      try { const res = await api("POST", "/api/cash", { countedCash: parseFloat(inp.value) || 0 }); toast(`Caja cerrada · diferencia ${bs(res.difference)}`, "ok"); screenCaja(c); }
+      catch (e) { toast(e.message, "err"); }
+    };
+  } catch (e) { toast(e.message, "err"); }
+}
+function statCard(label, value, color) {
+  return `<div class="stat"><div class="lbl">${esc(label)}</div><div class="num" style="${color ? "color:" + color : ""}">${value}</div></div>`;
+}
+
+// ================================================================ REPORTES
+async function screenReportes(c) {
+  c.innerHTML = `<div id="rep" class="empty">Cargando…</div>`;
+  try {
+    const r = await api("GET", "/api/reports");
+    const maxMes = Math.max(1, ...r.porMes.map((m) => m.total));
+    document.getElementById("rep").className = "";
+    document.getElementById("rep").innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+        ${statCard("Ventas", bs(r.totalVentas))}
+        ${statCard("Ganancia", bs(r.ganancia), r.ganancia >= 0 ? "var(--success)" : "var(--error)")}
+        ${statCard("Ticket prom.", bs(r.ticketPromedio))}
+        ${statCard("N° ventas", r.numVentas)}
+      </div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-top:16px">
+        <div class="card" style="padding:18px">
+          <span class="eyebrow">Ventas por mes</span>
+          <div style="display:flex;align-items:flex-end;gap:10px;height:150px;margin-top:14px">
+            ${r.porMes.length ? r.porMes.map((m) => `<div style="flex:1;text-align:center"><div title="${bs(m.total)}" style="background:linear-gradient(180deg,var(--yellow),var(--yellow-deep));height:${Math.max(4, (m.total / maxMes) * 120)}px;border-radius:6px 6px 0 0"></div><div style="font-size:10px;color:var(--faint);margin-top:6px">${esc(m.mes.slice(5))}</div></div>`).join("") : `<span style="color:var(--faint);margin:auto">Sin ventas aún.</span>`}
+          </div>
+        </div>
+        <div class="card" style="padding:18px">
+          <span class="eyebrow">Por método de pago</span>
+          <div style="margin-top:12px">${r.porMetodo.length ? r.porMetodo.map((m) => `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px"><span>${esc(m.metodo)} <span style="color:var(--faint)">(${m.n})</span></span><b class="mono">${bs(m.total)}</b></div>`).join("") : `<span style="color:var(--faint)">—</span>`}</div>
+        </div>
+      </div>
+      <div class="card" style="padding:18px;margin-top:16px">
+        <span class="eyebrow">Productos más vendidos</span>
+        <table style="margin-top:8px"><tbody>
+          ${r.topProductos.length ? r.topProductos.map((t, i) => `<tr><td style="width:30px;color:var(--yellow-deep);font-weight:700">${i + 1}</td><td>${esc(t.name)}</td><td class="center" style="color:var(--ink2)">${t.qty} u.</td><td class="right mono" style="font-weight:700">${bs(t.revenue)}</td></tr>`).join("") : `<tr><td class="center" style="color:var(--faint);padding:20px">Sin datos.</td></tr>`}
+        </tbody></table>
+      </div>
+      <p style="margin-top:12px;color:var(--faint);font-size:12px">Ganancia = ventas − costo de lo vendido − gastos. Costo vendido: ${bs(r.costoVendido)} · Gastos: ${bs(r.gastos)}.</p>`;
+  } catch (e) { document.getElementById("rep").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+
+// ================================================================ USUARIOS
+async function screenUsuarios(c) {
+  c.innerHTML = `
+    <div style="display:flex;align-items:center;margin-bottom:14px"><span class="eyebrow">Equipo</span><button class="btn btn-primary" id="u-new" style="margin-left:auto">+ Nuevo usuario</button></div>
+    <div class="card"><table><thead><tr><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Rol</th><th class="center">Estado</th></tr></thead><tbody id="u-body"><tr><td colspan="5" class="center" style="color:var(--faint);padding:30px">Cargando…</td></tr></tbody></table></div>`;
+  const load = async () => {
+    try {
+      const rows = await api("GET", "/api/employees");
+      document.getElementById("u-body").innerHTML = rows.map((u) => `
+        <tr style="${u.active ? "" : "opacity:.5"}"><td style="font-weight:600">${esc(u.name)}</td><td style="color:var(--ink2)">${esc(u.email || "—")}</td><td style="color:var(--ink2)">${esc(u.phone || "—")}</td><td>${esc(u.role)}</td><td class="center"><span class="chip ${u.active ? "ok" : "bad"}">${u.active ? "Activo" : "Inactivo"}</span></td></tr>`).join("");
+    } catch (e) { toast(e.message, "err"); }
+  };
+  document.getElementById("u-new").onclick = () => {
+    const m = modal(`<div style="padding:24px">
+      <h3 class="serif" style="font-size:20px">Nuevo usuario</h3>
+      <label class="field"><span>Nombre</span><input id="u-name"/></label>
+      <label class="field"><span>Correo</span><input id="u-email" placeholder="opcional"/></label>
+      <label class="field"><span>Teléfono</span><input id="u-phone" placeholder="opcional"/></label>
+      <label class="field"><span>Contraseña</span><input id="u-pass" type="password"/></label>
+      <label class="field"><span>Rol</span><select id="u-role"><option>Vendedora</option><option>Administrador</option></select></label>
+      <div style="display:flex;gap:10px;margin-top:18px"><button class="btn btn-outline btn-block" id="u-x">Cancelar</button><button class="btn btn-primary btn-block" id="u-ok">Crear</button></div></div>`);
+    m.querySelector("#u-x").onclick = () => m.remove();
+    m.querySelector("#u-ok").onclick = async () => {
+      const name = m.querySelector("#u-name").value.trim();
+      const pass = m.querySelector("#u-pass").value;
+      const email = m.querySelector("#u-email").value.trim();
+      const phone = m.querySelector("#u-phone").value.trim();
+      if (!name || !pass || (!email && !phone)) return toast("Nombre, contraseña y correo o teléfono son obligatorios", "err");
+      try { await api("POST", "/api/employees", { name, email, phone, pass, role: m.querySelector("#u-role").value }); toast("Usuario creado", "ok"); m.remove(); load(); }
+      catch (e) { toast(e.message, "err"); }
+    };
+  };
+  load();
+}
+
+// ================================================================ IMPORTAR CSV
+function parseCSV(text) {
+  const clean = text.replace(/\r/g, "");
+  const delim = (clean.split("\n")[0].match(/;/g) || []).length > (clean.split("\n")[0].match(/,/g) || []).length ? ";" : ",";
+  const rows = [];
+  let row = [], cur = "", q = false;
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean[i];
+    if (q) { if (ch === '"') { if (clean[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === delim) { row.push(cur); cur = ""; }
+    else if (ch === "\n") { row.push(cur); rows.push(row); row = []; cur = ""; }
+    else cur += ch;
+  }
+  if (cur !== "" || row.length) { row.push(cur); rows.push(row); }
+  return rows.filter((r) => r.some((x) => x.trim() !== ""));
+}
+
+async function importarCSV(file, onDone) {
+  if (!file) return;
+  const text = await file.text();
+  const rows = parseCSV(text);
+  if (rows.length < 2) return toast("El CSV está vacío o no tiene datos.", "err");
+  const head = rows[0].map((h) => norm(h.trim()));
+  const col = (...names) => { for (const n of names) { const i = head.indexOf(n); if (i >= 0) return i; } return -1; };
+  const ci = { id: col("sku", "id", "codigo", "code"), name: col("nombre", "name", "producto"), price: col("precio", "price", "venta"), cost: col("costo", "cost"), stock: col("stock", "cantidad"), barcode: col("barcode", "codigo de barras", "ean"), category: col("categoria", "category", "rubro"), desc: col("descripcion", "desc") };
+  if (ci.id < 0 || ci.name < 0) return toast("El CSV necesita al menos columnas 'sku' y 'nombre'.", "err");
+  const data = rows.slice(1);
+  toast(`Importando ${data.length} productos…`);
+  let ok = 0, err = 0;
+  for (const r of data) {
+    const g = (i) => (i >= 0 ? (r[i] || "").trim() : "");
+    const id = g(ci.id);
+    if (!id) { err++; continue; }
+    try {
+      await api("POST", "/api/products", {
+        id, name: g(ci.name), desc: g(ci.desc),
+        price: parseFloat(g(ci.price)) || 0, cost: parseFloat(g(ci.cost)) || 0,
+        stock: parseInt(g(ci.stock)) || 0, barcode: g(ci.barcode), category: g(ci.category) || "General",
+      });
+      ok++;
+    } catch { err++; }
+  }
+  toast(`Importación: ${ok} creados${err ? `, ${err} con error/repetidos` : ""}`, err && !ok ? "err" : "ok");
+  onDone && onDone();
 }

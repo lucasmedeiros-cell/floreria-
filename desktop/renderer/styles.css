@@ -184,3 +184,11 @@ tr:hover td { background: var(--surface2); }
 
 .empty { text-align: center; color: var(--ink2); padding: 60px 20px; }
 .eyebrow { color: var(--yellow-deep); font-weight: 700; letter-spacing: 2px; font-size: 10.5px; text-transform: uppercase; }
+
+/* ---------- Impresión de ticket ---------- */
+@media print {
+  body * { visibility: hidden; }
+  .printable, .printable * { visibility: visible; }
+  .printable { position: absolute; left: 0; top: 0; width: 100%; }
+  .no-print { display: none !important; }
+}
