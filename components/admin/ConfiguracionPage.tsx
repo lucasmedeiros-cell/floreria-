@@ -23,8 +23,8 @@ export function ConfiguracionPage() {
         {/* Qué secciones del CRM usa este negocio */}
         <ModulosEditor />
 
-        {/* La vinculación de dispositivos (QR) se hace desde Case
-            (case.easypaybo.com), no desde el CRM del negocio. */}
+        {/* La vinculación de dispositivos (QR) se hace desde el panel de
+            easy pos (/panel), no desde el CRM del negocio. */}
 
         {/* Vendedor 24/7 (bot de WhatsApp con IA) */}
         <VendedorEditor />
@@ -32,7 +32,7 @@ export function ConfiguracionPage() {
         {/* Animaciones de inicio */}
         <AnimationEditor />
 
-        {/* Landing promocional (un producto) */}
+        {/* Landings promocionales (una o varias páginas públicas de oferta) */}
         <PromoEditor />
       </div>
     </div>

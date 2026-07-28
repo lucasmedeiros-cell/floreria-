@@ -25,10 +25,13 @@ npm run build && npm run start
 ## Rutas
 - `/` — Tienda: hero, colección con búsqueda, carrito (drawer), mini-cart, FAB de WhatsApp
   y flujo de pago (QR → confirmación → WhatsApp).
-- `/promo` — Landing promocional de un producto destacado (editable desde el panel).
+- `/promo`, `/promo/<landing>` — Landings promocionales de un producto destacado. Un
+  negocio puede tener **varias** (una por campaña o producto) desde el CRM
+  (Configuración → Landings promocionales): la principal se sirve en `/promo` y las
+  demás en `/promo/<landing>`.
 - `/admin` — CRM de empleados (link "Acceso empleados" en el footer): pedidos, entregas,
   agenda, clientes, productos, reportes, usuarios y configuración.
-- `/n/<slug>`, `/n/<slug>/promo`, `/n/<slug>/admin` — lo mismo, pero de **un negocio
+- `/n/<slug>`, `/n/<slug>/promo[/<landing>]`, `/n/<slug>/admin` — lo mismo, pero de **un negocio
   pareado**: cada comercio tiene su web y su CRM, con su base. Ver abajo.
 - `/parear` — conecta este navegador con un negocio (pegando el token o con `?token=…`).
 

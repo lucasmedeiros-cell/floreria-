@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import { readPromoConfig } from "@/lib/promoStore";
 import { readBusinessConfig } from "@/lib/businessStore";
+import { promoMetadata } from "@/lib/promoMeta";
 import { PromoLanding } from "@/components/promo/PromoLanding";
 import { runWithSlug } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
-/** Landing promocional del negocio: `/n/<slug>/promo`. */
+/**
+ * Landing PRINCIPAL del negocio: `/n/<slug>/promo`. Las demás campañas del
+ * mismo negocio cuelgan de `/n/<slug>/promo/<landing>`.
+ */
 export async function generateMetadata({
   params,
 }: {
@@ -19,10 +23,7 @@ export async function generateMetadata({
     ]);
     return { promo, business };
   });
-  return {
-    title: `${promo.title} · ${business.name}`,
-    description: promo.subtitle,
-  };
+  return promoMetadata(promo, business.name);
 }
 
 export default async function PromoNegocio({

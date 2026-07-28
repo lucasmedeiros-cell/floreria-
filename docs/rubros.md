@@ -54,7 +54,8 @@ no hay catálogos en archivos.
 - **Categorías** del catálogo (tienda, alta de productos y footer).
 - **Catálogo demo** — se reemplaza el del rubro anterior en la base de datos. Los productos
   con SKU propio del negocio **no se tocan** (`lib/rubroApply.ts`).
-- **Landing `/promo`** — vuelve a la promo por defecto del rubro nuevo.
+- **Landings `/promo`** — se borran todas y queda una sola: la promo por defecto del
+  rubro nuevo.
 - **Vendedor 24/7** — la persona y las reglas de venta del bot salen del rubro, salvo que
   se escriba una propia en el panel.
 - **Animación de inicio** — pétalos en florería, isotipo del rubro en el resto.

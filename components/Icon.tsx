@@ -56,6 +56,12 @@ const ICONS: Record<string, LucideIcon> = {
   Wrench,
 };
 
+/**
+ * Nombres válidos para un icono, para poder ofrecerlos en un desplegable del
+ * CRM (Configuración → Landing) en vez de que haya que escribirlos de memoria.
+ */
+export const ICON_NAMES: string[] = ["WhatsApp", ...Object.keys(ICONS)].sort();
+
 export function Icon({
   name,
   size = 22,
