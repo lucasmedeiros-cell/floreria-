@@ -11,6 +11,7 @@ import {
   Link2,
   Loader2,
   Plus,
+  QrCode,
   RotateCcw,
   Sparkles,
   Star,
@@ -19,6 +20,7 @@ import {
 import { MAX_PROMO_PAGES, type PromoPage } from "@/lib/promo";
 import { useToast } from "@/context/StoreProvider";
 import { Card, PromoPageForm } from "./PromoPageForm";
+import { PromoQrDialog } from "./PromoQrDialog";
 
 /**
  * Landings promocionales del negocio (varias).
@@ -38,6 +40,8 @@ export function PromoEditor() {
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  /** Landing cuyo QR se está mostrando, con su enlace ya absoluto. */
+  const [qr, setQr] = useState<{ page: PromoPage; url: string } | null>(null);
 
   /** Ruta pública de una landing: la principal vive en `/promo` a secas. */
   const pathOf = useCallback(
@@ -161,8 +165,12 @@ export function PromoEditor() {
       showToast("Landings restablecidas a los valores de tu rubro");
     });
 
+  /** Enlace absoluto: es lo que se copia y lo que se codifica en el QR. */
+  const absoluteUrl = (page: PromoPage, principal: boolean) =>
+    `${window.location.origin}${pathOf(page, principal)}`;
+
   const copyLink = async (page: PromoPage, principal: boolean) => {
-    const url = `${window.location.origin}${pathOf(page, principal)}`;
+    const url = absoluteUrl(page, principal);
     try {
       await navigator.clipboard.writeText(url);
       setCopiedId(page.id);
@@ -229,6 +237,11 @@ export function PromoEditor() {
                     </span>
                   </button>
 
+                  <IconAction
+                    title="QR de la landing"
+                    onClick={() => setQr({ page, url: absoluteUrl(page, principal) })}
+                    icon={<QrCode size={15} />}
+                  />
                   <IconAction
                     title="Copiar enlace"
                     onClick={() => copyLink(page, principal)}
@@ -307,6 +320,15 @@ export function PromoEditor() {
           publicPath={pathOf(editing, editingIsPrincipal)}
           onSaved={onSaved}
           onDirtyChange={setDirty}
+        />
+      )}
+
+      {qr && (
+        <PromoQrDialog
+          url={qr.url}
+          name={qr.page.name}
+          slug={qr.page.slug}
+          onClose={() => setQr(null)}
         />
       )}
     </div>
