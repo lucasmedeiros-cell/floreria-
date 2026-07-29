@@ -5,13 +5,14 @@ import { useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Lock, Search, ShoppingCart } from "lucide-react";
-import { bs } from "@/lib/products";
+import { bs, isPublicProduct, type Product } from "@/lib/products";
 import { useBusiness, useCart, useProducts } from "@/context/StoreProvider";
 import { openWhatsapp, useBusinessWhatsapp } from "@/lib/whatsapp";
 import { BrandMark, Wordmark } from "./Brand";
 import { Icon } from "./Icon";
 import { EASYPOS } from "@/lib/easypos";
 import { ProductCard } from "./ProductCard";
+import { ProductDetailTienda } from "./ProductDetail";
 import { WhatsAppIcon } from "./WhatsAppIcon";
 import { CartDrawer } from "./CartDrawer";
 import { MiniCart } from "./MiniCart";
@@ -34,6 +35,8 @@ export function Storefront() {
   const [query, setQuery] = useState("");
   const [nav, setNav] = useState<string>("INICIO");
   const [cartOpen, setCartOpen] = useState(false);
+  /** Producto cuya ficha (fotos + información) está abierta. */
+  const [ficha, setFicha] = useState<Product | null>(null);
 
   // WhatsApp del negocio = el número vinculado al Vendedor 24/7 (con respaldo).
   const waNumber = useBusinessWhatsapp();
@@ -78,7 +81,13 @@ export function Storefront() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const filtered = useMemo(() => search(query), [search, query]);
+  // La tienda muestra SOLO los productos activos: un producto inactivo sigue en
+  // el CRM (histórico, reposición) pero no se ofrece a la venta.
+  const filtered = useMemo(
+    () => search(query).filter(isPublicProduct),
+    [search, query]
+  );
+  const publicos = useMemo(() => products.filter(isPublicProduct), [products]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -231,7 +240,7 @@ export function Storefront() {
               No encontramos {noun.many}
             </h3>
             <p className="mt-1.5 text-[.9rem] text-ink2">
-              {products.length === 0
+              {publicos.length === 0
                 ? "El catálogo aún está vacío."
                 : "Prueba con otra búsqueda."}
             </p>
@@ -239,7 +248,12 @@ export function Storefront() {
         ) : (
           <section className="mt-6 grid grid-cols-2 gap-[14px] md:grid-cols-3 md:gap-[22px] lg:grid-cols-4">
             {filtered.map((p, i) => (
-              <ProductCard key={p.id} product={p} index={i} />
+              <ProductCard
+                key={p.id}
+                product={p}
+                index={i}
+                onOpen={() => setFicha(p)}
+              />
             ))}
           </section>
         )}
@@ -361,6 +375,7 @@ export function Storefront() {
       </footer>
 
       {/* Overlays */}
+      {ficha && <ProductDetailTienda product={ficha} onClose={() => setFicha(null)} />}
       <MiniCart onViewCart={openCart} onContinue={continuarPedido} />
       <CartDrawer open={cartOpen} onClose={closeCart} onContinue={continuarPedido} />
       <DebugReporter surface="web" />

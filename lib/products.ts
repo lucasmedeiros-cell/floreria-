@@ -29,12 +29,37 @@ export interface Product {
    * le pone además su propio SKU. Vacío = el producto no tiene código.
    */
   barcode?: string;
-  /** Foto del producto. Vacío = se pinta el placeholder del rubro. */
+  /**
+   * Foto PRINCIPAL del producto (la primera de `images`). Se mantiene como
+   * campo propio porque es lo que leen la tarjeta del catálogo, el ticket y la
+   * app móvil; vacío = se pinta el placeholder del rubro.
+   */
   image: string;
+  /** Todas las fotos, la principal primero. Un producto puede tener varias. */
+  images?: string[];
   category: string;
   featured?: boolean;
   stock?: number;
   status?: ProductStatus;
+}
+
+/**
+ * Fotos de un producto, la principal primero y sin huecos.
+ *
+ * Los productos viejos (y los de los catálogos demo) solo tienen `image`; los
+ * nuevos traen `images`. Esta función deja a la vista una sola forma de
+ * recorrerlas, para que la tienda y la landing no tengan que saber cuál es.
+ */
+export function productPhotos(p: Pick<Product, "image" | "images">): string[] {
+  const list = (Array.isArray(p.images) ? p.images : [])
+    .filter((u) => typeof u === "string" && u.trim() !== "");
+  if (p.image && !list.includes(p.image)) list.unshift(p.image);
+  return list;
+}
+
+/** ¿Se muestra al público? Un producto inactivo sigue en el CRM pero no se vende. */
+export function isPublicProduct(p: Pick<Product, "status">): boolean {
+  return (p.status ?? "activo") === "activo";
 }
 
 /** Minúsculas y SIN acentos, para buscar como Google ("bujias" → "bujías"). */

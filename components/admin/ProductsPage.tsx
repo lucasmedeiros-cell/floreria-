@@ -2,11 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { Package, Pencil, Plus, Search, Trash2, X } from "lucide-react";
-import { Product, ProductStatus, bs2, productStatusLabel } from "@/lib/products";
+import {
+  Product,
+  ProductStatus,
+  bs2,
+  productPhotos,
+  productStatusLabel,
+} from "@/lib/products";
 import { useBusiness, useProducts, useToast } from "@/context/StoreProvider";
 import { ProductImage } from "@/components/ProductImage";
 import { OutlineButton, PrimaryButton } from "@/components/ui";
-import { ImageUploadField } from "./ImageUploadField";
+import { ImageGalleryField } from "./ImageGalleryField";
 
 export function ProductsPage() {
   const model = useProducts();
@@ -170,7 +176,11 @@ function ProductDialog({
   const [price, setPrice] = useState(product ? String(product.price) : "");
   const [stock, setStock] = useState(product ? String(product.stock ?? 0) : "0");
   const [status, setStatus] = useState<ProductStatus>(product?.status ?? "activo");
-  const [image, setImage] = useState(product?.image ?? "");
+  // Galería: la primera foto es la principal (`image`). Los productos viejos
+  // solo tienen `image`, así que se normaliza al abrir el formulario.
+  const [images, setImages] = useState<string[]>(
+    product ? productPhotos(product) : []
+  );
   const [desc, setDesc] = useState(product?.desc ?? "");
   // Código de barras físico (EAN/UPC): es lo que escanea la app móvil. Distinto
   // del SKU, que es el código interno del negocio.
@@ -196,7 +206,10 @@ function ProductDialog({
       price: pr,
       cost: parseInt(cost, 10) || 0,
       barcode: barcode.trim(),
-      image: image.trim(),
+      // `image` sigue siendo la principal (lo que leen el ticket y la app);
+      // `images` lleva la galería completa.
+      image: images[0] ?? "",
+      images,
       category,
       stock: st,
       status,
@@ -273,14 +286,14 @@ function ProductDialog({
             </div>
           </div>
           <div className="mt-3.5">
-            <ImageUploadField
-              label="Foto del producto"
-              value={image}
-              onChange={setImage}
-              // El catálogo trae la foto de cada producto en la misma
+            <ImageGalleryField
+              label="Fotos del producto"
+              values={images}
+              onChange={setImages}
+              // El catálogo trae las fotos de cada producto en la misma
               // respuesta: acá conviene una imagen más liviana que en el hero.
               maxSide={1000}
-              hint="Sin foto se muestra el placeholder del rubro."
+              hint="La primera es la principal: es la que se ve en el catálogo y en el ticket. Las demás se muestran en la ficha del producto."
             />
           </div>
           <div>

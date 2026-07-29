@@ -6,12 +6,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Menu, ShoppingCart, X } from "lucide-react";
 import type { PromoConfig } from "@/lib/promo";
-import { bs } from "@/lib/products";
+import { bs, isPublicProduct, productPhotos, type Product } from "@/lib/products";
 import { onAccent } from "@/lib/business";
 import { openWhatsapp, useBusinessWhatsapp } from "@/lib/whatsapp";
-import { useBusiness } from "@/context/StoreProvider";
+import { useBusiness, useProducts } from "@/context/StoreProvider";
 import { Icon } from "../Icon";
 import { WhatsAppIcon } from "../WhatsAppIcon";
+import { ProductDetail } from "../ProductDetail";
+
+/** Cuántos productos se listan en la landing antes de mandar a la tienda. */
+const CATALOGO_EN_LANDING = 12;
 
 /**
  * Landing promocional (/promo) — estilo "bold": navbar flotante, cuñas
@@ -26,7 +30,14 @@ export function PromoLanding({ promo }: { promo: PromoConfig }) {
   const link = useLink();
   const business = useBusiness();
   const waNumber = useBusinessWhatsapp();
+  const { products } = useProducts();
   const [menu, setMenu] = useState(false);
+  /** Producto cuya ficha está abierta (fotos + información completa). */
+  const [ficha, setFicha] = useState<Product | null>(null);
+
+  // El catálogo de la landing es el MISMO de la tienda (tabla `products`): lo
+  // que se carga en el CRM aparece acá sin tocar nada. Solo los activos.
+  const catalogo = products.filter(isPublicProduct);
 
   const { colors, rubro, noun } = business;
   const accent = colors.accent;
@@ -39,21 +50,35 @@ export function PromoLanding({ promo }: { promo: PromoConfig }) {
     ? Math.round((1 - promo.price / promo.originalPrice!) * 100)
     : 0;
 
+  // Cuenta regresiva solo con una fecha real: una fecha mal escrita pintaría
+  // "NaN" en los recuadros, y una ya vencida, un 00:00:00:00 fijo.
+  const deadline =
+    promo.validUntil && new Date(promo.validUntil).getTime() > Date.now()
+      ? promo.validUntil
+      : null;
+
   // Una imagen recortada (PNG/WebP/SVG, sin fondo) puede "flotar" sobre el
   // círculo como en el diseño. Una foto normal (JPG) llevaría su fondo cuadrado
-  // encima, así que se recorta en círculo. Heurística por extensión.
-  const cutout = /\.(png|webp|svg)(\?|$)/i.test(promo.image);
+  // encima, así que se recorta en círculo. Heurística por extensión, o por el
+  // tipo MIME cuando la imagen viene subida como data URI (no tiene extensión).
+  const cutout = /^data:image\/(png|webp|svg)/i.test(promo.image)
+    ? true
+    : /\.(png|webp|svg)(\?|$)/i.test(promo.image);
 
   const pedir = () => openWhatsapp(promo.whatsappMessage, waNumber);
   const consultar = () =>
     openWhatsapp(`${business.greeting} Tengo una consulta sobre la promoción.`, waNumber);
 
+  // Los anclas (#…) van tal cual; las rutas se resuelven dentro del negocio,
+  // que si no "PRODUCTOS" desde /n/<slug>/promo se iría a la tienda de otro.
+  // Con catálogo cargado, "PRODUCTOS" baja a la sección de la propia landing;
+  // sin catálogo, sigue llevando a la tienda.
   const NAV = [
-    { label: "PRODUCTOS", href: "/" },
+    { label: "PRODUCTOS", href: catalogo.length > 0 ? "#productos" : link("/") },
     { label: "OFERTA", href: "#oferta" },
     { label: "BENEFICIOS", href: "#beneficios" },
     { label: "CONTACTO", href: "#contacto" },
-  ];
+  ].filter((n) => promo.highlights.length > 0 || n.href !== "#beneficios");
 
   /** Isotipo hexagonal: el logo del negocio o, si no hay, el icono del rubro. */
   const BrandHex = () => (
@@ -267,10 +292,11 @@ export function PromoLanding({ promo }: { promo: PromoConfig }) {
       </section>
 
       {/* ===================== STATS ===================== */}
+      {promo.stats.length > 0 && (
       <section className="bg-[#14110F]">
         <div className="mx-auto grid max-w-[1280px] grid-cols-2 gap-8 px-6 py-10 sm:grid-cols-4">
-          {promo.stats.map((s) => (
-            <div key={s.label} className="text-center">
+          {promo.stats.map((s, i) => (
+            <div key={i} className="text-center">
               <p
                 className="text-[clamp(1.5rem,3vw,2.1rem)] font-black uppercase leading-none"
                 style={{ color: accent }}
@@ -284,6 +310,7 @@ export function PromoLanding({ promo }: { promo: PromoConfig }) {
           ))}
         </div>
       </section>
+      )}
 
       {/* ===================== OFERTA (producto + precio) ===================== */}
       <section id="oferta" className="relative overflow-hidden bg-white py-20">
@@ -323,12 +350,12 @@ export function PromoLanding({ promo }: { promo: PromoConfig }) {
               )}
             </div>
 
-            {promo.validUntil && (
+            {deadline && (
               <div className="mt-7">
                 <p className="mb-2.5 text-[11px] font-bold uppercase tracking-[2px] text-black/45">
                   La oferta termina en
                 </p>
-                <Countdown iso={promo.validUntil} accent={accent} on={on} />
+                <Countdown iso={deadline} accent={accent} on={on} />
               </div>
             )}
 
@@ -382,7 +409,60 @@ export function PromoLanding({ promo }: { promo: PromoConfig }) {
         </div>
       </section>
 
+      {/* ===================== CATÁLOGO ===================== */}
+      {catalogo.length > 0 && (
+        <section id="productos" className="bg-white py-20">
+          <div className="mx-auto max-w-[1280px] px-6">
+            <span
+              className="text-[12px] font-extrabold uppercase tracking-[2px]"
+              style={{ color: accent }}
+            >
+              Catálogo
+            </span>
+            <h2 className="mt-3 max-w-[620px] text-[clamp(1.9rem,4vw,2.8rem)] font-black uppercase leading-[1] tracking-[-0.01em]">
+              Nuestros {noun.many}
+            </h2>
+            <div className="mt-5 h-[5px] w-[70px]" style={{ background: accent }} />
+
+            <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+              {catalogo.slice(0, CATALOGO_EN_LANDING).map((p) => (
+                <ProductoCard
+                  key={p.id}
+                  product={p}
+                  accent={accent}
+                  on={on}
+                  rubroIcon={rubro.icon}
+                  onOpen={() => setFicha(p)}
+                  onPedir={() =>
+                    openWhatsapp(
+                      `${business.greeting} Quiero pedir *${p.name}* (${p.id}) — ${bs(p.price)}.`,
+                      waNumber
+                    )
+                  }
+                />
+              ))}
+            </div>
+
+            <div className="mt-10 flex flex-wrap items-center gap-4">
+              <Link
+                href={link("/")}
+                className="inline-flex items-center gap-2.5 rounded-[12px] px-7 py-[16px] text-[13px] font-extrabold uppercase tracking-wide transition-transform hover:-translate-y-0.5"
+                style={{ background: accent, color: on }}
+              >
+                <ShoppingCart size={18} /> Ver toda la tienda
+              </Link>
+              {catalogo.length > CATALOGO_EN_LANDING && (
+                <span className="text-[13px] text-black/55">
+                  Y {catalogo.length - CATALOGO_EN_LANDING} {noun.many} más en la tienda.
+                </span>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ===================== BENEFICIOS ===================== */}
+      {promo.highlights.length > 0 && (
       <section id="beneficios" className="bg-[#F6F5F3] py-20">
         <div className="mx-auto max-w-[1280px] px-6">
           <span
@@ -397,9 +477,9 @@ export function PromoLanding({ promo }: { promo: PromoConfig }) {
           <div className="mt-5 h-[5px] w-[70px]" style={{ background: accent }} />
 
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {promo.highlights.map((h) => (
+            {promo.highlights.map((h, i) => (
               <div
-                key={h.title}
+                key={i}
                 className="rounded-[16px] border-2 border-black/[0.06] bg-white p-6 transition-colors hover:border-black/20"
               >
                 <span
@@ -419,6 +499,7 @@ export function PromoLanding({ promo }: { promo: PromoConfig }) {
           </div>
         </div>
       </section>
+      )}
 
       {/* ===================== CTA FINAL ===================== */}
       <section id="contacto" className="relative overflow-hidden" style={{ background: accent }}>
@@ -445,6 +526,10 @@ export function PromoLanding({ promo }: { promo: PromoConfig }) {
         </div>
       </section>
 
+      {/* Ficha del producto: mismas fotos e información que en la tienda. Sin
+          carrito a la vista, el pedido sale por WhatsApp. */}
+      {ficha && <ProductDetail product={ficha} onClose={() => setFicha(null)} />}
+
       {/* ===================== FOOTER ===================== */}
       <footer className="bg-[#14110F] py-10">
         <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-5 px-6">
@@ -467,6 +552,91 @@ export function PromoLanding({ promo }: { promo: PromoConfig }) {
           </Link>
         </div>
       </footer>
+    </div>
+  );
+}
+
+/**
+ * Tarjeta del catálogo en la landing: foto (con cuántas hay), nombre, categoría,
+ * descripción corta y precio. Tocarla abre la ficha completa; el botón manda el
+ * pedido por WhatsApp, que es como se compra desde acá.
+ */
+function ProductoCard({
+  product: p,
+  accent,
+  on,
+  rubroIcon,
+  onOpen,
+  onPedir,
+}: {
+  product: Product;
+  accent: string;
+  on: string;
+  rubroIcon: string;
+  onOpen: () => void;
+  onPedir: () => void;
+}) {
+  const fotos = productPhotos(p);
+  const agotado = typeof p.stock === "number" && p.stock <= 0;
+
+  return (
+    <div className="flex flex-col overflow-hidden rounded-[16px] border-2 border-black/[0.06] bg-white transition-colors hover:border-black/20">
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Ver ${p.name}`}
+        className="relative aspect-square w-full overflow-hidden bg-[#F6F5F3]"
+      >
+        {fotos[0] ? (
+          <Image
+            src={fotos[0]}
+            alt={p.name}
+            fill
+            sizes="(max-width:768px) 50vw, 25vw"
+            className="object-cover transition-transform duration-500 hover:scale-[1.05]"
+          />
+        ) : (
+          <span className="absolute inset-0 grid place-items-center" style={{ color: accent }}>
+            <Icon name={rubroIcon} size={64} />
+          </span>
+        )}
+        {fotos.length > 1 && (
+          <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">
+            {fotos.length} fotos
+          </span>
+        )}
+        {agotado && (
+          <span className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+            Sin stock
+          </span>
+        )}
+      </button>
+
+      <div className="flex flex-1 flex-col p-4">
+        <span className="text-[10.5px] font-bold uppercase tracking-[1.5px] text-black/40">
+          {p.category}
+        </span>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="mt-1 text-left text-[14px] font-extrabold uppercase leading-tight tracking-tight hover:underline"
+        >
+          {p.name}
+        </button>
+        {p.desc?.trim() && (
+          <p className="mt-1.5 line-clamp-2 text-[12.5px] leading-snug text-black/55">{p.desc}</p>
+        )}
+
+        <span className="mt-3 text-[19px] font-black leading-none">{bs(p.price)}</span>
+
+        <button
+          onClick={onPedir}
+          className="mt-3.5 inline-flex items-center justify-center gap-2 rounded-[10px] px-4 py-2.5 text-[12px] font-extrabold uppercase tracking-wide transition-transform hover:-translate-y-px"
+          style={{ background: accent, color: on }}
+        >
+          <WhatsAppIcon size={15} /> Pedir
+        </button>
+      </div>
     </div>
   );
 }
