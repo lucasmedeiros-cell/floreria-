@@ -22,11 +22,14 @@ export function ImageUploadField({
   value,
   onChange,
   hint,
+  maxSide,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   hint?: string;
+  /** Lado máximo al que se reduce antes de subir (por defecto, el del hero). */
+  maxSide?: number;
 }) {
   const { showToast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -38,7 +41,7 @@ export function ImageUploadField({
     if (!file || busy) return;
     setBusy(true);
     try {
-      onChange(await uploadImageFile(file));
+      onChange(await uploadImageFile(file, maxSide));
       showToast("Imagen subida");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "No se pudo subir la imagen.");

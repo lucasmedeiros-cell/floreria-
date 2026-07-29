@@ -6,6 +6,7 @@ import { Product, ProductStatus, bs2, productStatusLabel } from "@/lib/products"
 import { useBusiness, useProducts, useToast } from "@/context/StoreProvider";
 import { ProductImage } from "@/components/ProductImage";
 import { OutlineButton, PrimaryButton } from "@/components/ui";
+import { ImageUploadField } from "./ImageUploadField";
 
 export function ProductsPage() {
   const model = useProducts();
@@ -271,12 +272,17 @@ function ProductDialog({
               </select>
             </div>
           </div>
-          <Field
-            label="Imagen (ruta)"
-            value={image}
-            onChange={setImage}
-            placeholder="/images/producto.jpg (vacío = placeholder del rubro)"
-          />
+          <div className="mt-3.5">
+            <ImageUploadField
+              label="Foto del producto"
+              value={image}
+              onChange={setImage}
+              // El catálogo trae la foto de cada producto en la misma
+              // respuesta: acá conviene una imagen más liviana que en el hero.
+              maxSide={1000}
+              hint="Sin foto se muestra el placeholder del rubro."
+            />
+          </div>
           <div>
             <Label>Descripción / palabras clave</Label>
             <textarea

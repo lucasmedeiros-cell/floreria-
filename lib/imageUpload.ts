@@ -17,10 +17,15 @@ import { apiUrl } from "./apiBase";
 export const IMAGE_MIMES = ["image/jpeg", "image/png", "image/webp"] as const;
 export const MAX_IMAGE_BYTES = 6 * 1024 * 1024; // 6 MB, igual que el servidor
 
-/** Lado máximo por defecto: de sobra para el hero de la landing en pantallas 2x. */
+/**
+ * Lado máximo por defecto: de sobra para el hero de la landing en pantallas 2x.
+ * Quien la use para algo más chico (una foto de catálogo, un logo) puede bajarlo
+ * — el data URI viaja en cada carga, y el catálogo trae la imagen de CADA
+ * producto en la misma respuesta.
+ */
 const MAX_SIDE = 1600;
 
-/** Por debajo de esto no vale la pena recomprimir: se sube tal cual. */
+/** Por debajo de esto, y ya dentro de medida, no vale la pena recomprimir. */
 const RECOMPRESS_OVER = 900 * 1024;
 
 const readAsDataUrl = (file: Blob): Promise<string> =>
@@ -36,15 +41,19 @@ const mimeOf = (dataUrl: string): string =>
   dataUrl.slice(5, dataUrl.indexOf(";")) || "image/jpeg";
 
 /**
- * Achica la imagen a `MAX_SIDE` px por lado si hace falta. Si el navegador no
+ * Achica la imagen a `maxSide` px por lado si hace falta. Si el navegador no
  * puede decodificarla, se devuelve el archivo tal cual: mejor subir la original
  * que fallar (el servidor igual valida tamaño y formato).
  */
-async function shrink(file: File): Promise<string> {
-  if (file.size <= RECOMPRESS_OVER) return readAsDataUrl(file);
+async function shrink(file: File, maxSide: number): Promise<string> {
   try {
     const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
-    const scale = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
+    const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+    // Ya está dentro de medida y no pesa: se sube tal cual, sin recomprimir.
+    if (scale === 1 && file.size <= RECOMPRESS_OVER) {
+      bmp.close?.();
+      return readAsDataUrl(file);
+    }
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(bmp.width * scale));
     canvas.height = Math.max(1, Math.round(bmp.height * scale));
@@ -64,7 +73,10 @@ async function shrink(file: File): Promise<string> {
  * Sube un archivo de imagen y devuelve la referencia lista para guardar.
  * Tira `Error` con un mensaje en claro si el archivo no sirve o falla la subida.
  */
-export async function uploadImageFile(file: File): Promise<string> {
+export async function uploadImageFile(
+  file: File,
+  maxSide: number = MAX_SIDE
+): Promise<string> {
   if (!IMAGE_MIMES.includes(file.type as (typeof IMAGE_MIMES)[number])) {
     throw new Error(
       file.type.startsWith("image/")
@@ -76,7 +88,7 @@ export async function uploadImageFile(file: File): Promise<string> {
     throw new Error("La imagen supera los 6 MB. Usa una más liviana.");
   }
 
-  const dataUrl = await shrink(file);
+  const dataUrl = await shrink(file, maxSide);
   const res = await fetch(apiUrl("/api/uploads"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },

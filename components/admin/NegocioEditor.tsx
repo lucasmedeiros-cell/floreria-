@@ -9,6 +9,7 @@ import { businessFromRubro, type BusinessConfig } from "@/lib/business";
 import { useBusiness, useProducts, useToast } from "@/context/StoreProvider";
 import { Icon } from "@/components/Icon";
 import { PrimaryButton } from "@/components/ui";
+import { ImageUploadField } from "./ImageUploadField";
 
 /**
  * Rubro + datos del negocio. Es el corazón de la adaptación multi-rubro: al
@@ -178,19 +179,15 @@ export function NegocioEditor() {
         hint="Los colores son los de easy pos. Aquí defines el nombre y el logo de tu tienda."
       >
         <Field label="Nombre comercial" value={cfg.name} onChange={(v) => set("name", v)} />
-        <Field
-          label="Logo (URL o ruta en /public). Vacío = icono del rubro"
+        <ImageUploadField
+          label="Logo"
           value={cfg.logoUrl}
           onChange={(v) => set("logoUrl", v)}
-          placeholder="/images/mi-logo.png"
+          // El logo se pinta a 44-52 px; 512 alcanza de sobra y no engorda la
+          // config del negocio, que viaja en cada carga de la tienda.
+          maxSide={512}
+          hint="Sin logo se usa el icono del rubro. Un PNG o WebP con fondo transparente se ve mejor sobre el color de marca."
         />
-        {cfg.logoUrl.trim() !== "" && (
-          <div className="flex items-center gap-3 rounded-xl border border-line bg-surface2 p-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={cfg.logoUrl} alt="Logo" className="h-12 w-12 rounded-lg object-contain" />
-            <span className="text-[12.5px] text-ink2">Vista previa del logo</span>
-          </div>
-        )}
       </Card>
 
       {/* ---------- Categorías ---------- */}
