@@ -2,7 +2,14 @@ import { NextRequest } from "next/server";
 import { query, queryOne } from "@/lib/db";
 import { bad, handler, ok, unauthorized } from "@/lib/api";
 import { getSession } from "@/lib/auth";
+import { puedeGestionarProductos } from "@/lib/perms";
+import { hasDeviceToken } from "@/lib/pairing";
 import { plainAttrs } from "@/lib/products";
+import {
+  negocioBase,
+  resolvePhotoRefs,
+  withPhotoRefs,
+} from "@/lib/productsStore";
 
 export const runtime = "nodejs";
 
@@ -17,6 +24,7 @@ export const GET = handler(async (req: NextRequest) => {
   const q = sp.get("q")?.trim();
   const status = sp.get("status");
   const barcode = sp.get("barcode")?.trim();
+  const empleado = getSession("employee");
 
   const where: string[] = [];
   const params: unknown[] = [];
@@ -28,7 +36,12 @@ export const GET = handler(async (req: NextRequest) => {
     params.push(category);
     where.push(`category = $${params.length}`);
   }
-  if (status) {
+  // El público (sin sesión) solo ve productos ACTIVOS (no discontinuados); el
+  // empleado puede filtrar por estado o ver todos.
+  if (!empleado) {
+    params.push("activo");
+    where.push(`status = $${params.length}::product_status`);
+  } else if (status) {
     params.push(status);
     where.push(`status = $${params.length}`);
   }
@@ -68,12 +81,37 @@ export const GET = handler(async (req: NextRequest) => {
       ORDER BY created_at DESC${pageClause}`,
     params
   );
-  return ok(rows);
+  // El costo de compra es dato interno: solo viaja si hay sesión de empleado.
+  // Un GET público (catálogo de la tienda) recibe todo menos `cost`, para no
+  // filtrar el margen del negocio.
+  //
+  // Y las fotos van como enlace (`/api/products/<sku>/image/<n>`) en vez de
+  // embebidas: el catálogo de un negocio con fotos pesa megabytes, y así el
+  // navegador las pide aparte y las cachea. El CRM sí recibe el dato crudo,
+  // que es lo que edita y vuelve a guardar.
+  if (empleado) return ok(rows);
+
+  const sinCosto = (rows as Array<Record<string, unknown>>).map(
+    ({ cost: _cost, ...r }) => r
+  );
+
+  // Los enlaces solo valen para la web, que los resuelve contra este mismo
+  // origen. Un cliente PAREADO (app móvil, programa de PC) pinta la foto desde
+  // su propia ventana, así que a él se le manda la imagen tal cual está.
+  if (hasDeviceToken()) return ok(sinCosto);
+
+  const base = negocioBase();
+  return ok(
+    sinCosto.map((r) => withPhotoRefs(r as Parameters<typeof withPhotoRefs>[0], base))
+  );
 });
 
-// POST /api/products  (solo empleados)
+// POST /api/products  (solo empleados CON permiso de catálogo)
 export const POST = handler(async (req: NextRequest) => {
-  if (!getSession("employee")) return unauthorized();
+  const s = getSession("employee");
+  if (!s) return unauthorized();
+  if (!(await puedeGestionarProductos(s)))
+    return bad("Tu cuenta no tiene permiso para registrar productos. Pedíselo al administrador.", 403);
   const b = await req.json();
   // String() y no .trim() directo: un body con `{"id": 123}` no debe tirar 500.
   const id = String(b.id ?? "").trim();
@@ -105,7 +143,10 @@ export const POST = handler(async (req: NextRequest) => {
     : [];
   const single = (b.image ?? "").trim();
   if (single && !images.includes(single)) images.unshift(single);
-  const primary = images[0] ?? "";
+  // Una foto que llega como enlace (`/api/products/…/image/0`) se cambia por la
+  // imagen real: si no, se guardaría el enlace y la foto se perdería.
+  const fotos = await resolvePhotoRefs(images);
+  const primary = fotos[0] ?? "";
 
   // Atributos del rubro (marca, compatibilidad…): JSON libre. Se filtran a un
   // objeto plano de strings para no guardar basura.
@@ -121,13 +162,13 @@ export const POST = handler(async (req: NextRequest) => {
                featured, stock, status`,
     [
       id,
-      b.name.trim(),
+      String(b.name).trim(),
       b.desc ?? b.description ?? "",
       Math.round(Number(b.price) || 0),
       Math.round(Number(b.cost) || 0),
       barcode,
       primary,
-      images,
+      fotos,
       JSON.stringify(attributes),
       b.category ?? "General",
       !!b.featured,

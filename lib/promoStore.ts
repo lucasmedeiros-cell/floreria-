@@ -183,7 +183,17 @@ export async function createPromoPage(input: {
     (source ? `${source.name} (copia)` : `Landing ${pages.length + 1}`);
 
   const page = sanitizePromoPage(
-    { ...(source ?? base), name, slug: input.slug ?? "" },
+    {
+      ...(source ?? base),
+      name,
+      slug: input.slug ?? "",
+      // Una landing que alguien crea a mano nace PUBLICADA. El default del
+      // rubro "generico" es despublicada (instalación recién montada), y sin
+      // esto la landing nueva abría en "Promoción no disponible" — el usuario
+      // acababa de crearla y parecía rota. Duplicar conserva el estado del
+      // original, que es lo que uno espera de una copia.
+      enabled: source ? source.enabled : true,
+    },
     base,
     { id: newId(), takenSlugs: pages.map((p) => p.slug) }
   );

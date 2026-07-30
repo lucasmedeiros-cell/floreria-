@@ -62,6 +62,34 @@ export function isPublicProduct(p: Pick<Product, "status">): boolean {
   return (p.status ?? "activo") === "activo";
 }
 
+// ===== Fotos servidas por URL =====
+//
+// Las fotos subidas se guardan como data URI (ver app/api/uploads). Mandarlas
+// así dentro del HTML es carísimo: cada foto viaja en el marcado Y otra vez en
+// los datos que Next manda al cliente, en CADA visita y sin caché. Con 26
+// productos la tienda llegó a pesar 4 MB y la landing 3,7 MB — en un celular
+// eso es "la página no abre".
+//
+// Por eso al público se le mandan REFERENCIAS: `/api/products/<sku>/image/<n>`,
+// que el servidor resuelve a los bytes con su propia caché. El HTML baja a unos
+// pocos KB y el navegador se guarda las fotos. En la base no cambia nada.
+
+/** URL pública de la foto `index` de un producto. `base` = `/n/<slug>` o "". */
+export function photoRef(productId: string, index: number, base = ""): string {
+  return `${base}/api/products/${encodeURIComponent(productId)}/image/${index}`;
+}
+
+const PHOTO_REF = /^(?:\/n\/[a-z0-9_-]+)?\/api\/products\/([^/]+)\/image\/(\d+)$/i;
+
+/** ¿Es una de esas referencias? Devuelve a qué producto y foto apunta. */
+export function parsePhotoRef(
+  value: unknown
+): { id: string; index: number } | null {
+  if (typeof value !== "string") return null;
+  const m = value.match(PHOTO_REF);
+  return m ? { id: decodeURIComponent(m[1]), index: Number(m[2]) } : null;
+}
+
 /** Minúsculas y SIN acentos, para buscar como Google ("bujias" → "bujías"). */
 export function normalize(s: string): string {
   return s

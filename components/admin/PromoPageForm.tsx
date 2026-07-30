@@ -2,7 +2,15 @@
 
 import { apiUrl } from "@/lib/apiBase";
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, Loader2, Plus, Save, Sparkles, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  ExternalLink,
+  Loader2,
+  Plus,
+  Save,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import type { PromoHighlight, PromoPage, PromoStat } from "@/lib/promo";
 import { promoSlugify } from "@/lib/promo";
 import { useProducts, useToast } from "@/context/StoreProvider";
@@ -115,6 +123,24 @@ export function PromoPageForm({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Despublicada, el enlace muestra "Promoción no disponible". Hay que
+          verlo ANTES de abrirlo o de compartirlo, no después. */}
+      {!cfg.enabled && (
+        <div className="flex flex-wrap items-center gap-3 rounded-[18px] border border-amber-400/50 bg-amber-400/10 px-5 py-4">
+          <AlertTriangle size={18} className="shrink-0 text-amber-600" />
+          <p className="min-w-[220px] flex-1 text-[12.5px] text-ink">
+            <span className="font-semibold">Esta landing está despublicada.</span> Quien
+            abra el enlace verá “Promoción no disponible”.
+          </p>
+          <button
+            onClick={() => set("enabled", true)}
+            className="rounded-full bg-ink px-4 py-2 text-[12.5px] font-semibold text-surface"
+          >
+            Publicar
+          </button>
+        </div>
+      )}
+
       <Card icon={<Sparkles size={18} />} title="Esta landing">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field

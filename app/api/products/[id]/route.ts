@@ -1,8 +1,10 @@
 import { NextRequest } from "next/server";
 import { plainAttrs } from "@/lib/products";
+import { resolvePhotoRefs } from "@/lib/productsStore";
 import { queryOne } from "@/lib/db";
 import { bad, handler, notFound, ok, unauthorized } from "@/lib/api";
 import { getSession } from "@/lib/auth";
+import { puedeGestionarProductos } from "@/lib/perms";
 
 export const runtime = "nodejs";
 
@@ -13,20 +15,27 @@ export const dynamic = "force-dynamic";
 type Params = { params: { id: string } };
 
 export const GET = handler(async (_req: NextRequest, { params }: Params) => {
-  const row = await queryOne(
+  const row = await queryOne<Record<string, unknown>>(
     `SELECT id, name, description AS desc, price, cost, barcode, image, images, attributes, category,
             featured, stock, status
        FROM products WHERE id = $1`,
     [params.id]
   );
-  return row ? ok(row) : notFound("Producto no encontrado");
+  if (!row) return notFound("Producto no encontrado");
+  // El costo de compra es dato interno: solo viaja con sesión de empleado, igual
+  // que el listado (app/api/products/route.ts). Sin sesión no se filtra el margen.
+  if (!getSession("employee")) delete row.cost;
+  return ok(row);
 });
 
 export const PATCH = handler(async (req: NextRequest, { params }: Params) => {
-  if (!getSession("employee")) return unauthorized();
+  const s = getSession("employee");
+  if (!s) return unauthorized();
+  if (!(await puedeGestionarProductos(s)))
+    return bad("Tu cuenta no tiene permiso para editar productos. Pedíselo al administrador.", 403);
   const b = await req.json();
 
-  const nextId = (b.id ?? params.id).trim();
+  const nextId = String(b.id ?? params.id).trim();
   if (nextId.toLowerCase() !== params.id.toLowerCase()) {
     const dup = await queryOne(`SELECT 1 FROM products WHERE lower(id)=lower($1)`, [
       nextId,
@@ -57,8 +66,12 @@ export const PATCH = handler(async (req: NextRequest, { params }: Params) => {
     const filtered = b.images.filter(
       (u: unknown): u is string => typeof u === "string" && u.trim() !== ""
     );
-    images = filtered;
-    primary = filtered[0] ?? "";
+    // Las fotos que llegan como enlace (`/api/products/…/image/0`) se cambian
+    // por la imagen real: guardar el enlace la perdería.
+    images = await resolvePhotoRefs(filtered);
+    primary = images[0] ?? "";
+  } else if (typeof primary === "string" && primary !== "") {
+    primary = (await resolvePhotoRefs([primary]))[0] ?? "";
   }
 
   // Atributos del rubro: si llegan, reemplazan el JSON; si no, queda igual.
@@ -105,7 +118,10 @@ export const PATCH = handler(async (req: NextRequest, { params }: Params) => {
 });
 
 export const DELETE = handler(async (_req: NextRequest, { params }: Params) => {
-  if (!getSession("employee")) return unauthorized();
+  const s = getSession("employee");
+  if (!s) return unauthorized();
+  if (!(await puedeGestionarProductos(s)))
+    return bad("Tu cuenta no tiene permiso para eliminar productos. Pedíselo al administrador.", 403);
   const row = await queryOne(`DELETE FROM products WHERE id = $1 RETURNING id`, [
     params.id,
   ]);
