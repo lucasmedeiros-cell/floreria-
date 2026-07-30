@@ -4,30 +4,30 @@
 #
 #  Con una base por negocio, una migración no es un `psql` y listo: hay que
 #  correrla en cada comercio activo, o la app queda pidiéndole a una base vieja
-#  una columna que no tiene. Este script recorre los negocios de easy pos que
-#  están en la central (bo_sole_central.negocio, producto='easypos') y les aplica
+#  una columna que no tiene. Este script recorre los negocios registrados en la
+#  central propia de easy pos (bo_epos_central.negocio) y les aplica
 #  schema.sql + db/migrations/*.sql, que son idempotentes.
 #
 #  Correr DESPUÉS de agregar una migración y ANTES de desplegar el código que la
 #  necesita (primero la base, después la app: al revés se rompe).
 #
 #  Variables:
-#    CENTRAL_DATABASE_URL   base central de Case (obligatoria)
+#    CENTRAL_DATABASE_URL   central de easy pos (obligatoria)
 #    PGHOST/PGPORT/PGUSER/PGPASSWORD   servidor donde viven las bases
 #    DRY_RUN=1              solo lista los negocios, no toca nada
 #
 #  Ejemplo:
-#    CENTRAL_DATABASE_URL=postgresql://postgres:xxx@bilbo:5432/bo_sole_central \
+#    CENTRAL_DATABASE_URL=postgresql://postgres:xxx@bilbo:5432/bo_epos_central \
 #    PGHOST=bilbo PGUSER=postgres PGPASSWORD=xxx ./db/migrate-tenants.sh
 # ============================================================
 set -euo pipefail
 
-: "${CENTRAL_DATABASE_URL:?Falta CENTRAL_DATABASE_URL (la base central de Case)}"
+: "${CENTRAL_DATABASE_URL:?Falta CENTRAL_DATABASE_URL (la central de easy pos)}"
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DRY_RUN="${DRY_RUN:-0}"
 
 BASES="$(psql "$CENTRAL_DATABASE_URL" -tAc \
-  "SELECT db_name FROM negocio WHERE producto='easypos' AND estado <> 'baja' ORDER BY nombre")"
+  "SELECT db_name FROM negocio WHERE estado <> 'baja' ORDER BY nombre")"
 
 if [ -z "$BASES" ]; then
   echo "No hay negocios de easy pos en la central. Nada que migrar."

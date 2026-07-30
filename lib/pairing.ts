@@ -16,9 +16,10 @@ import { query, queryOne } from "./db";
  * negocio. La app funciona igual en los dos: manda `X-Device-Token` y el backend
  * lo valida donde corresponda.
  *
- * NOTA (multi-tenant): en ese modo el token lo tiene que emitir/validar la
- * central de Case (tabla `dispositivo`), no esta tabla. La app ya manda el
- * header; falta el emisor del lado de Case. Ver mobile/README.md.
+ * NOTA (multi-tenant): en ese modo el token de larga vida vive en la CENTRAL
+ * propia (`bo_epos_central.dispositivo`): lo emite el panel (`/panel`, acción
+ * createDevice) o el canje de un código de esta tabla, que lo registra ahí
+ * (registrarTokenCentral). Esta tabla solo aporta el código de 6 dígitos.
  */
 
 /** Vida del código antes de canjearse. Corto a propósito. */

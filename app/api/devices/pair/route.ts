@@ -5,6 +5,7 @@ import {
   currentTenant,
   isMultiTenant,
   negociosEasyposActivos,
+  redeemCentralPairCode,
   registrarTokenCentral,
   runWithTenant,
 } from "@/lib/tenant";
@@ -50,6 +51,14 @@ export const POST = handler(async (req: NextRequest) => {
     const result = await redeemPairCode(code, meta);
     if (!result.ok) return noValido();
     return ok({ token: result.token });
+  }
+
+  // Código corto (4 dígitos) del PANEL: apunta directo a un dispositivo de la
+  // central, sin importar el negocio. Se prueba primero — es lo que se genera
+  // en "Vinculación QR".
+  const central = await redeemCentralPairCode(code.trim());
+  if (central) {
+    return ok({ token: central.token, negocio: central.negocio });
   }
 
   // La request ya está en un negocio (vino por /n/<slug>/…): se canjea ahí.

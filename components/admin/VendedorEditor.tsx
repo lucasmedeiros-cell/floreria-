@@ -31,7 +31,7 @@ interface BaileysStatus {
 }
 
 const fallback: VendedorConfig = {
-  botEnabled: true,
+  botEnabled: false,
   botPersona: "",
   activationKeyword: "",
   aiModel: "claude-haiku-4-5",

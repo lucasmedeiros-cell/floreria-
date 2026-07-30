@@ -3,6 +3,7 @@ import { query, queryOne } from "@/lib/db";
 import { bad, handler, ok, unauthorized } from "@/lib/api";
 import { getSession } from "@/lib/auth";
 import { normalizePhone } from "@/lib/pairing";
+import { esAdmin } from "@/lib/perms";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,7 +14,8 @@ const ROLES = ["Administrador", "Vendedora", "Repartidor"];
 export const GET = handler(async () => {
   if (!getSession("employee")) return unauthorized();
   const rows = await query(
-    `SELECT id, name, email, phone, role, active
+    `SELECT id, name, email, phone, role, active,
+            COALESCE(perms, '{}'::jsonb) AS perms
        FROM employees
       ORDER BY active DESC, created_at`
   );
@@ -26,7 +28,11 @@ export const GET = handler(async () => {
  * sesión de empleado: solo alguien de adentro suma gente al equipo.
  */
 export const POST = handler(async (req: NextRequest) => {
-  if (!getSession("employee")) return unauthorized();
+  const s = getSession("employee");
+  if (!s) return unauthorized();
+  // Solo el ADMINISTRADOR suma gente al equipo (una vendedora no crea cuentas).
+  if (!(await esAdmin(s)))
+    return bad("Solo el administrador puede agregar usuarios.", 403);
   const b = await req.json();
   const name: string = String(b.name ?? "").trim();
   const phoneRaw: string = String(b.phone ?? "").trim();
@@ -34,10 +40,11 @@ export const POST = handler(async (req: NextRequest) => {
   const role: string = ROLES.includes(b.role) ? b.role : "Vendedora";
   const pass: string = String(b.pass ?? "");
 
-  if (!name || !phoneRaw || !pass) {
-    return bad("Completá nombre, teléfono y contraseña.");
+  // Con teléfono O correo alcanza: con cualquiera de los dos se inicia sesión.
+  if (!name || !pass || (!phoneRaw && !email)) {
+    return bad("Completá nombre, contraseña y un teléfono o correo.");
   }
-  if (!/^\+?[\d\s-]{6,20}$/.test(phoneRaw)) {
+  if (phoneRaw && !/^\+?[\d\s-]{6,20}$/.test(phoneRaw)) {
     return bad("El teléfono no parece válido.");
   }
   if (pass.length < 6) {
@@ -46,7 +53,7 @@ export const POST = handler(async (req: NextRequest) => {
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return bad("El correo no es válido.");
   }
-  const phone = normalizePhone(phoneRaw);
+  const phone = phoneRaw ? normalizePhone(phoneRaw) : null;
 
   try {
     const row = await queryOne(

@@ -20,3 +20,14 @@ next-env.d.ts
 
 # Build aislado del CRM web (NEXT_DIST, no pisar el .next del server móvil)
 .next-web/
+.next-audit/
+.next-coquito/
+
+# Paquetes del servidor Coquito para Windows (binarios pesados, se regeneran)
+dist-coquito/
+desktop/servidor-bin/
+desktop/servidor-nm-win/
+desktop/servidor-payload/
+
+# Paquete del build de Coquito (150 MB, se regenera)
+.next-coquito-pack/

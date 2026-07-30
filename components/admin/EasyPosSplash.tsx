@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { EASYPOS } from "@/lib/easypos";
 import { useBusiness } from "@/context/StoreProvider";
+import { DEFAULT_RUBRO_ID } from "@/lib/rubros";
 
 /** Duración total antes de empezar a desvanecer (ms). */
 const HOLD = 1900;
@@ -72,12 +73,15 @@ export function EasyPosSplash({ enabled }: { enabled: boolean }) {
         >
           {business.name}
         </p>
-        <p
-          className="mt-2.5 rounded-full bg-black/[0.06] px-3 py-1 text-[10.5px] font-semibold uppercase tracking-[1.5px] text-black/55"
-          style={{ animation: "splash-rise 500ms cubic-bezier(0.22,1,0.36,1) 460ms both" }}
-        >
-          {business.rubro.label}
-        </p>
+        {/* Sin rubro elegido no mostramos la píldora: "Sin definir" no informa. */}
+        {business.rubro.id !== DEFAULT_RUBRO_ID && (
+          <p
+            className="mt-2.5 rounded-full bg-black/[0.06] px-3 py-1 text-[10.5px] font-semibold uppercase tracking-[1.5px] text-black/55"
+            style={{ animation: "splash-rise 500ms cubic-bezier(0.22,1,0.36,1) 460ms both" }}
+          >
+            {business.rubro.label}
+          </p>
+        )}
 
         {/* Barra de carga: dura exactamente lo que dura el splash. */}
         <span className="mt-8 h-[3px] w-[132px] overflow-hidden rounded-full bg-black/[0.07]">

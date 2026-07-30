@@ -7,6 +7,8 @@ import {
   Check,
   Copy,
   CopyPlus,
+  Eye,
+  EyeOff,
   ExternalLink,
   Link2,
   Loader2,
@@ -116,6 +118,29 @@ export function PromoEditor() {
       setPages(pages);
       setEditingId(page.id);
       showToast(copyFromId ? "Landing duplicada" : "Landing creada");
+    });
+
+  /**
+   * Publica o despublica una landing desde la lista misma.
+   *
+   * El interruptor del formulario solo cambia el borrador: no publica nada
+   * hasta que se pulsa "Guardar landing". Acá el cambio SÍ viaja a la base al
+   * instante, que es lo que uno espera al pulsar sobre la etiqueta "Borrador"
+   * de la lista.
+   */
+  const setEnabled = (page: PromoPage, enabled: boolean) =>
+    run(async () => {
+      if (page.id === editingId) {
+        if (!leaveGuard()) return;
+        setDirty(false);
+      }
+      const saved = await call<PromoPage>(`/api/promos/${page.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...page, enabled }),
+      });
+      setPages((ps) => (ps ? ps.map((p) => (p.id === saved.id ? saved : p)) : ps));
+      showToast(enabled ? "Landing publicada" : "Landing en borrador");
     });
 
   const makePrincipal = (id: string) =>
@@ -237,6 +262,22 @@ export function PromoEditor() {
                     </span>
                   </button>
 
+                  <IconAction
+                    title={
+                      page.enabled
+                        ? "Despublicar: el enlace deja de mostrar la oferta"
+                        : "Publicar: el enlace pasa a mostrar la oferta"
+                    }
+                    disabled={busy}
+                    onClick={() => setEnabled(page, !page.enabled)}
+                    icon={
+                      page.enabled ? (
+                        <EyeOff size={15} />
+                      ) : (
+                        <Eye size={15} className="text-emerald-600" />
+                      )
+                    }
+                  />
                   <IconAction
                     title="QR de la landing"
                     onClick={() => setQr({ page, url: absoluteUrl(page, principal) })}

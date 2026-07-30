@@ -50,8 +50,8 @@ String? _limpiarServer(String? s) {
 }
 
 final _reHexToken = RegExp(r'^[a-f0-9]{32,}$', caseSensitive: false);
-final _reCodigo = RegExp(r'^\d{6}$');
-final _reDigitos = RegExp(r'(\d{6})');
+final _reCodigo = RegExp(r'^\d{4,6}$');
+final _reDigitos = RegExp(r'(\d{4,6})');
 
 /// Interpreta el contenido de un QR de vinculación (ver [QrPareo]).
 QrPareo parseQrPareo(String raw) {

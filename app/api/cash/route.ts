@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { query, queryOne } from "@/lib/db";
+import { query, withTransaction } from "@/lib/db";
 import { handler, ok, unauthorized } from "@/lib/api";
 import { getSession } from "@/lib/auth";
 
@@ -22,9 +22,11 @@ async function resumenTurno() {
      SELECT p.from_at,
             count(s.id)::int AS n,
             COALESCE(SUM(s.total),0)::numeric AS total,
-            COALESCE(SUM(s.total) FILTER (WHERE s.pay_method = 'Efectivo'),0)::numeric AS efectivo,
-            COALESCE(SUM(s.total) FILTER (WHERE s.pay_method = 'QR'),0)::numeric AS qr,
-            COALESCE(SUM(s.total) FILTER (WHERE s.pay_method NOT IN ('Efectivo','QR')),0)::numeric AS otros
+            COALESCE(SUM(s.total) FILTER (WHERE s.pay_method ILIKE '%efectivo%'),0)::numeric AS efectivo,
+            -- QR y transferencia van al mismo cubo (la venta puede guardar
+            -- "QR", "QR / Transferencia", "Transferencia", etc.).
+            COALESCE(SUM(s.total) FILTER (WHERE s.pay_method ILIKE '%qr%' OR s.pay_method ILIKE '%transfer%'),0)::numeric AS qr,
+            COALESCE(SUM(s.total) FILTER (WHERE s.pay_method NOT ILIKE '%efectivo%' AND s.pay_method NOT ILIKE '%qr%' AND s.pay_method NOT ILIKE '%transfer%'),0)::numeric AS otros
        FROM periodo p
        LEFT JOIN sales s
          ON s.kind = 'factura' AND NOT s.voided AND s.created_at > p.from_at
@@ -58,28 +60,34 @@ export const POST = handler(async (req: NextRequest) => {
   const b = await req.json();
   const counted = Math.max(0, Number(b.countedCash) || 0);
 
-  const r = await resumenTurno();
-  const difference = counted - r.totalEfectivo;
-
-  const close = await queryOne(
-    `INSERT INTO cash_closes (from_at, num_ventas, total_ventas, total_efectivo,
-                              total_qr, total_otros, counted_cash, difference, created_by, notes)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-     RETURNING id, closed_at AS "closedAt", total_ventas AS "totalVentas",
-               total_efectivo AS "totalEfectivo", counted_cash AS "countedCash",
-               difference`,
-    [
-      r.fromAt,
-      r.numVentas,
-      r.totalVentas.toFixed(2),
-      r.totalEfectivo.toFixed(2),
-      r.totalQr.toFixed(2),
-      r.totalOtros.toFixed(2),
-      counted.toFixed(2),
-      difference.toFixed(2),
-      s.name ?? "",
-      (b.notes ?? "").toString().trim(),
-    ]
-  );
+  // Todo el cierre serializado con un advisory lock: dos cierres a la vez (doble
+  // clic o dos cajas) no cierran el MISMO turno. El primero cierra y libera el
+  // lock al commit; el segundo lee ya el turno nuevo.
+  const close = await withTransaction(async (client) => {
+    await client.query("SELECT pg_advisory_xact_lock(hashtext('cash_close'))");
+    const r = await resumenTurno();
+    const difference = counted - r.totalEfectivo;
+    const { rows } = await client.query(
+      `INSERT INTO cash_closes (from_at, num_ventas, total_ventas, total_efectivo,
+                                total_qr, total_otros, counted_cash, difference, created_by, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       RETURNING id, closed_at AS "closedAt", total_ventas AS "totalVentas",
+                 total_efectivo AS "totalEfectivo", counted_cash AS "countedCash",
+                 difference`,
+      [
+        r.fromAt,
+        r.numVentas,
+        r.totalVentas.toFixed(2),
+        r.totalEfectivo.toFixed(2),
+        r.totalQr.toFixed(2),
+        r.totalOtros.toFixed(2),
+        counted.toFixed(2),
+        difference.toFixed(2),
+        s.name ?? "",
+        (b.notes ?? "").toString().trim(),
+      ]
+    );
+    return rows[0];
+  });
   return ok(close, { status: 201 });
 });

@@ -47,21 +47,88 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return AuthSplitScaffold(children: [
+      Center(
+        child: Text('Iniciar sesión',
+            style: AppText.serif(size: 26, weight: FontWeight.w600)),
+      ),
+      const SizedBox(height: 4),
+      Center(
+        child: Text('Ingresá con tu correo o teléfono y la contraseña.',
+            textAlign: TextAlign.center,
+            style: AppText.sans(size: 12.5, color: AppColors.ink2)),
+      ),
+      const SizedBox(height: 22),
+      Field(
+        controller: _id,
+        hint: 'Correo o teléfono',
+        icon: Icons.alternate_email_rounded,
+        keyboard: TextInputType.emailAddress,
+      ),
+      const SizedBox(height: 14),
+      Field(
+        controller: _pass,
+        hint: 'Contraseña',
+        icon: Icons.lock_outline_rounded,
+        obscure: true,
+      ),
+      const SizedBox(height: 22),
+      PrimaryButton(
+        label: 'Ingresar',
+        icon: Icons.login_rounded,
+        expand: true,
+        loading: _loading,
+        onTap: _submit,
+      ),
+      const SizedBox(height: 14),
+      Center(
+        child: GestureDetector(
+          onTap: () => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const RecoveryScreen())),
+          child: Text('¿Olvidaste tu contraseña?',
+              style: AppText.sans(size: 13, color: AppColors.ink2)),
+        ),
+      ),
+      const SizedBox(height: 12),
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Text('¿No tenés cuenta? ',
+            style: AppText.sans(size: 13, color: AppColors.ink2)),
+        GestureDetector(
+          onTap: () => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const RegisterScreen())),
+          child: Text('Crear una',
+              style: AppText.sans(
+                  size: 13, weight: FontWeight.w600, color: AppColors.accentDeep)),
+        ),
+      ]),
+      const SizedBox(height: 14),
+      const _ServerStatus(),
+    ]);
+  }
+}
+
+/// Marco visual compartido por Login y Vinculación: fondo "split" (panel oscuro
+/// de marca a la izquierda, claro a la derecha) con una tarjeta blanca flotante.
+/// Así las dos pantallas se ven idénticas.
+class AuthSplitScaffold extends StatelessWidget {
+  final List<Widget> children;
+  const AuthSplitScaffold({super.key, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(children: [
-        // Fondo split: panel oscuro de marca a la izquierda, claro a la derecha.
         Row(children: [
-          Expanded(flex: 42, child: const _PanelMarca()),
+          Expanded(flex: 42, child: const PanelMarca()),
           const Expanded(flex: 58, child: ColoredBox(color: Colors.white)),
         ]),
-        // Tarjeta de login flotando sobre el split.
         SafeArea(
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 380),
+                constraints: const BoxConstraints(maxWidth: 400),
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(26, 30, 26, 26),
                   decoration: BoxDecoration(
@@ -73,63 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Center(
-                        child: Text('Iniciar sesión',
-                            style: AppText.serif(size: 26, weight: FontWeight.w600)),
-                      ),
-                      const SizedBox(height: 4),
-                      Center(
-                        child: Text('Ingresá con tu correo o teléfono y la contraseña.',
-                            textAlign: TextAlign.center,
-                            style: AppText.sans(size: 12.5, color: AppColors.ink2)),
-                      ),
-                      const SizedBox(height: 22),
-                      Field(
-                        controller: _id,
-                        hint: 'Correo o teléfono',
-                        icon: Icons.alternate_email_rounded,
-                        keyboard: TextInputType.emailAddress,
-                      ),
-                      const SizedBox(height: 14),
-                      Field(
-                        controller: _pass,
-                        hint: 'Contraseña',
-                        icon: Icons.lock_outline_rounded,
-                        obscure: true,
-                      ),
-                      const SizedBox(height: 22),
-                      PrimaryButton(
-                        label: 'Ingresar',
-                        icon: Icons.login_rounded,
-                        expand: true,
-                        loading: _loading,
-                        onTap: _submit,
-                      ),
-                      const SizedBox(height: 14),
-                      Center(
-                        child: GestureDetector(
-                          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                              builder: (_) => const RecoveryScreen())),
-                          child: Text('¿Olvidaste tu contraseña?',
-                              style: AppText.sans(size: 13, color: AppColors.ink2)),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Text('¿No tenés cuenta? ',
-                            style: AppText.sans(size: 13, color: AppColors.ink2)),
-                        GestureDetector(
-                          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                              builder: (_) => const RegisterScreen())),
-                          child: Text('Crear una',
-                              style: AppText.sans(
-                                  size: 13,
-                                  weight: FontWeight.w600,
-                                  color: AppColors.accentDeep)),
-                        ),
-                      ]),
-                    ],
+                    children: children,
                   ),
                 ),
               ),
@@ -143,8 +154,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
 /// Panel de marca (lado oscuro del login): gradiente casi-negro con el logo de
 /// easy pos arriba, el tagline, y una marca de agua grande abajo.
-class _PanelMarca extends StatelessWidget {
-  const _PanelMarca();
+class PanelMarca extends StatelessWidget {
+  const PanelMarca({super.key});
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
@@ -308,6 +319,82 @@ class AuthScaffold extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Estado del servidor en el login: prueba la conexión al abrir, deja re-probar
+/// y cambiar la dirección del servidor. Así es fácil ver si el POS está conectado.
+class _ServerStatus extends StatefulWidget {
+  const _ServerStatus();
+  @override
+  State<_ServerStatus> createState() => _ServerStatusState();
+}
+
+class _ServerStatusState extends State<_ServerStatus> {
+  static const _rojo = Color(0xFFE0324E);
+  bool _testing = true;
+  bool? _ok;
+  String _msg = 'Probando conexión…';
+
+  @override
+  void initState() {
+    super.initState();
+    _test();
+  }
+
+  Future<void> _test() async {
+    setState(() {
+      _testing = true;
+      _msg = 'Conectando con easy pos…';
+    });
+    // La app habla SIEMPRE con la nube de easy pos. Un solo chequeo de salud,
+    // reintentable; sin escaneo de red WiFi (esto no es un servidor local).
+    final r = await context.read<Api>().probarServidor();
+    if (!mounted) return;
+    setState(() {
+      _testing = false;
+      _ok = r.ok;
+      _msg = r.ok
+          ? 'Conectado a easy pos'
+          : 'Sin conexión con easy pos. Revisá el internet del teléfono.';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        _testing ? AppColors.ink2 : (_ok == true ? AppColors.success : _rojo);
+    final icon = _testing
+        ? Icons.cloud_sync_rounded
+        : (_ok == true ? Icons.cloud_done_rounded : Icons.cloud_off_rounded);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      decoration: BoxDecoration(
+        color: AppColors.bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Row(children: [
+        Icon(icon, size: 17, color: color),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(_msg,
+              style: AppText.sans(size: 12.5, weight: FontWeight.w600, color: color)),
+        ),
+        if (!_testing && _ok != true)
+          TextButton(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: _test,
+            child: Text('Reintentar',
+                style: AppText.sans(
+                    size: 12.5, weight: FontWeight.w600, color: AppColors.accentDeep)),
+          ),
+      ]),
     );
   }
 }

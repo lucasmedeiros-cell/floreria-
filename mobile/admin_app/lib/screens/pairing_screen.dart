@@ -53,20 +53,25 @@ class _PairingScreenState extends State<PairingScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Ingresar código',
+        title: Text('Código del panel',
             style: AppText.serif(size: 20, weight: FontWeight.w600)),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          textAlign: TextAlign.center,
-          style: AppText.serif(size: 30, weight: FontWeight.w700, color: AppColors.ink)
-              .copyWith(letterSpacing: 8),
-          decoration: const InputDecoration(counterText: '', hintText: '••••••'),
-          onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
-        ),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('El código de 4 dígitos que aparece junto al QR, en la sección Vinculación QR.',
+              style: AppText.sans(size: 12.5, color: AppColors.ink2)),
+          const SizedBox(height: 14),
+          TextField(
+            controller: ctrl,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            maxLength: 4,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            textAlign: TextAlign.center,
+            style: AppText.serif(size: 34, weight: FontWeight.w700, color: AppColors.ink)
+                .copyWith(letterSpacing: 12),
+            decoration: const InputDecoration(counterText: '', hintText: '••••'),
+            onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
+          ),
+        ]),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
@@ -84,29 +89,67 @@ class _PairingScreenState extends State<PairingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AuthScaffold(
-      title: 'Vinculá este dispositivo',
-      subtitle:
-          'Escaneá el código QR que aparece en el panel de easy pos '
-          '(Configuración → Vincular dispositivo).',
-      children: [
-        PrimaryButton(
-          label: 'Escanear código QR',
-          icon: Icons.qr_code_scanner_rounded,
-          expand: true,
-          loading: _procesando,
-          onTap: _escanearQr,
+    // Mismo marco que el login (fondo split + tarjeta blanca flotante).
+    return AuthSplitScaffold(children: [
+      Center(
+        child: Text('Vinculá este equipo',
+            style: AppText.serif(size: 26, weight: FontWeight.w600)),
+      ),
+      const SizedBox(height: 4),
+      Center(
+        child: Text(
+          'Primero conectá el equipo a tu negocio. El código lo genera el panel '
+          'de easy pos, en la sección Vinculación QR.',
+          textAlign: TextAlign.center,
+          style: AppText.sans(size: 12.5, color: AppColors.ink2),
         ),
-        const SizedBox(height: 14),
-        Center(
-          child: GestureDetector(
-            onTap: _procesando ? null : _codigoManual,
-            child: Text('El QR no se lee — ingresar código a mano',
-                style: AppText.sans(
-                    size: 13, weight: FontWeight.w600, color: AppColors.rose)),
+      ),
+      const SizedBox(height: 22),
+      // Ilustración: marco de visor easy pos con el ícono de QR adentro.
+      Center(
+        child: Container(
+          width: 128,
+          height: 128,
+          decoration: BoxDecoration(
+            color: EasyPos.yellow.withValues(alpha: .10),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: EasyPos.yellow.withValues(alpha: .35), width: 1.5),
+          ),
+          child: Icon(Icons.qr_code_2_rounded,
+              size: 76, color: AppColors.ink.withValues(alpha: .8)),
+        ),
+      ),
+      const SizedBox(height: 22),
+      PrimaryButton(
+        label: 'Escanear código QR',
+        icon: Icons.qr_code_scanner_rounded,
+        expand: true,
+        loading: _procesando,
+        onTap: _escanearQr,
+      ),
+      const SizedBox(height: 12),
+      // Botón secundario para el código de 4 dígitos (cuando el QR no se lee).
+      SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: _procesando ? null : _codigoManual,
+          icon: const Icon(Icons.dialpad_rounded, size: 18),
+          label: const Text('Escribir código de 4 dígitos'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.ink,
+            side: BorderSide(color: AppColors.line),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            textStyle: AppText.sans(size: 14, weight: FontWeight.w600),
           ),
         ),
-      ],
-    );
+      ),
+      const SizedBox(height: 16),
+      Center(
+        child: Text('Después de vincular vas a iniciar sesión con tu usuario.',
+            textAlign: TextAlign.center,
+            style: AppText.sans(size: 12.5, color: AppColors.ink2)),
+      ),
+    ]);
   }
 }

@@ -9,4 +9,8 @@ contextBridge.exposeInMainWorld("easypos", {
   /** Petición a la API de easy pos. Devuelve { ok, status, data }. */
   request: (method, path, body, token) =>
     ipcRenderer.invoke("api:request", { method, path, body, token }),
+  /** Prueba la conexión con un servidor puntual. Devuelve { ok, db?, error? }. */
+  ping: (base) => ipcRenderer.invoke("api:ping", base),
+  /** Servidor recomendado (compilado en el programa). */
+  defaultApi: () => ipcRenderer.invoke("config:default"),
 });

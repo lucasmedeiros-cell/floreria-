@@ -79,20 +79,25 @@ export function PromoPageForm({
     }));
   };
 
-  const save = async () => {
+  /**
+   * Guarda la landing. Con `patch` se guarda el borrador actual con ese cambio
+   * ya aplicado: lo usa el botón "Publicar" del aviso, para que publicar sea un
+   * solo clic y no "marcar la casilla y además acordarse de guardar".
+   */
+  const save = async (patch?: Partial<PromoPage>) => {
     setSaving(true);
     try {
       const res = await fetch(apiUrl(`/api/promos/${cfg.id}`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cfg),
+        body: JSON.stringify({ ...cfg, ...patch }),
       });
       const data = (await res.json().catch(() => null)) as
         | (PromoPage & { error?: string })
         | null;
       if (!res.ok) throw new Error(data?.error);
       onSaved(data as PromoPage);
-      showToast("Landing guardada");
+      showToast(patch?.enabled ? "Landing publicada" : "Landing guardada");
     } catch (err) {
       showToast(
         err instanceof Error && err.message
@@ -133,10 +138,11 @@ export function PromoPageForm({
             abra el enlace verá “Promoción no disponible”.
           </p>
           <button
-            onClick={() => set("enabled", true)}
-            className="rounded-full bg-ink px-4 py-2 text-[12.5px] font-semibold text-surface"
+            onClick={() => save({ enabled: true })}
+            disabled={saving}
+            className="rounded-full bg-ink px-4 py-2 text-[12.5px] font-semibold text-surface disabled:opacity-50"
           >
-            Publicar
+            {saving ? "Publicando…" : "Publicar"}
           </button>
         </div>
       )}
@@ -346,7 +352,7 @@ export function PromoPageForm({
         <PrimaryButton
           label={saving ? "Guardando…" : "Guardar landing"}
           icon={saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-          onClick={save}
+          onClick={() => save()}
           disabled={saving || !dirty}
         />
         <a

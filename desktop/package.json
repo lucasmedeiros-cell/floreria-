@@ -1,9 +1,9 @@
 {
-  "name": "coquito-pc",
-  "productName": "Auto Piezas Coquito",
-  "version": "0.1.0",
-  "description": "Programa de PC para Auto Piezas Coquito — POS de escritorio que comparte la base de easy pos vía su API HTTP local.",
-  "author": "Auto Piezas Coquito",
+  "name": "easypos-pc",
+  "productName": "easy pos",
+  "version": "1.0.0",
+  "description": "easy pos — programa de PC: POS de escritorio sobre la API de easy pos (nube o servidor local).",
+  "author": "easy pos",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -15,17 +15,31 @@
   },
   "build": {
     "appId": "bo.coquito.pc",
-    "productName": "Auto Piezas Coquito",
-    "files": ["main.js", "preload.js", "renderer/**"],
+    "productName": "easy pos",
+    "compression": "maximum",
+    "electronLanguages": [
+      "es",
+      "en-US"
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**"
+    ],
     "win": {
       "target": "nsis",
-      "artifactName": "AutoPiezasCoquito-Setup-${version}.${ext}"
+      "icon": "build/icon.ico",
+      "artifactName": "EasyPos-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
-      "shortcutName": "Auto Piezas Coquito"
+      "createStartMenuShortcut": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "shortcutName": "easy pos"
     }
   }
 }

@@ -1,3 +1,8 @@
+> **OBSOLETO (2026-07-22):** easy pos ya NO usa la central de Case. El registro
+> vive en la central propia `bo_epos_central` y las altas/vinculaciones se hacen
+> desde el panel `/panel`. Ver `docs/PANEL-easypos.md` y `docs/pareo.md`. Este
+> documento queda solo como referencia histórica de cómo era con Case.
+
 # Vinculación de dispositivos easy pos — lado de Case
 
 Qué tiene que hacer **Case** (`case.easypaybo.com`) para generar el QR con el que

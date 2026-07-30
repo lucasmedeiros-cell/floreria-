@@ -17,9 +17,10 @@ export const dynamic = "force-dynamic";
  * textos, categorías, landing), catálogo de ejemplo si se pide, y el PRIMER
  * empleado, que es con quien el dueño entra a su CRM.
  *
- * Lo llama el panel de Case justo después de crear la base, con el token de
- * pareo del comercio. El esquema (tablas) lo crea el provisioning por SQL; lo
- * que sabe de rubros es easy pos, así que esa parte la siembra easy pos.
+ * Lo puede llamar un aprovisionador externo justo después de crear la base,
+ * con el token de pareo del comercio. El alta del panel (/panel) ya deja el
+ * negocio listo por su cuenta; esta ruta queda para integraciones que crean la
+ * base por SQL y necesitan que easy pos siembre lo que sabe de rubros.
  *
  *   POST /api/pair/bootstrap
  *   X-Device-Token: <token del comercio>

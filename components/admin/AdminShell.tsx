@@ -2,19 +2,17 @@
 
 import { useState } from "react";
 import {
-  Bike,
-  CalendarClock,
-  Flower2,
+  Boxes,
+  Coins,
   Home,
   LineChart,
-  ListOrdered,
   LogOut,
   Menu,
-  Plus,
-  PlusSquare,
+  Receipt,
   Settings,
   ShoppingCart,
-  Truck,
+  Users,
+  Wallet,
   Warehouse,
   X,
 } from "lucide-react";
@@ -23,122 +21,119 @@ import { BrandMark, Wordmark } from "@/components/Brand";
 import Image from "next/image";
 import { Icon } from "@/components/Icon";
 import { EASYPOS } from "@/lib/easypos";
-import type { ModuleId } from "@/lib/modules";
 import { DEFAULT_RUBRO_ID } from "@/lib/rubros";
 import { PrimaryButton } from "@/components/ui";
 import { InicioScreen } from "./InicioScreen";
 import { CurvedHeader } from "./kit";
 import { VentasScreen } from "./VentasScreen";
-import { NewOrderPage } from "./NewOrderPage";
-import { OrdersPage } from "./OrdersPage";
+import { HistorialPage } from "./HistorialPage";
 import { ProveedorPage } from "./ProveedorPage";
-import { ClientsPage } from "./ClientsPage";
 import { ProductsPage } from "./ProductsPage";
-import { AgendaPage } from "./AgendaPage";
-import { EntregasPage } from "./EntregasPage";
+import { GastosPage } from "./GastosPage";
+import { CajaPage } from "./CajaPage";
 import { ReportesPage } from "./ReportesPage";
 import { ConfiguracionPage } from "./ConfiguracionPage";
 import { UsuariosPage } from "./UsuariosPage";
-import { DashboardPage } from "./DashboardPage";
 import { EasyPosSplash } from "./EasyPosSplash";
 import { DebugReporter } from "../DebugReporter";
 
-type Section =
+/**
+ * Las secciones del CRM web son EXACTAMENTE las de la app de escritorio
+ * (desktop/renderer/app.js → NAV), más Configuración, que en el escritorio no
+ * existe porque la tienda y la landing se configuran desde acá.
+ *
+ * El flujo de reparto (Nuevo Pedido, Pedidos, Agenda, Entregas, Clientes) quedó
+ * fuera del menú: sus pantallas siguen en `components/admin/` por si un negocio
+ * de delivery vuelve a necesitarlas, pero hoy no se muestran en ningún lado.
+ */
+export type Section =
   | "inicio"
-  | "ventas"
-  | "nuevoPedido"
-  | "pedidos"
+  | "venta"
+  | "catalogo"
+  | "historial"
   | "proveedor"
-  | "agenda"
-  | "clientes"
-  | "productos"
-  | "entregas"
+  | "gastos"
+  | "caja"
   | "reportes"
-  | "configuracion"
-  | "usuarios";
+  | "usuarios"
+  | "configuracion";
 
 interface NavDef {
   s: Section;
   icon: React.ReactNode;
   label: string;
-  /**
-   * Módulo que hay que tener prendido para ver esta sección. Sin `mod`, la
-   * sección es del núcleo del CRM y se ve siempre (Pedidos, Configuración).
-   */
-  mod?: ModuleId;
+  /** Solo para el administrador (el backend lo vuelve a exigir igual). */
+  soloAdmin?: boolean;
 }
 
 const NAV: NavDef[] = [
-  { s: "ventas", icon: <ShoppingCart size={19} />, label: "Ventas", mod: "ventas" },
-  { s: "pedidos", icon: <ListOrdered size={19} />, label: "Pedidos" },
+  { s: "inicio", icon: <Home size={19} />, label: "Inicio" },
+  { s: "venta", icon: <ShoppingCart size={19} />, label: "Venta" },
+  { s: "catalogo", icon: <Boxes size={19} />, label: "Catálogo" },
+  { s: "historial", icon: <Receipt size={19} />, label: "Historial" },
   { s: "proveedor", icon: <Warehouse size={19} />, label: "Proveedor" },
-  { s: "agenda", icon: <CalendarClock size={19} />, label: "Agenda", mod: "agenda" },
-  { s: "productos", icon: <Flower2 size={19} />, label: "Productos", mod: "productos" },
-  { s: "entregas", icon: <Truck size={19} />, label: "Entregas", mod: "entregas" },
-  { s: "reportes", icon: <LineChart size={19} />, label: "Reportes", mod: "reportes" },
+  { s: "gastos", icon: <Wallet size={19} />, label: "Gastos" },
+  { s: "caja", icon: <Coins size={19} />, label: "Corte de caja" },
+  { s: "reportes", icon: <LineChart size={19} />, label: "Reportes" },
+  { s: "usuarios", icon: <Users size={19} />, label: "Usuarios", soloAdmin: true },
   { s: "configuracion", icon: <Settings size={19} />, label: "Configuración" },
-  // Usuarios y Clientes se administran desde el panel de easy pos (/panel).
 ];
 
 // Secciones ya convertidas al diseño de la app (header curvo + kit). Se van
 // sumando a medida que se rehace cada pantalla para la paridad web ↔ móvil.
 const KIT_SECTIONS = new Set<Section>(["inicio"]);
-const SECTION_TITLE: Partial<Record<Section, string>> = {
+const SECTION_TITLE: Record<Section, string> = {
   inicio: "Inicio",
-  ventas: "Ventas",
-  pedidos: "Pedidos",
+  venta: "Venta",
+  catalogo: "Catálogo",
+  historial: "Historial",
   proveedor: "Pedidos a proveedor",
-  productos: "Productos",
+  gastos: "Gastos",
+  caja: "Corte de caja",
   reportes: "Reportes",
+  usuarios: "Usuarios",
   configuracion: "Configuración",
 };
 
 export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
   const [drawer, setDrawer] = useState(false);
-  // Qué secciones usa este negocio (Configuración → Módulos del CRM).
-  const modules = useBusiness().modules;
-  // En rubros de mostrador el CRM abre directo en Ventas (el POS); en los de
-  // reparto (florería, restaurante) abre en Inicio.
-  const [section, setSection] = useState<Section>(modules.ventas ? "ventas" : "inicio");
+  const auth = useAuth();
+  // Igual que la app de escritorio: el CRM abre en Inicio.
+  const [section, setSection] = useState<Section>("inicio");
 
   const go = (s: Section) => {
     setSection(s);
     setDrawer(false);
   };
 
-  // Si se apaga el módulo de la sección que estás mirando, el CRM te devuelve a
-  // Inicio en vez de dejarte en una pantalla que ya no debería existir.
-  const nav = NAV.filter((n) => !n.mod || modules[n.mod]);
-  const visible = NAV.find((n) => n.s === section);
-  const seccion: Section =
-    visible && visible.mod && !modules[visible.mod] ? "inicio" : section;
+  const esAdmin = auth.role === "Administrador";
+  const nav = NAV.filter((n) => !n.soloAdmin || esAdmin);
+  // Si a alguien le cambian el rol mientras mira Usuarios, el CRM lo devuelve a
+  // Inicio en vez de dejarlo en una pantalla que ya no le corresponde.
+  const seccion: Section = nav.some((n) => n.s === section) ? section : "inicio";
 
   const page = () => {
     switch (seccion) {
       case "inicio":
         return <InicioScreen onGo={go} />;
-      case "ventas":
+      case "venta":
         return <VentasScreen />;
-      case "nuevoPedido":
-        return <NewOrderPage onDone={() => go("pedidos")} />;
-      case "pedidos":
-        return <OrdersPage onNew={() => go("nuevoPedido")} />;
+      case "catalogo":
+        return <ProductsPage />;
+      case "historial":
+        return <HistorialPage />;
       case "proveedor":
         return <ProveedorPage />;
-      case "clientes":
-        return <ClientsPage onNew={() => go("nuevoPedido")} />;
-      case "agenda":
-        return <AgendaPage />;
-      case "productos":
-        return <ProductsPage />;
-      case "entregas":
-        return <EntregasPage />;
+      case "gastos":
+        return <GastosPage />;
+      case "caja":
+        return <CajaPage />;
       case "reportes":
         return <ReportesPage />;
-      case "configuracion":
-        return <ConfiguracionPage />;
       case "usuarios":
         return <UsuariosPage />;
+      case "configuracion":
+        return <ConfiguracionPage />;
     }
   };
 
@@ -166,7 +161,7 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
           // Pantallas con el diseño de la app: header amarillo curvo + contenido.
           <div className="flex h-full flex-col">
             <CurvedHeader
-              title={SECTION_TITLE[seccion] ?? ""}
+              title={SECTION_TITLE[seccion]}
               onMenu={() => setDrawer(true)}
               onBell={() => {}}
             />
@@ -199,7 +194,7 @@ function Sidebar({
   onClose,
 }: {
   current: Section;
-  /** Menú ya filtrado por los módulos que usa el negocio. */
+  /** Menú ya filtrado por el rol de quien inició sesión. */
   nav: NavDef[];
   onSelect: (s: Section) => void;
   onClose?: () => void;
@@ -247,9 +242,8 @@ function Sidebar({
           </button>
         )}
       </div>
-      {/* Rubro activo: se cambia en Configuración → Rubro del negocio.
-          Si todavía no se eligió rubro no mostramos la etiqueta: sería un
-          "SIN DEFINIR" que no aporta nada. */}
+      {/* Rubro activo. Si todavía no se definió no mostramos la etiqueta: un
+          "SIN DEFINIR" no le dice nada al negocio. */}
       {business.rubro.id === DEFAULT_RUBRO_ID ? (
         <div className="pb-3" />
       ) : (
@@ -262,18 +256,14 @@ function Sidebar({
       )}
       <div className="px-4">
         <PrimaryButton
-          label="Nuevo Pedido"
-          icon={<Plus size={18} />}
+          label="Nueva venta"
+          icon={<ShoppingCart size={18} />}
           expand
-          onClick={() => onSelect("nuevoPedido")}
+          onClick={() => onSelect("venta")}
         />
       </div>
       <div className="mt-4 flex-1 overflow-y-auto px-3">
-        <div className="flex flex-col gap-0.5">
-          {item({ s: "inicio", icon: <Home size={19} />, label: "Inicio" })}
-          {item({ s: "nuevoPedido", icon: <PlusSquare size={19} />, label: "Nuevo Pedido" })}
-          {nav.map((n) => item(n))}
-        </div>
+        <div className="flex flex-col gap-0.5">{nav.map((n) => item(n))}</div>
       </div>
       <div className="h-px bg-line" />
       <div className="flex items-center gap-2.5 px-4 py-3.5">

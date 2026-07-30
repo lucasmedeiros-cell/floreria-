@@ -3,19 +3,22 @@
 import { apiUrl } from "@/lib/apiBase";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, CreditCard, Loader2, Palette, Save, Store, Tags } from "lucide-react";
-import { RUBRO_LIST, type RubroId } from "@/lib/rubros";
-import { businessFromRubro, type BusinessConfig } from "@/lib/business";
+import { CreditCard, Loader2, Save, Store } from "lucide-react";
+import { type BusinessConfig } from "@/lib/business";
 import { useBusiness, useProducts, useToast } from "@/context/StoreProvider";
-import { Icon } from "@/components/Icon";
 import { PrimaryButton } from "@/components/ui";
 import { ImageUploadField } from "./ImageUploadField";
 
 /**
- * Rubro + datos del negocio. Es el corazón de la adaptación multi-rubro: al
- * elegir un rubro se reescriben colores, textos de la tienda, categorías,
- * catálogo demo, landing y persona del bot; los datos propios (nombre, WhatsApp,
- * dirección) se conservan.
+ * Mi negocio — lo poco que hay que completar para que la tienda web y la landing
+ * salgan con la cara del comercio: nombre, logo, categorías y los datos de
+ * contacto y pago.
+ *
+ * El rubro NO se elige acá: viene definido desde la central al dar de alta el
+ * negocio. Todo lo que el comercio no tiene por qué decidir (colores, textos de
+ * la tienda, persona del bot) sale de ese rubro o de la marca de easy pos. Los campos que ya
+ * no se editan acá (costo de envío, referencia de pago) siguen guardados tal
+ * cual: viajan en `cfg` y se reescriben sin tocarlos.
  */
 export function NegocioEditor() {
   const router = useRouter();
@@ -26,8 +29,6 @@ export function NegocioEditor() {
   // La config del servidor (via StoreProvider) es el estado inicial del form.
   const [cfg, setCfg] = useState<BusinessConfig>(() => ({
     rubroId: current.rubroId,
-    // Los módulos se editan en su propia tarjeta (ModulosEditor); acá viajan
-    // tal cual para no pisarlos al guardar el resto del negocio.
     modules: current.modules,
     configured: current.configured,
     name: current.name,
@@ -47,31 +48,9 @@ export function NegocioEditor() {
     about: current.about,
   }));
   const [saving, setSaving] = useState(false);
-  // El catálogo de ejemplo NO se carga solo: una instalación nueva arranca
-  // vacía y el negocio carga sus productos (o los trae el pareo).
-  const [loadDemo, setLoadDemo] = useState(false);
 
   const set = <K extends keyof BusinessConfig>(key: K, value: BusinessConfig[K]) =>
     setCfg((c) => ({ ...c, [key]: value }));
-
-  /**
-   * Cambiar de rubro trae el preset completo (marca, colores, textos, categorías)
-   * pero respeta los datos de contacto y de pago, que son del negocio y no del rubro.
-   */
-  const pickRubro = (id: RubroId) => {
-    if (id === cfg.rubroId) return;
-    const preset = businessFromRubro(id);
-    setCfg((c) => ({
-      ...preset,
-      configured: c.configured,
-      whatsapp: c.whatsapp,
-      phone: c.phone,
-      address: c.address,
-      hours: c.hours,
-      deliveryCost: c.deliveryCost,
-      payMethods: c.payMethods,
-    }));
-  };
 
   const save = async () => {
     setSaving(true);
@@ -79,22 +58,14 @@ export function NegocioEditor() {
       const res = await fetch(apiUrl("/api/business"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // configured: guardar desde el panel ya cuenta como negocio configurado.
-        body: JSON.stringify({ ...cfg, configured: true, loadDemoCatalog: loadDemo }),
+        // configured: guardar desde el CRM ya cuenta como negocio configurado.
+        body: JSON.stringify({ ...cfg, configured: true }),
       });
       if (!res.ok) throw new Error("save failed");
-      const saved = await res.json();
       setCfg((c) => ({ ...c, configured: true }));
-      showToast(
-        saved.rubroChanged
-          ? `Rubro aplicado: tienda, landing y panel actualizados${
-              loadDemo ? " (con catálogo de ejemplo)" : ""
-            }`
-          : "Configuración guardada"
-      );
-      // El catálogo pudo cambiar en la BD (demo del rubro anterior / nuevo).
+      showToast("Configuración guardada");
       await products.refresh();
-      // Recarga los componentes de servidor para repintar con el rubro nuevo.
+      // Recarga los componentes de servidor para repintar con los datos nuevos.
       router.refresh();
     } catch {
       showToast("No se pudo guardar la configuración");
@@ -103,134 +74,65 @@ export function NegocioEditor() {
     }
   };
 
-  const rubro = RUBRO_LIST.find((r) => r.id === cfg.rubroId) ?? RUBRO_LIST[0];
-
   return (
     <div className="flex flex-col gap-4">
-      {/* ---------- Rubro ---------- */}
+      {/* ---------- Mi negocio: nombre y logo ---------- */}
       <Card
         icon={<Store size={18} />}
-        title="Rubro del negocio"
-        hint="Define textos de la tienda, categorías, catálogo demo, landing y la persona del Vendedor 24/7."
-      >
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-          {RUBRO_LIST.map((r) => {
-            const active = r.id === cfg.rubroId;
-            return (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => pickRubro(r.id)}
-                className={`relative flex flex-col items-start gap-2 rounded-[14px] border p-3.5 text-left transition-all ${
-                  active
-                    ? "border-pink bg-pinkSoft shadow-soft"
-                    : "border-line bg-surface2 hover:border-pink/50"
-                }`}
-              >
-                <span
-                  className="grid h-9 w-9 place-items-center rounded-[10px] text-white"
-                  style={{ background: r.colors.accent }}
-                >
-                  <Icon name={r.icon} size={18} />
-                </span>
-                <span className="text-[13.5px] font-semibold text-ink">{r.label}</span>
-                <span className="text-[11.5px] leading-snug text-ink2">{r.hint}</span>
-                {active && (
-                  <span className="absolute right-2.5 top-2.5 grid h-5 w-5 place-items-center rounded-full bg-pink text-onAccent">
-                    <Check size={13} />
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-line bg-surface2 px-3.5 py-3">
-          <input
-            type="checkbox"
-            checked={loadDemo}
-            onChange={() => setLoadDemo((v) => !v)}
-            className="mt-0.5 h-4 w-4 accent-pink"
-          />
-          <span className="text-[12.5px] leading-snug text-ink2">
-            <b className="text-ink">Cargar catálogo de ejemplo del rubro</b> al guardar.
-            Útil para probar; déjalo desmarcado si vas a cargar tus propios productos
-            (el catálogo arranca vacío).
-          </span>
-        </label>
-
-        {cfg.rubroId !== current.rubroId && (
-          <p className="rounded-xl border border-pink/40 bg-pinkSoft px-3.5 py-2.5 text-[12.5px] text-ink2">
-            Al guardar se aplicará el preset de <b className="text-ink">{rubro.label}</b>:
-            la tienda, la landing y el panel cambian de colores y textos, las categorías
-            pasan a ser las de este rubro y el bot pasa a vender {rubro.noun.many}.
-            Se quitan los productos de ejemplo del rubro anterior; los que cargaste con
-            tu propio SKU no se tocan.
-          </p>
-        )}
-      </Card>
-
-      {/* ---------- Marca: solo nombre y logo ----------
-          Los colores son los de easy pos (fijos) y el resto de los textos salen
-          del rubro; acá el negocio solo pone su nombre y su logo. */}
-      <Card
-        icon={<Palette size={18} />}
-        title="Marca"
-        hint="Los colores son los de easy pos. Aquí defines el nombre y el logo de tu tienda."
+        title="Mi negocio"
+        hint="El nombre y el logo son los que ve tu cliente en la tienda web y en la landing."
       >
         <Field label="Nombre comercial" value={cfg.name} onChange={(v) => set("name", v)} />
+
         <ImageUploadField
-          label="Logo"
+          label="Logo del negocio"
           value={cfg.logoUrl}
           onChange={(v) => set("logoUrl", v)}
           // El logo se pinta a 44-52 px; 512 alcanza de sobra y no engorda la
           // config del negocio, que viaja en cada carga de la tienda.
           maxSide={512}
-          hint="Sin logo se usa el icono del rubro. Un PNG o WebP con fondo transparente se ve mejor sobre el color de marca."
+          hint="Arrastralo, pegalo con Ctrl+V o hacé clic para elegirlo. Sale en la tienda web, en la landing y en el menú del CRM. Sin logo se usa el icono del rubro; un PNG o WebP con fondo transparente queda mejor."
         />
       </Card>
 
-      {/* ---------- Categorías ---------- */}
+      {/* ---------- Contacto, pagos y categorías ---------- */}
       <Card
-        icon={<Tags size={18} />}
-        title="Categorías del catálogo"
-        hint="Separadas por coma. Se usan en la tienda, el registro de productos y el pie de página."
+        icon={<CreditCard size={18} />}
+        title="Contacto y pagos"
+        hint="Lo que se muestra en la tienda y por dónde te escriben o te pagan."
       >
-        <Field
-          label="Categorías"
-          value={cfg.categories.join(", ")}
-          onChange={(v) => set("categories", v.split(",").map((c) => c.trim()).filter(Boolean))}
-          placeholder="Herramientas, Construcción, Electricidad"
-        />
-      </Card>
-
-      {/* ---------- Contacto y pagos ---------- */}
-      <Card icon={<CreditCard size={18} />} title="Contacto y pagos">
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="WhatsApp" value={cfg.whatsapp} onChange={(v) => set("whatsapp", v)} placeholder="59170000000" />
+          <Field
+            label="WhatsApp"
+            value={cfg.whatsapp}
+            onChange={(v) => set("whatsapp", v)}
+            placeholder="59170000000"
+          />
           <Field label="Teléfono" value={cfg.phone} onChange={(v) => set("phone", v)} />
         </div>
         <Field label="Dirección" value={cfg.address} onChange={(v) => set("address", v)} />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Horario" value={cfg.hours} onChange={(v) => set("hours", v)} />
-          <Field label="Referencia de pago" value={cfg.payReference} onChange={(v) => set("payReference", v)} />
-        </div>
+        <Field label="Horario" value={cfg.hours} onChange={(v) => set("hours", v)} />
         <Field
-          label="Costo de envío por defecto (Bs)"
-          type="number"
-          value={String(cfg.deliveryCost)}
-          onChange={(v) => set("deliveryCost", Number(v) || 0)}
+          label="Categorías del catálogo"
+          value={cfg.categories.join(", ")}
+          onChange={(v) =>
+            set(
+              "categories",
+              v.split(",").map((c) => c.trim()).filter(Boolean)
+            )
+          }
+          placeholder="Herramientas, Construcción, Electricidad"
         />
+
         <div className="flex flex-col gap-1 pt-1">
+          <span className="text-[12px] font-semibold text-ink2">Formas de pago que aceptás</span>
           {Object.keys(cfg.payMethods).map((m) => (
             <label key={m} className="flex cursor-pointer items-center justify-between py-1.5">
               <span className="text-[13.5px] text-ink">{m}</span>
               <input
                 type="checkbox"
                 checked={cfg.payMethods[m]}
-                onChange={() =>
-                  set("payMethods", { ...cfg.payMethods, [m]: !cfg.payMethods[m] })
-                }
+                onChange={() => set("payMethods", { ...cfg.payMethods, [m]: !cfg.payMethods[m] })}
                 className="h-5 w-9 accent-pink"
               />
             </label>
@@ -240,7 +142,7 @@ export function NegocioEditor() {
 
       <div className="flex justify-end">
         <PrimaryButton
-          label={saving ? "Guardando…" : "Guardar negocio"}
+          label={saving ? "Guardando…" : "Guardar"}
           icon={saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
           onClick={save}
         />
@@ -293,11 +195,22 @@ function Field({
     <label className="block">
       <span className="text-[12px] font-semibold text-ink2">{label}</span>
       {rows ? (
-        <textarea rows={rows} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={cls} />
+        <textarea
+          rows={rows}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={cls}
+        />
       ) : (
-        <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={cls} />
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={cls}
+        />
       )}
     </label>
   );
 }
-

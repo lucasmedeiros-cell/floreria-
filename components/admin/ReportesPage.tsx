@@ -1,111 +1,123 @@
 "use client";
 
-import { DollarSign, ReceiptText, PackageCheck, Users } from "lucide-react";
-import { orderStatuses, orderTotal, statusColor, statusLabel } from "@/lib/adminData";
-import { useClients } from "@/lib/clientsClient";
+import { useEffect, useState } from "react";
+import { DollarSign, ReceiptText, TrendingUp, AlertTriangle } from "lucide-react";
 import { bs2 } from "@/lib/products";
 import { onAccent } from "@/lib/business";
-import { useBusiness, useOrders } from "@/context/StoreProvider";
+import { useBusiness } from "@/context/StoreProvider";
+import { apiReports, type Reports } from "@/lib/reportsClient";
 
 const MS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
+/** "2026-07" → "jul" */
+function mesCorto(ym: string): string {
+  const m = Number(ym.split("-")[1]);
+  return MS[m - 1] ?? ym;
+}
+
+/**
+ * Reportes — resumen REAL del POS (ventas facturadas), servido por /api/reports.
+ * Sin datos de ejemplo: si no hay ventas, se ven ceros y estados "sin datos".
+ */
 export function ReportesPage() {
-  const { orders, countByStatus } = useOrders();
   const { colors } = useBusiness();
-  const { clients } = useClients();
-  const valid = orders.filter((o) => o.status !== "cancelado");
+  const [rep, setRep] = useState<Reports | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const totalSales = valid.reduce((s, o) => s + orderTotal(o), 0);
-  const delivered = orders.filter((o) => o.status === "entregado").length;
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await apiReports();
+        if (alive) setRep(r);
+      } catch {
+        if (alive) setError(true);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
-  // Productos más vendidos (por ingreso)
-  const byProduct: Record<string, number> = {};
-  for (const o of valid) for (const it of o.items) byProduct[it.name] = (byProduct[it.name] ?? 0) + it.qty * it.unitPrice;
-  const topProducts = Object.entries(byProduct).sort((a, b) => b[1] - a[1]).slice(0, 6);
-  const maxProd = topProducts[0]?.[1] ?? 1;
-
-  // Ventas por repartidor
-  const byCourier: Record<string, number> = {};
-  for (const o of valid) byCourier[o.courier] = (byCourier[o.courier] ?? 0) + orderTotal(o);
-  const couriers = Object.entries(byCourier).sort((a, b) => b[1] - a[1]);
-  const maxCourier = couriers[0]?.[1] ?? 1;
-
-  // Ventas por mes (5 meses demo + mes actual real)
-  const now = new Date();
-  const demo = [42000, 38500, 61000, 47000, 53000];
-  const monthly: { label: string; value: number }[] = [];
-  for (let i = 5; i >= 1; i--) {
-    const m = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    monthly.push({ label: MS[m.getMonth()], value: demo[5 - i] });
-  }
-  const currentMonth = valid
-    .filter((o) => o.createdAt.getMonth() === now.getMonth() && o.createdAt.getFullYear() === now.getFullYear())
-    .reduce((s, o) => s + orderTotal(o), 0);
-  monthly.push({ label: MS[now.getMonth()], value: currentMonth || 12000 });
-  const maxMonthly = Math.max(...monthly.map((m) => m.value));
+  const monthly = rep?.porMes ?? [];
+  const maxMonthly = Math.max(1, ...monthly.map((m) => m.total));
+  const topProducts = rep?.topProductos ?? [];
+  const maxProd = Math.max(1, topProducts[0]?.revenue ?? 1);
+  const metodos = rep?.porMetodo ?? [];
+  const maxMetodo = Math.max(1, metodos[0]?.total ?? 1);
 
   return (
     <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
-      <h1 className="text-[30px] font-semibold text-ink">Reportes</h1>
-      <p className="mt-1 text-[13px] text-ink2">Ventas, productos más vendidos y desempeño de entregas</p>
+      <h1 className="font-serif text-[30px] font-semibold text-ink">Reportes</h1>
+      <p className="mt-1 text-[13px] text-ink2">Ventas facturadas, ganancia y productos más vendidos</p>
+
+      {error && (
+        <div className="mt-5 rounded-[14px] border border-error/30 bg-error/5 px-4 py-3 text-[13px] text-error">
+          No se pudieron cargar los reportes. Verificá la conexión e intentá de nuevo.
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Kpi icon={<DollarSign size={22} />} label="Ventas acumuladas" value={bs2(totalSales)} color={colors.accent} />
-        <Kpi icon={<ReceiptText size={22} />} label="Notas totales" value={`${orders.length}`} color="#3B6FD4" />
-        <Kpi icon={<PackageCheck size={22} />} label="Entregadas" value={`${delivered}`} color="#2EA66B" />
-        <Kpi icon={<Users size={22} />} label="Clientes" value={`${clients.length}`} color={`${colors.accent}99`} />
+        <Kpi icon={<DollarSign size={22} />} label="Ventas acumuladas" value={loading ? "—" : bs2(rep?.totalVentas ?? 0)} color={colors.accent} />
+        <Kpi icon={<ReceiptText size={22} />} label="N° de ventas" value={loading ? "—" : `${rep?.numVentas ?? 0}`} color="#3B6FD4" />
+        <Kpi icon={<TrendingUp size={22} />} label="Ganancia" value={loading ? "—" : bs2(rep?.ganancia ?? 0)} color="#2EA66B" />
+        <Kpi icon={<AlertTriangle size={22} />} label="Stock bajo" value={loading ? "—" : `${rep?.stockBajo ?? 0}`} color="#E0324E" />
       </div>
 
-      {/* Ventas por mes */}
+      {/* Ventas por mes (datos reales) */}
       <div className="mt-4 rounded-[18px] border border-line bg-surface p-5 shadow-soft">
         <h3 className="text-[15px] font-semibold text-ink">Ventas por mes</h3>
-        <div className="mt-6 flex h-[200px] items-end gap-3">
-          {monthly.map((m, i) => {
-            const last = i === monthly.length - 1;
-            return (
-              <div key={i} className="flex flex-1 flex-col items-center justify-end">
-                <span className="text-[10.5px] font-semibold text-ink2">{bs2(m.value)}</span>
-                <div
-                  className="mt-1.5 w-full rounded-t-lg"
-                  style={{
-                    height: `${Math.max(4, (m.value / maxMonthly) * 140)}px`,
-                    background: last
-                      ? `linear-gradient(180deg,${colors.accent},${colors.accentDeep})`
-                      : `linear-gradient(180deg,${colors.accent}55,${colors.accent}99)`,
-                  }}
-                />
-                <span className={`mt-2 text-[11.5px] ${last ? "font-bold text-ink" : "font-medium text-ink2"}`}>{m.label}</span>
-              </div>
-            );
-          })}
-        </div>
+        {monthly.length === 0 ? (
+          <p className="mt-4 text-[13px] text-ink2">{loading ? "Cargando…" : "Sin ventas registradas todavía."}</p>
+        ) : (
+          <div className="mt-6 flex h-[200px] items-end gap-3">
+            {monthly.map((m, i) => {
+              const last = i === monthly.length - 1;
+              return (
+                <div key={m.mes} className="flex flex-1 flex-col items-center justify-end">
+                  <span className="text-[10.5px] font-semibold text-ink2">{bs2(m.total)}</span>
+                  <div
+                    className="mt-1.5 w-full rounded-t-lg"
+                    style={{
+                      height: `${Math.max(4, (m.total / maxMonthly) * 140)}px`,
+                      background: last
+                        ? `linear-gradient(180deg,${colors.accent},${colors.accentDeep})`
+                        : `linear-gradient(180deg,${colors.accent}55,${colors.accent}99)`,
+                    }}
+                  />
+                  <span className={`mt-2 text-[11.5px] ${last ? "font-bold text-ink" : "font-medium text-ink2"}`}>{mesCorto(m.mes)}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <RankCard title="Productos más vendidos" rows={topProducts.map(([n, v]) => ({ name: n, label: bs2(v), pct: v / maxProd }))} />
-        <RankCard title="Ventas por repartidor" rows={couriers.map(([n, v]) => ({ name: n, label: bs2(v), pct: v / maxCourier }))} />
+        <RankCard
+          title="Productos más vendidos"
+          rows={topProducts.map((p) => ({ name: p.name, label: bs2(p.revenue), sub: `${p.qty} u`, pct: p.revenue / maxProd }))}
+          empty={loading ? "Cargando…" : "Sin ventas aún."}
+        />
+        <RankCard
+          title="Ventas por método de pago"
+          rows={metodos.map((m) => ({ name: m.metodo, label: bs2(m.total), sub: `${m.n} ventas`, pct: m.total / maxMetodo }))}
+          empty={loading ? "Cargando…" : "Sin ventas aún."}
+        />
       </div>
 
-      {/* Pedidos por estado */}
+      {/* Resumen financiero */}
       <div className="mt-4 rounded-[18px] border border-line bg-surface p-5 shadow-soft">
-        <h3 className="text-[15px] font-semibold text-ink">Pedidos por estado</h3>
-        <div className="mt-3.5 flex flex-col gap-2.5">
-          {orderStatuses.map((s) => {
-            const count = countByStatus(s);
-            return (
-              <div key={s}>
-                <div className="flex items-center gap-2 text-[13px]">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: statusColor(s) }} />
-                  <span className="flex-1 text-ink">{statusLabel(s)}</span>
-                  <span className="font-semibold text-ink2">{count}</span>
-                </div>
-                <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-line">
-                  <div className="h-full rounded-full" style={{ width: `${orders.length ? (count / orders.length) * 100 : 0}%`, background: statusColor(s) }} />
-                </div>
-              </div>
-            );
-          })}
+        <h3 className="text-[15px] font-semibold text-ink">Resumen financiero</h3>
+        <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2.5 lg:grid-cols-4">
+          <Fin label="Ticket promedio" value={bs2(rep?.ticketPromedio ?? 0)} />
+          <Fin label="Costo de lo vendido" value={bs2(rep?.costoVendido ?? 0)} />
+          <Fin label="Gastos" value={bs2(rep?.gastos ?? 0)} />
+          <Fin label="Ganancia neta" value={bs2(rep?.ganancia ?? 0)} strong />
         </div>
       </div>
     </div>
@@ -124,23 +136,32 @@ function Kpi({ icon, label, value, color }: { icon: React.ReactNode; label: stri
   );
 }
 
-function RankCard({ title, rows }: { title: string; rows: { name: string; label: string; pct: number }[] }) {
+function Fin({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div>
+      <p className="text-[12px] text-ink2">{label}</p>
+      <p className={`mt-0.5 ${strong ? "text-[17px] font-bold text-success" : "text-[15px] font-semibold text-ink"}`}>{value}</p>
+    </div>
+  );
+}
+
+function RankCard({ title, rows, empty }: { title: string; rows: { name: string; label: string; sub?: string; pct: number }[]; empty: string }) {
   const { colors } = useBusiness();
   return (
     <div className="rounded-[18px] border border-line bg-surface p-5 shadow-soft">
       <h3 className="text-[15px] font-semibold text-ink">{title}</h3>
       <div className="mt-3 flex flex-col gap-2.5">
         {rows.length === 0 ? (
-          <p className="text-[13px] text-ink2">Sin datos aún.</p>
+          <p className="text-[13px] text-ink2">{empty}</p>
         ) : (
           rows.map((r) => (
             <div key={r.name}>
               <div className="flex items-center justify-between">
                 <span className="truncate text-[13px] font-medium text-ink">{r.name}</span>
-                <span className="text-[13px] font-bold text-ink">{r.label}</span>
+                <span className="text-[13px] font-bold text-ink">{r.label}{r.sub ? <span className="ml-1.5 text-[11px] font-medium text-ink2">· {r.sub}</span> : null}</span>
               </div>
               <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-line">
-                <div className="h-full rounded-full" style={{ width: `${r.pct * 100}%`, background: `linear-gradient(90deg,${colors.accent},${colors.accentDeep})` }} />
+                <div className="h-full rounded-full" style={{ width: `${Math.max(2, r.pct * 100)}%`, background: `linear-gradient(90deg,${colors.accent},${colors.accentDeep})` }} />
               </div>
             </div>
           ))

@@ -41,6 +41,9 @@ export function VentasScreen() {
   const [payMethod, setPayMethod] = useState("Efectivo");
   const [busy, setBusy] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  // Id de idempotencia del cobro en curso: se genera una vez y se reusa si hay
+  // que reintentar (así un doble envío no duplica la venta). Se limpia al éxito.
+  const pendingRef = useRef<string>("");
 
   // Búsqueda tipo Google: varios términos (SKU, nombre, código de barras,
   // categoría, palabras clave). Solo cuando hay algo escrito, para no listar
@@ -104,13 +107,19 @@ export function VentasScreen() {
         unitPrice: l.unitPrice,
         discountPct: l.discountPct,
       }));
+      if (!pendingRef.current) {
+        pendingRef.current = `crm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      }
       const sale = await apiCreateSale({
         kind,
         clientName,
         clientNit,
         payMethod,
         items: payload,
+        clientRef: pendingRef.current,
       });
+      // Venta confirmada: el próximo cobro usa un ref nuevo.
+      pendingRef.current = "";
 
       // Comprobante PDF (proforma o factura).
       exportComprobante({

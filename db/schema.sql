@@ -359,3 +359,8 @@ CREATE TABLE IF NOT EXISTS stock_moves (
 );
 
 CREATE INDEX IF NOT EXISTS stock_moves_product_idx ON stock_moves (product_id, created_at DESC);
+
+-- ---------- 012: permisos por empleado ----------
+-- {"products": true} = puede registrar/editar productos. El Administrador
+-- siempre puede todo; una Vendedora sin la bandera solo vende.
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS perms jsonb NOT NULL DEFAULT '{}';

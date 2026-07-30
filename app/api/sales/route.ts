@@ -62,6 +62,21 @@ export const POST = handler(async (req: NextRequest) => {
   }));
   if (clean.some((it) => it.name === "")) return bad("Un ítem no tiene nombre.");
 
+  // Solo se vende lo que está en el INVENTARIO: cada ítem debe referenciar un
+  // producto existente. Así toda venta descuenta stock de verdad — no hay
+  // ítems "sueltos" que dejen la contabilidad y el inventario descuadrados.
+  if (clean.some((it) => !it.productId))
+    return bad("Solo se pueden vender productos del inventario. Buscá el producto y agregalo desde el catálogo.");
+  const ids = [...new Set(clean.map((it) => it.productId as string))];
+  const existentes = await query<{ id: string }>(
+    `SELECT id FROM products WHERE id = ANY($1::text[])`,
+    [ids]
+  );
+  const setExistentes = new Set(existentes.map((r) => r.id));
+  const faltante = clean.find((it) => !setExistentes.has(it.productId as string));
+  if (faltante)
+    return bad(`El producto "${faltante.name}" (${faltante.productId}) no está en el inventario.`);
+
   const subtotal = clean.reduce((a, it) => a + it.qty * it.unitPrice, 0);
   const totalItems = clean.reduce(
     (a, it) => a + it.qty * it.unitPrice * (1 - it.discountPct / 100),

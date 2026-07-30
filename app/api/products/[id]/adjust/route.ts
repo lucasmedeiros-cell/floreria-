@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { withTransaction } from "@/lib/db";
 import { bad, handler, notFound, ok, unauthorized } from "@/lib/api";
 import { getSession } from "@/lib/auth";
+import { puedeGestionarProductos } from "@/lib/perms";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +17,10 @@ type Params = { params: { id: string } };
 export const POST = handler(async (req: NextRequest, { params }: Params) => {
   const s = getSession("employee");
   if (!s) return unauthorized();
+  // El ajuste manual toca el inventario: mismo permiso que registrar productos
+  // (la venta descuenta stock por su propio camino, eso no pasa por acá).
+  if (!(await puedeGestionarProductos(s)))
+    return bad("Tu cuenta no tiene permiso para ajustar stock. Pedíselo al administrador.", 403);
   const b = await req.json();
   const delta = Math.round(Number(b.delta));
   if (!Number.isFinite(delta) || delta === 0) return bad("El ajuste no puede ser 0.");

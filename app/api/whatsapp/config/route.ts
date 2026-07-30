@@ -37,7 +37,7 @@ export const POST = handler(async (req: NextRequest) => {
   const b = (await req.json()) as Partial<VendedorConfig>;
 
   const cfg: Partial<VendedorConfig> = {
-    botEnabled: b.botEnabled ?? true,
+    botEnabled: b.botEnabled ?? defaultVendedorConfig.botEnabled,
     botPersona: (b.botPersona ?? defaultVendedorConfig.botPersona).trim(),
     activationKeyword: (b.activationKeyword ?? "").trim(),
     aiModel: (b.aiModel ?? defaultVendedorConfig.aiModel).trim() || defaultVendedorConfig.aiModel,

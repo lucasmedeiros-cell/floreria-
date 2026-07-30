@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show SocketException;
+import 'dart:io'
+    show SocketException, NetworkInterface, InternetAddressType;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -152,6 +153,7 @@ class Api extends ChangeNotifier {
         } else {
           name = me['user']['name'];
           role = me['user']['role'];
+          _leerPermisos(me['user']);
         }
       } catch (_) {
         // Sin red al abrir: se entra con lo guardado; la primera llamada real
@@ -313,6 +315,13 @@ class Api extends ChangeNotifier {
     await _patch('/api/employees/${Uri.encodeComponent(id)}', {'active': active});
   }
 
+  /// Asigna (o quita) el permiso de catálogo a un empleado. Solo admin.
+  Future<void> asignarPermisoProductos(String id, bool permitir) async {
+    await _patch('/api/employees/${Uri.encodeComponent(id)}', {
+      'perms': {'products': permitir},
+    });
+  }
+
   // ---------- Pareo ----------
   /// Vincula el dispositivo a partir del contenido de un QR (lo genera el panel).
   /// Según lo que traiga el QR:
@@ -441,6 +450,36 @@ class Api extends ChangeNotifier {
       'pass': pass,
     });
     await _guardarSesion(data);
+    await refrescarPermisos(); // el login no trae `can`; /me sí
+  }
+
+  /// Permisos EFECTIVOS del usuario logueado (los manda /me como `can`).
+  /// El admin siempre puede todo; una vendedora, solo lo que le asignaron.
+  /// El backend valida igual en cada escritura: esto decide qué botones se ven.
+  bool puedeProductos = true;
+
+  void _leerPermisos(dynamic user) {
+    final can = (user is Map) ? user['can'] : null;
+    if (can is Map) {
+      puedeProductos = can['products'] == true;
+    } else {
+      // Backend sin `can` (versión vieja): no ocultar nada.
+      puedeProductos = true;
+    }
+  }
+
+  /// Relee /me para refrescar rol y permisos (p. ej. tras iniciar sesión o
+  /// cuando el admin cambió las banderas). No tira: sin red se queda como está.
+  Future<void> refrescarPermisos() async {
+    if (_token == null) return;
+    try {
+      final me = await _get('/api/auth/employee/me');
+      if (me['user'] != null) {
+        role = me['user']['role'] ?? role;
+        _leerPermisos(me['user']);
+        notifyListeners();
+      }
+    } catch (_) {}
   }
 
   Future<void> _guardarSesion(Map<String, dynamic> data) async {
@@ -464,6 +503,7 @@ class Api extends ChangeNotifier {
     _token = null;
     _lockedToken = null;
     needsUnlock = false;
+    puedeProductos = true; // se recalcula con el próximo login
     name = email = phone = role = null;
     await _secure.delete(key: _kSessionToken);
     final prefs = await SharedPreferences.getInstance();
@@ -472,6 +512,125 @@ class Api extends ChangeNotifier {
     }
     await _refreshHeaders();
     notifyListeners();
+  }
+
+  /// Reporta un error o sugerencia al sistema de desarrollo (tickets), vía el
+  /// proxy `/api/tickets/report` del servidor. Llega etiquetado con el proyecto
+  /// de esta instalación, al equipo que corresponde. Devuelve el N° de ticket.
+  Future<String?> reportarBug({
+    required String tipo,
+    required String titulo,
+    required String descripcion,
+    required String email,
+  }) async {
+    final res = await _post('/api/tickets/report', {
+      'tipo': tipo,
+      'titulo': titulo,
+      'descripcion': descripcion,
+      'email': email,
+      'surface': 'mobile',
+      'url': apiBase,
+    });
+    if (res is Map && res['numero_ticket'] != null) {
+      return res['numero_ticket'].toString();
+    }
+    return null;
+  }
+
+  // ---------- Servidor / conexión ----------
+  /// Dirección del servidor que está usando la app ahora.
+  String get servidor => apiBase;
+
+  String _normalizarServidor(String url) {
+    var v = url.trim();
+    if (v.isEmpty) return v;
+    if (!v.contains('://')) v = 'http://$v'; // red local → http por defecto
+    return v.endsWith('/') ? v.substring(0, v.length - 1) : v;
+  }
+
+  /// Prueba si un servidor easy pos responde (GET /api/health). Sin sesión.
+  /// Devuelve (ok, mensaje). Nunca lanza: sirve para el diagnóstico del login.
+  Future<({bool ok, String msg})> probarServidor([String? url]) async {
+    final base =
+        (url == null || url.trim().isEmpty) ? apiBase : _normalizarServidor(url);
+    try {
+      final r = await http
+          .get(Uri.parse('$base/api/health'))
+          .timeout(const Duration(seconds: 6));
+      if (r.statusCode == 200 && r.body.contains('"ok"') && r.body.contains('true')) {
+        return (ok: true, msg: 'Conectado al servidor');
+      }
+      return (ok: false, msg: 'Responde, pero no parece easy pos (HTTP ${r.statusCode}).');
+    } on TimeoutException {
+      return (ok: false, msg: 'El servidor no respondió. ¿Está prendido y en la misma red WiFi?');
+    } on SocketException {
+      return (ok: false, msg: 'No se pudo conectar. Revisá la dirección y la red.');
+    } catch (_) {
+      return (ok: false, msg: 'No se pudo conectar. Revisá la dirección.');
+    }
+  }
+
+  /// Cambia el servidor al que le habla la app (queda guardado para la próxima).
+  Future<void> cambiarServidor(String url) async {
+    final base = _normalizarServidor(url);
+    await ajustes.guardarServer(base.isEmpty ? null : base);
+    await _refreshHeaders();
+    notifyListeners();
+  }
+
+  /// Chequeo rápido de salud de un servidor puntual (bool). Base del escaneo.
+  Future<bool> _probe(String base, Duration timeout) async {
+    try {
+      final r = await http.get(Uri.parse('$base/api/health')).timeout(timeout);
+      return r.statusCode == 200 &&
+          r.body.contains('"ok"') &&
+          r.body.contains('true');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<String?> _scanSubnet(String pre, int port) async {
+    const batch = 40;
+    for (var start = 1; start <= 254; start += batch) {
+      final futures = <Future<String?>>[];
+      for (var i = start; i < start + batch && i <= 254; i++) {
+        final url = 'http://$pre.$i:$port';
+        futures.add(
+            _probe(url, const Duration(milliseconds: 700)).then((ok) => ok ? url : null));
+      }
+      final res = await Future.wait(futures);
+      final hit = res.firstWhere((x) => x != null, orElse: () => null);
+      if (hit != null) return hit;
+    }
+    return null;
+  }
+
+  /// Busca el servidor easy pos en la red WiFi (escaneo de la subred). Devuelve
+  /// la URL encontrada o null. Así el teléfono se adapta a la IP del servidor.
+  Future<String?> descubrirServidor() async {
+    const port = 3010;
+    // 1) el servidor guardado, si responde
+    if ((await probarServidor()).ok) return apiBase;
+    // 2) escaneo de la(s) subred(es) privadas de las interfaces del equipo
+    final prefijos = <String>{};
+    try {
+      for (final ni
+          in await NetworkInterface.list(type: InternetAddressType.IPv4)) {
+        for (final addr in ni.addresses) {
+          final ip = addr.address;
+          if (RegExp(r'^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)')
+              .hasMatch(ip)) {
+            prefijos.add(ip.split('.').take(3).join('.'));
+          }
+        }
+      }
+    } catch (_) {}
+    for (final pre in prefijos) {
+      final found = await _scanSubnet(pre, port);
+      if (found != null) return found;
+    }
+    return null;
   }
 
   // ---------- HTTP ----------
@@ -874,9 +1033,16 @@ class Api extends ChangeNotifier {
   }
 
   /// Resumen de ventas para Reportes (agregado en el servidor).
-  Future<ReporteVentas> reporteVentas() async {
-    final data = await _get('/api/reports');
+  Future<ReporteVentas> reporteVentas({String? desde, String? hasta}) async {
+    final q = (desde != null && hasta != null) ? '?desde=$desde&hasta=$hasta' : '';
+    final data = await _get('/api/reports$q');
     return ReporteVentas.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// Libro de caja: ingresos (ventas) + egresos (gastos) del período.
+  Future<LibroCaja> libroCaja({required String desde, required String hasta}) async {
+    final data = await _get('/api/reports/ledger?desde=$desde&hasta=$hasta');
+    return LibroCaja.fromJson(data as Map<String, dynamic>);
   }
 
   /// Genera un QR de cobro (BCP vía BaaS) por `amount` bolivianos. Devuelve la

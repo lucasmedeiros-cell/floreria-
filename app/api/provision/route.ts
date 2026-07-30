@@ -260,6 +260,29 @@ export async function POST(req: NextRequest) {
           console.warn("[panel] no se pudo copiar el teléfono al negocio:", error);
         }
       }
+
+      // Lo mismo con el RUBRO, que ahora se elige SOLO acá (el CRM del negocio
+      // ya no lo pregunta). De él salen los colores, los textos y las categorías
+      // de la tienda y de la landing: sin esta copia, un negocio dado de alta
+      // como "Sin definir" se quedaba genérico para siempre.
+      // Solo se pisa `rubroId`: el nombre, el logo y el contacto que cargó el
+      // negocio en su CRM quedan intactos.
+      if ("rubro" in campos && campos.rubro && neg.db_name) {
+        try {
+          await withPool(urlForDb(neg.db_name), (p) =>
+            p.query(
+              `INSERT INTO settings (key, value, updated_at)
+                 VALUES ('business', jsonb_build_object('rubroId', $1::text), now())
+               ON CONFLICT (key) DO UPDATE
+                 SET value = settings.value || jsonb_build_object('rubroId', $1::text),
+                     updated_at = now()`,
+              [campos.rubro]
+            )
+          );
+        } catch (error) {
+          console.warn("[panel] no se pudo copiar el rubro al negocio:", error);
+        }
+      }
       return NextResponse.json({ business: neg });
     }
 

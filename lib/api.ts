@@ -71,6 +71,15 @@ export function handler<T extends unknown[]>(
         /ECONNREFUSED|ETIMEDOUT|ENOTFOUND|terminating connection|connection terminated/i.test(
           raw
         );
+      // Valor inválido enviado por el cliente: un `?status=foo` que no existe en
+      // el enum, un número donde va texto, etc. (Postgres 22P02/22007/22008).
+      // Es culpa del input, así que 400 y no 500.
+      if (code === "22P02" || code === "22007" || code === "22008") {
+        return NextResponse.json(
+          { error: "Alguno de los valores enviados no es válido." },
+          { status: 400 }
+        );
+      }
       // El mensaje crudo (nombres de tablas, constraints de Postgres…) queda en
       // el log del servidor; al cliente le va un genérico.
       const msg = isDbDown

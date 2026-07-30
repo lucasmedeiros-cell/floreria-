@@ -7,6 +7,7 @@
 //  lo envía por ?token=, cabecera X-API-Key, o Authorization: Bearer.
 //  Sigue el mismo contrato que la integración "Te lo Presto".
 // ============================================================
+import crypto from "crypto";
 import { headers } from "next/headers";
 import { NextRequest } from "next/server";
 import { queryOne, query } from "./db";
@@ -31,11 +32,13 @@ export function readCentralToken(req: NextRequest): string | null {
   return null;
 }
 
-/** true si el token es válido. */
+/** true si el token es válido (comparación de tiempo constante). */
 export function centralTokenOk(token: string | null): boolean {
   const expected = process.env.CENTRAL_API_TOKEN;
-  if (!expected) return false; // sin token configurado, se deniega
-  return !!token && token === expected;
+  if (!expected || !token) return false; // sin token configurado, se deniega
+  const a = Buffer.from(token);
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 export function centralConfigured(): boolean {

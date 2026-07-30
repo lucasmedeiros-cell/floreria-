@@ -1,47 +1,61 @@
 "use client";
 
 import { useLink } from "@/lib/negocioLink";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Menu, ShoppingCart, X } from "lucide-react";
+import { ArrowRight, Check, ShieldCheck, ShoppingCart, Store } from "lucide-react";
 import type { PromoConfig } from "@/lib/promo";
-import { bs, isPublicProduct, productPhotos, type Product } from "@/lib/products";
+import { bs, productPhotos, type Product } from "@/lib/products";
 import { onAccent } from "@/lib/business";
 import { openWhatsapp, useBusinessWhatsapp } from "@/lib/whatsapp";
 import { useBusiness, useProducts } from "@/context/StoreProvider";
 import { Icon } from "../Icon";
 import { WhatsAppIcon } from "../WhatsAppIcon";
-import { ProductDetail } from "../ProductDetail";
-
-/** Cuántos productos se listan en la landing antes de mandar a la tienda. */
-const CATALOGO_EN_LANDING = 12;
 
 /**
- * Landing promocional (/promo) — estilo "bold": navbar flotante, cuñas
- * diagonales, titular gigante a dos líneas y el producto sobre un círculo.
+ * Landing promocional (/promo) — ficha de UN producto a pantalla completa, al
+ * estilo de los marketplaces: galería a la izquierda, datos y precio al centro
+ * y la tarjeta de compra a la derecha.
  *
- * Nada de esto está atado a un rubro: color, logo, textos, producto y foto
- * salen de la config del negocio (Configuración → Rubro del negocio + Landing).
- * Con acentos claros (amarillo) el texto sobre el color se pinta negro; con
- * acentos oscuros, blanco (ver onAccent).
+ * Es UNA sola pantalla y UN solo producto: todo entra en el primer plano, sin
+ * secciones que haya que ir a buscar hacia abajo y sin listar el catálogo. El
+ * botón de comprar no vende acá: manda al catálogo de la tienda web del
+ * negocio, que es donde está el carrito de verdad.
+ *
+ * Nada está atado a un rubro: color, logo, textos, producto y fotos salen de la
+ * config del negocio (Configuración → Rubro del negocio + Landing).
  */
 export function PromoLanding({ promo }: { promo: PromoConfig }) {
   const link = useLink();
   const business = useBusiness();
   const waNumber = useBusinessWhatsapp();
   const { products } = useProducts();
-  const [menu, setMenu] = useState(false);
-  /** Producto cuya ficha está abierta (fotos + información completa). */
-  const [ficha, setFicha] = useState<Product | null>(null);
-
-  // El catálogo de la landing es el MISMO de la tienda (tabla `products`): lo
-  // que se carga en el CRM aparece acá sin tocar nada. Solo los activos.
-  const catalogo = products.filter(isPublicProduct);
 
   const { colors, rubro, noun } = business;
   const accent = colors.accent;
   const on = onAccent(accent); // texto legible sobre el color de marca
+
+  /**
+   * Fotos de la galería, TODAS del mismo producto: las dos de la landing
+   * primero y, si la promo está vinculada a un producto del catálogo, las suyas
+   * detrás. Sin repetidas.
+   */
+  const fotos = useMemo(() => {
+    const vinculado: Product | undefined = promo.productId
+      ? products.find((p) => p.id === promo.productId)
+      : undefined;
+    const todas = [
+      promo.image,
+      promo.imageAlt ?? "",
+      ...(vinculado ? productPhotos(vinculado) : []),
+    ].filter((f) => f.trim() !== "");
+    return Array.from(new Set(todas));
+  }, [promo.image, promo.imageAlt, promo.productId, products]);
+
+  const [foto, setFoto] = useState(0);
+  // Cambió la promo (o llegaron los productos): el índice viejo podría no existir.
+  useEffect(() => setFoto(0), [fotos.length]);
 
   if (!promo.enabled) return <PromoDisabled />;
 
@@ -50,593 +64,250 @@ export function PromoLanding({ promo }: { promo: PromoConfig }) {
     ? Math.round((1 - promo.price / promo.originalPrice!) * 100)
     : 0;
 
-  // Cuenta regresiva solo con una fecha real: una fecha mal escrita pintaría
-  // "NaN" en los recuadros, y una ya vencida, un 00:00:00:00 fijo.
+  // Cuenta regresiva solo con una fecha real: una mal escrita pintaría "NaN" en
+  // los recuadros, y una ya vencida, un 00:00:00 fijo.
   const deadline =
     promo.validUntil && new Date(promo.validUntil).getTime() > Date.now()
       ? promo.validUntil
       : null;
 
-  // Una imagen recortada (PNG/WebP/SVG, sin fondo) puede "flotar" sobre el
-  // círculo como en el diseño. Una foto normal (JPG) llevaría su fondo cuadrado
-  // encima, así que se recorta en círculo. Heurística por extensión, o por el
-  // tipo MIME cuando la imagen viene subida como data URI (no tiene extensión).
-  const cutout = /^data:image\/(png|webp|svg)/i.test(promo.image)
-    ? true
-    : /\.(png|webp|svg)(\?|$)/i.test(promo.image);
-
-  const pedir = () => openWhatsapp(promo.whatsappMessage, waNumber);
-  const consultar = () =>
-    openWhatsapp(`${business.greeting} Tengo una consulta sobre la promoción.`, waNumber);
-
-  // Los anclas (#…) van tal cual; las rutas se resuelven dentro del negocio,
-  // que si no "PRODUCTOS" desde /n/<slug>/promo se iría a la tienda de otro.
-  // Con catálogo cargado, "PRODUCTOS" baja a la sección de la propia landing;
-  // sin catálogo, sigue llevando a la tienda.
-  const NAV = [
-    { label: "PRODUCTOS", href: catalogo.length > 0 ? "#productos" : link("/") },
-    { label: "OFERTA", href: "#oferta" },
-    { label: "BENEFICIOS", href: "#beneficios" },
-    { label: "CONTACTO", href: "#contacto" },
-  ].filter((n) => promo.highlights.length > 0 || n.href !== "#beneficios");
-
-  /** Isotipo hexagonal: el logo del negocio o, si no hay, el icono del rubro. */
-  const BrandHex = () => (
-    <span
-      className="grid h-[52px] w-[46px] shrink-0 place-items-center"
-      style={{
-        background: business.logoUrl ? "transparent" : accent,
-        clipPath: business.logoUrl
-          ? undefined
-          : "polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%)",
-        color: on,
-      }}
-    >
-      {business.logoUrl ? (
-        <Image
-          src={business.logoUrl}
-          alt={business.name}
-          width={44}
-          height={48}
-          className="object-contain"
-        />
-      ) : (
-        <Icon name={rubro.icon} size={24} />
-      )}
-    </span>
-  );
+  const actual = fotos[foto] ?? fotos[0] ?? "";
+  const consultar = () => openWhatsapp(promo.whatsappMessage, waNumber);
 
   return (
-    <div className="min-h-screen bg-white font-sans text-[#14110F]">
-      {/* ===================== HEADER ===================== */}
-      <header className="relative z-30 px-4 pt-4 sm:px-6 sm:pt-6">
-        {/* Cuña diagonal detrás de la barra */}
-        <div
-          aria-hidden
-          className="absolute inset-x-0 top-0 -z-10 h-[120px]"
-          style={{ background: accent, clipPath: "polygon(0 0, 46% 0, 30% 100%, 0 100%)" }}
-        />
-
-        <div className="mx-auto flex max-w-[1280px] items-center gap-4 rounded-[18px] bg-white px-5 py-3.5 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.18)] sm:px-7 sm:py-4">
-          {/* Marca */}
-          <Link href={link("/")} className="flex shrink-0 items-center gap-3">
-            <BrandHex />
-            <span className="hidden leading-[0.95] sm:block">
-              <span className="block text-[19px] font-extrabold uppercase tracking-[-0.5px]">
-                {business.name}
-              </span>
-              <span className="mt-1 block text-[8.5px] font-semibold uppercase tracking-[2px] text-black/45">
-                {business.categories.slice(0, 3).join(" • ")}
-              </span>
-            </span>
-          </Link>
-
-          {/* Nav */}
-          <nav className="ml-auto hidden items-center gap-7 lg:flex">
-            <Link
-              href={link("/")}
-              className="rounded-[10px] px-5 py-2.5 text-[12.5px] font-bold uppercase tracking-wide transition-transform hover:-translate-y-px"
-              style={{ background: accent, color: on }}
+    <div className="flex min-h-screen flex-col bg-[#F6F5F3] font-sans text-[#14110F] lg:h-screen lg:overflow-hidden">
+      {/* ===================== BARRA ===================== */}
+      <header className="shrink-0 border-b border-black/[0.07] bg-white">
+        <div className="mx-auto flex h-[62px] max-w-[1500px] items-center gap-3 px-4 sm:px-6">
+          <Link href={link("/")} className="flex min-w-0 shrink-0 items-center gap-2.5">
+            <span
+              className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-[10px]"
+              style={{ background: business.logoUrl ? "transparent" : accent, color: on }}
             >
-              Comprar ahora
-            </Link>
-            {NAV.map((n) => (
-              <Link
-                key={n.label}
-                href={n.href}
-                className="text-[12.5px] font-bold uppercase tracking-wide transition-opacity hover:opacity-60"
-              >
-                {n.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Botón de menú (móvil) */}
-          <button
-            onClick={() => setMenu((m) => !m)}
-            aria-label="Menú"
-            className="ml-auto grid h-11 w-11 shrink-0 place-items-center rounded-[10px] lg:ml-0"
-            style={{ background: accent, color: on }}
-          >
-            {menu ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
-
-        {/* Menú desplegable (móvil) */}
-        {menu && (
-          <div className="mx-auto mt-2 flex max-w-[1280px] flex-col gap-1 rounded-[18px] bg-white p-3 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.18)]">
-            <Link
-              href={link("/")}
-              className="rounded-[10px] px-4 py-3 text-[13px] font-bold uppercase"
-              style={{ background: accent, color: on }}
-            >
-              Comprar ahora
-            </Link>
-            {NAV.map((n) => (
-              <Link
-                key={n.label}
-                href={n.href}
-                onClick={() => setMenu(false)}
-                className="rounded-[10px] px-4 py-3 text-[13px] font-bold uppercase hover:bg-black/5"
-              >
-                {n.label}
-              </Link>
-            ))}
-          </div>
-        )}
-      </header>
-
-      {/* ===================== HERO ===================== */}
-      <section className="relative overflow-hidden">
-        {/* Cuñas diagonales y decoraciones */}
-        <div
-          aria-hidden
-          className="absolute left-0 top-0 hidden h-full w-[170px] md:block"
-          style={{ background: accent, clipPath: "polygon(0 8%, 100% 24%, 0 60%)" }}
-        />
-        <div
-          aria-hidden
-          className="absolute bottom-0 right-0 h-[160px] w-[45%]"
-          style={{ background: accent, clipPath: "polygon(100% 0, 100% 100%, 14% 100%)" }}
-        />
-        <Chevrons className="absolute left-7 top-[66%] hidden md:block" color={accent} />
-        <DotGrid className="absolute left-[3%] top-[6%] hidden lg:block" color={accent} />
-        <DotGrid className="absolute bottom-[18%] right-[5%] hidden lg:block" color={accent} />
-        <CrossGrid className="absolute left-[27%] top-[34%] hidden xl:block" color={accent} />
-
-        <div className="relative mx-auto grid max-w-[1280px] grid-cols-1 items-center gap-10 px-6 pb-24 pt-12 lg:grid-cols-2 lg:gap-8 lg:pb-28 lg:pt-16">
-          {/* ---- Producto sobre el círculo ---- */}
-          <div className="relative order-2 mx-auto w-full max-w-[540px] lg:order-1">
-            <div
-              aria-hidden
-              className="absolute left-1/2 top-1/2 aspect-square w-[76%] -translate-x-1/2 -translate-y-1/2 rounded-full"
-              style={{ background: accent }}
-            />
-            <div className="relative mx-auto aspect-square w-full">
-              {promo.image && cutout && (
+              {business.logoUrl ? (
                 <Image
-                  src={promo.image}
-                  alt={promo.productName}
-                  fill
-                  priority
-                  sizes="(max-width:1024px) 90vw, 45vw"
-                  className="object-contain drop-shadow-[0_28px_38px_rgba(0,0,0,0.28)]"
+                  src={business.logoUrl}
+                  alt={business.name}
+                  width={36}
+                  height={36}
+                  className="h-full w-full object-contain"
                 />
-              )}
-
-              {promo.image && !cutout && (
-                <div className="absolute left-1/2 top-1/2 aspect-square w-[72%] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full shadow-[0_28px_44px_-14px_rgba(0,0,0,0.45)]">
-                  <Image
-                    src={promo.image}
-                    alt={promo.productName}
-                    fill
-                    priority
-                    sizes="(max-width:1024px) 70vw, 34vw"
-                    className="object-cover"
-                  />
-                </div>
-              )}
-
-              {!promo.image && (
-                <div className="absolute inset-0 grid place-items-center">
-                  <span
-                    className="drop-shadow-[0_18px_26px_rgba(0,0,0,0.22)]"
-                    style={{ color: on }}
-                  >
-                    <Icon name={rubro.icon} size={180} />
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ---- Copy ---- */}
-          <div className="order-1 lg:order-2">
-            <span
-              className="inline-flex items-center gap-2.5 rounded-[10px] px-4 py-2.5 text-[12.5px] font-extrabold uppercase tracking-wide"
-              style={{ background: accent, color: on }}
-            >
-              <Icon name={rubro.icon} size={17} />
-              {promo.eyebrow}
-            </span>
-
-            {/* Titular gigante a dos líneas (el de la portada del negocio) */}
-            <h1 className="mt-6 text-[clamp(2.6rem,6.6vw,5rem)] font-black uppercase leading-[0.92] tracking-[-0.02em]">
-              <span className="block">{business.hero.title}</span>
-              <span className="block" style={{ color: accent }}>
-                {business.hero.highlight}
-              </span>
-            </h1>
-
-            <p className="mt-6 max-w-[480px] text-[15.5px] leading-relaxed text-black/70">
-              {promo.subtitle}
-            </p>
-
-            <div className="mt-8 flex flex-wrap items-center gap-3.5">
-              <Link
-                href={link("/")}
-                className="inline-flex items-center gap-2.5 rounded-[12px] px-7 py-[18px] text-[13.5px] font-extrabold uppercase tracking-wide transition-transform hover:-translate-y-0.5"
-                style={{ background: accent, color: on }}
-              >
-                <ShoppingCart size={19} /> Comprar ahora
-              </Link>
-              <button
-                onClick={consultar}
-                className="inline-flex items-center gap-2.5 rounded-[12px] border-2 border-black/10 bg-white px-7 py-[16px] text-[13.5px] font-extrabold uppercase tracking-wide transition-colors hover:border-black/30"
-              >
-                <WhatsAppIcon size={19} /> Escríbenos por WhatsApp
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================== STATS ===================== */}
-      {promo.stats.length > 0 && (
-      <section className="bg-[#14110F]">
-        <div className="mx-auto grid max-w-[1280px] grid-cols-2 gap-8 px-6 py-10 sm:grid-cols-4">
-          {promo.stats.map((s, i) => (
-            <div key={i} className="text-center">
-              <p
-                className="text-[clamp(1.5rem,3vw,2.1rem)] font-black uppercase leading-none"
-                style={{ color: accent }}
-              >
-                {s.value}
-              </p>
-              <p className="mt-2 text-[11px] font-semibold uppercase tracking-[1.5px] text-white/55">
-                {s.label}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-      )}
-
-      {/* ===================== OFERTA (producto + precio) ===================== */}
-      <section id="oferta" className="relative overflow-hidden bg-white py-20">
-        <div className="relative mx-auto grid max-w-[1280px] grid-cols-1 items-center gap-12 px-6 lg:grid-cols-2">
-          <div>
-            <span
-              className="text-[12px] font-extrabold uppercase tracking-[2px]"
-              style={{ color: accent }}
-            >
-              {promo.productName}
-            </span>
-            <h2 className="mt-3 text-[clamp(2rem,4.4vw,3.1rem)] font-black uppercase leading-[0.98] tracking-[-0.01em]">
-              {promo.title}
-            </h2>
-            <div className="mt-5 h-[5px] w-[70px]" style={{ background: accent }} />
-            <p className="mt-6 max-w-[520px] text-[15px] leading-relaxed text-black/70">
-              {promo.description}
-            </p>
-
-            {/* Precio */}
-            <div className="mt-8 flex flex-wrap items-end gap-4">
-              <span className="text-[clamp(2.2rem,5vw,3.2rem)] font-black leading-none">
-                {bs(promo.price)}
-              </span>
-              {hasDiscount && (
-                <>
-                  <span className="pb-1 text-[19px] font-semibold text-black/35 line-through">
-                    {bs(promo.originalPrice!)}
-                  </span>
-                  <span
-                    className="mb-1 rounded-[8px] px-2.5 py-1 text-[12.5px] font-extrabold"
-                    style={{ background: accent, color: on }}
-                  >
-                    -{discountPct}%
-                  </span>
-                </>
-              )}
-            </div>
-
-            {deadline && (
-              <div className="mt-7">
-                <p className="mb-2.5 text-[11px] font-bold uppercase tracking-[2px] text-black/45">
-                  La oferta termina en
-                </p>
-                <Countdown iso={deadline} accent={accent} on={on} />
-              </div>
-            )}
-
-            <div className="mt-8">
-              <button
-                onClick={pedir}
-                className="inline-flex items-center gap-2.5 rounded-[12px] px-8 py-[18px] text-[13.5px] font-extrabold uppercase tracking-wide transition-transform hover:-translate-y-0.5"
-                style={{ background: accent, color: on }}
-              >
-                <WhatsAppIcon size={19} /> {promo.ctaLabel}
-              </button>
-            </div>
-          </div>
-
-          {/* Foto del producto (o el icono del rubro si aún no tiene) */}
-          <div className="relative mx-auto aspect-square w-full max-w-[460px]">
-            <div
-              aria-hidden
-              className="absolute inset-0 rounded-[28px]"
-              style={{
-                background: accent,
-                clipPath: "polygon(0 12%, 100% 0, 100% 88%, 0 100%)",
-              }}
-            />
-            <div className="absolute inset-[10%]">
-              {promo.image ? (
-                <div
-                  className={
-                    cutout ? "relative h-full w-full" : "relative h-full w-full overflow-hidden rounded-[18px]"
-                  }
-                >
-                  <Image
-                    src={promo.image}
-                    alt={promo.productName}
-                    fill
-                    sizes="(max-width:1024px) 90vw, 40vw"
-                    className={
-                      cutout
-                        ? "object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.25)]"
-                        : "object-cover"
-                    }
-                  />
-                </div>
               ) : (
-                <div className="grid h-full place-items-center" style={{ color: on }}>
-                  <Icon name={rubro.icon} size={140} />
-                </div>
+                <Icon name={rubro.icon} size={19} />
               )}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================== CATÁLOGO ===================== */}
-      {catalogo.length > 0 && (
-        <section id="productos" className="bg-white py-20">
-          <div className="mx-auto max-w-[1280px] px-6">
-            <span
-              className="text-[12px] font-extrabold uppercase tracking-[2px]"
-              style={{ color: accent }}
-            >
-              Catálogo
             </span>
-            <h2 className="mt-3 max-w-[620px] text-[clamp(1.9rem,4vw,2.8rem)] font-black uppercase leading-[1] tracking-[-0.01em]">
-              Nuestros {noun.many}
-            </h2>
-            <div className="mt-5 h-[5px] w-[70px]" style={{ background: accent }} />
-
-            <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-              {catalogo.slice(0, CATALOGO_EN_LANDING).map((p) => (
-                <ProductoCard
-                  key={p.id}
-                  product={p}
-                  accent={accent}
-                  on={on}
-                  rubroIcon={rubro.icon}
-                  onOpen={() => setFicha(p)}
-                  onPedir={() =>
-                    openWhatsapp(
-                      `${business.greeting} Quiero pedir *${p.name}* (${p.id}) — ${bs(p.price)}.`,
-                      waNumber
-                    )
-                  }
-                />
-              ))}
-            </div>
-
-            <div className="mt-10 flex flex-wrap items-center gap-4">
-              <Link
-                href={link("/")}
-                className="inline-flex items-center gap-2.5 rounded-[12px] px-7 py-[16px] text-[13px] font-extrabold uppercase tracking-wide transition-transform hover:-translate-y-0.5"
-                style={{ background: accent, color: on }}
-              >
-                <ShoppingCart size={18} /> Ver toda la tienda
-              </Link>
-              {catalogo.length > CATALOGO_EN_LANDING && (
-                <span className="text-[13px] text-black/55">
-                  Y {catalogo.length - CATALOGO_EN_LANDING} {noun.many} más en la tienda.
-                </span>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ===================== BENEFICIOS ===================== */}
-      {promo.highlights.length > 0 && (
-      <section id="beneficios" className="bg-[#F6F5F3] py-20">
-        <div className="mx-auto max-w-[1280px] px-6">
-          <span
-            className="text-[12px] font-extrabold uppercase tracking-[2px]"
-            style={{ color: accent }}
-          >
-            Por qué comprarnos
-          </span>
-          <h2 className="mt-3 max-w-[620px] text-[clamp(1.9rem,4vw,2.8rem)] font-black uppercase leading-[1] tracking-[-0.01em]">
-            Todo lo que incluye tu {noun.one}
-          </h2>
-          <div className="mt-5 h-[5px] w-[70px]" style={{ background: accent }} />
-
-          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {promo.highlights.map((h, i) => (
-              <div
-                key={i}
-                className="rounded-[16px] border-2 border-black/[0.06] bg-white p-6 transition-colors hover:border-black/20"
-              >
-                <span
-                  className="grid h-12 w-12 place-items-center rounded-[12px]"
-                  style={{ background: accent, color: on }}
-                >
-                  <Icon name={h.icon} size={22} />
-                </span>
-                <h3 className="mt-4 text-[15px] font-extrabold uppercase tracking-wide">
-                  {h.title}
-                </h3>
-                {h.text && (
-                  <p className="mt-1.5 text-[13.5px] leading-relaxed text-black/60">{h.text}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-      )}
-
-      {/* ===================== CTA FINAL ===================== */}
-      <section id="contacto" className="relative overflow-hidden" style={{ background: accent }}>
-        <div
-          aria-hidden
-          className="absolute right-0 top-0 hidden h-full w-[40%] bg-white/10 lg:block"
-          style={{ clipPath: "polygon(38% 0, 100% 0, 100% 100%, 0 100%)" }}
-        />
-        <div className="relative mx-auto flex max-w-[1280px] flex-col items-start gap-7 px-6 py-16 lg:flex-row lg:items-center lg:justify-between">
-          <div style={{ color: on }}>
-            <h2 className="max-w-[620px] text-[clamp(1.6rem,3.1vw,2.3rem)] font-black uppercase leading-[1.15] tracking-[-0.01em]">
-              {business.hero.subtitle}
-            </h2>
-            <p className="mt-5 text-[13.5px] font-semibold opacity-70">
-              📍 {business.address} · 🕐 {business.hours}
-            </p>
-          </div>
-          <button
-            onClick={pedir}
-            className="inline-flex shrink-0 items-center gap-2.5 rounded-[12px] bg-[#14110F] px-8 py-[18px] text-[13.5px] font-extrabold uppercase tracking-wide text-white transition-transform hover:-translate-y-0.5"
-          >
-            <WhatsAppIcon size={19} /> {promo.ctaLabel}
-          </button>
-        </div>
-      </section>
-
-      {/* Ficha del producto: mismas fotos e información que en la tienda. Sin
-          carrito a la vista, el pedido sale por WhatsApp. */}
-      {ficha && <ProductDetail product={ficha} onClose={() => setFicha(null)} />}
-
-      {/* ===================== FOOTER ===================== */}
-      <footer className="bg-[#14110F] py-10">
-        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-5 px-6">
-          <div className="flex items-center gap-3">
-            <BrandHex />
-            <span className="leading-[0.95]">
-              <span className="block text-[17px] font-extrabold uppercase text-white">
+            <span className="min-w-0 leading-tight">
+              <span className="block truncate text-[15px] font-extrabold uppercase tracking-[-0.3px]">
                 {business.name}
               </span>
-              <span className="mt-1 block text-[8.5px] font-semibold uppercase tracking-[2px] text-white/45">
+              <span className="hidden truncate text-[9.5px] font-semibold uppercase tracking-[1.6px] text-black/40 sm:block">
                 {business.tagline}
               </span>
             </span>
-          </div>
+          </Link>
+
           <Link
             href={link("/")}
-            className="inline-flex items-center gap-2 text-[12.5px] font-bold uppercase tracking-wide text-white/70 transition-colors hover:text-white"
+            className="ml-auto inline-flex shrink-0 items-center gap-2 rounded-[10px] px-4 py-2.5 text-[12px] font-extrabold uppercase tracking-wide transition-transform hover:-translate-y-px"
+            style={{ background: accent, color: on }}
           >
-            Ver toda la tienda <ArrowRight size={16} />
+            <Store size={16} /> Ver la tienda
           </Link>
         </div>
-      </footer>
-    </div>
-  );
-}
+      </header>
 
-/**
- * Tarjeta del catálogo en la landing: foto (con cuántas hay), nombre, categoría,
- * descripción corta y precio. Tocarla abre la ficha completa; el botón manda el
- * pedido por WhatsApp, que es como se compra desde acá.
- */
-function ProductoCard({
-  product: p,
-  accent,
-  on,
-  rubroIcon,
-  onOpen,
-  onPedir,
-}: {
-  product: Product;
-  accent: string;
-  on: string;
-  rubroIcon: string;
-  onOpen: () => void;
-  onPedir: () => void;
-}) {
-  const fotos = productPhotos(p);
-  const agotado = typeof p.stock === "number" && p.stock <= 0;
+      {/* ===================== FICHA (una sola pantalla) ===================== */}
+      <main className="mx-auto grid w-full max-w-[1500px] flex-1 grid-cols-1 gap-4 p-4 sm:px-6 lg:min-h-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)_330px] lg:gap-5 lg:py-5">
+        {/* ---- Galería ---- */}
+        <section className="flex min-h-0 gap-3 rounded-[16px] border border-black/[0.07] bg-white p-3">
+          {fotos.length > 1 && (
+            <div className="flex max-h-full shrink-0 flex-col gap-2 overflow-y-auto pr-0.5">
+              {fotos.slice(0, 8).map((f, i) => (
+                <button
+                  key={`${i}-${f.slice(0, 24)}`}
+                  onClick={() => setFoto(i)}
+                  aria-label={`Foto ${i + 1}`}
+                  className="relative h-[58px] w-[58px] shrink-0 overflow-hidden rounded-[10px] border-2 bg-[#F6F5F3]"
+                  style={{ borderColor: i === foto ? accent : "rgba(0,0,0,0.08)" }}
+                >
+                  <Image src={f} alt="" fill sizes="58px" className="object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
 
-  return (
-    <div className="flex flex-col overflow-hidden rounded-[16px] border-2 border-black/[0.06] bg-white transition-colors hover:border-black/20">
-      <button
-        type="button"
-        onClick={onOpen}
-        aria-label={`Ver ${p.name}`}
-        className="relative aspect-square w-full overflow-hidden bg-[#F6F5F3]"
-      >
-        {fotos[0] ? (
-          <Image
-            src={fotos[0]}
-            alt={p.name}
-            fill
-            sizes="(max-width:768px) 50vw, 25vw"
-            className="object-cover transition-transform duration-500 hover:scale-[1.05]"
-          />
-        ) : (
-          <span className="absolute inset-0 grid place-items-center" style={{ color: accent }}>
-            <Icon name={rubroIcon} size={64} />
-          </span>
-        )}
-        {fotos.length > 1 && (
-          <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">
-            {fotos.length} fotos
-          </span>
-        )}
-        {agotado && (
-          <span className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
-            Sin stock
-          </span>
-        )}
-      </button>
+          <div className="relative min-h-[300px] flex-1 overflow-hidden rounded-[12px] bg-[#F6F5F3] lg:min-h-0">
+            {actual ? (
+              <Image
+                src={actual}
+                alt={promo.productName}
+                fill
+                priority
+                sizes="(max-width:1024px) 92vw, 38vw"
+                className="object-contain p-4"
+              />
+            ) : (
+              <span className="absolute inset-0 grid place-items-center" style={{ color: accent }}>
+                <Icon name={rubro.icon} size={140} />
+              </span>
+            )}
+            {hasDiscount && (
+              <span
+                className="absolute left-3 top-3 rounded-[8px] px-2.5 py-1 text-[12px] font-extrabold"
+                style={{ background: accent, color: on }}
+              >
+                -{discountPct}%
+              </span>
+            )}
+          </div>
+        </section>
 
-      <div className="flex flex-1 flex-col p-4">
-        <span className="text-[10.5px] font-bold uppercase tracking-[1.5px] text-black/40">
-          {p.category}
-        </span>
-        <button
-          type="button"
-          onClick={onOpen}
-          className="mt-1 text-left text-[14px] font-extrabold uppercase leading-tight tracking-tight hover:underline"
-        >
-          {p.name}
-        </button>
-        {p.desc?.trim() && (
-          <p className="mt-1.5 line-clamp-2 text-[12.5px] leading-snug text-black/55">{p.desc}</p>
-        )}
+        {/* ---- Datos y precio ---- */}
+        <section className="flex min-h-0 flex-col gap-3.5 overflow-y-auto rounded-[16px] border border-black/[0.07] bg-white p-5">
+          <div>
+            <span
+              className="text-[11px] font-extrabold uppercase tracking-[2px]"
+              style={{ color: accent }}
+            >
+              {promo.eyebrow}
+            </span>
+            <h1 className="mt-2 text-[clamp(1.25rem,2.1vw,1.65rem)] font-extrabold leading-[1.25] tracking-[-0.01em]">
+              {promo.title}
+            </h1>
+            <p className="mt-1.5 text-[12.5px] text-black/45">
+              {promo.productName}
+              {promo.badge && (
+                <>
+                  {" · "}
+                  <span className="font-bold" style={{ color: accent }}>
+                    {promo.badge}
+                  </span>
+                </>
+              )}
+            </p>
+          </div>
 
-        <span className="mt-3 text-[19px] font-black leading-none">{bs(p.price)}</span>
+          {/* Precio: el de oferta grande y, si hay, el anterior y el ahorro */}
+          <div className="flex flex-wrap items-end gap-x-6 gap-y-2 border-y border-black/[0.07] py-4">
+            <span>
+              <span className="block text-[clamp(1.9rem,3.4vw,2.5rem)] font-black leading-none">
+                {bs(promo.price)}
+              </span>
+              <span className="mt-1.5 block text-[11.5px] text-black/45">
+                Precio de la promoción
+              </span>
+            </span>
+            {hasDiscount && (
+              <>
+                <span>
+                  <span className="block text-[20px] font-semibold leading-none text-black/35 line-through">
+                    {bs(promo.originalPrice!)}
+                  </span>
+                  <span className="mt-1.5 block text-[11.5px] text-black/45">Precio normal</span>
+                </span>
+                <span>
+                  <span
+                    className="block text-[20px] font-black leading-none"
+                    style={{ color: accent }}
+                  >
+                    {bs(promo.originalPrice! - promo.price)}
+                  </span>
+                  <span className="mt-1.5 block text-[11.5px] text-black/45">Te ahorras</span>
+                </span>
+              </>
+            )}
+          </div>
 
-        <button
-          onClick={onPedir}
-          className="mt-3.5 inline-flex items-center justify-center gap-2 rounded-[10px] px-4 py-2.5 text-[12px] font-extrabold uppercase tracking-wide transition-transform hover:-translate-y-px"
-          style={{ background: accent, color: on }}
-        >
-          <WhatsAppIcon size={15} /> Pedir
-        </button>
-      </div>
+          {deadline && <Countdown iso={deadline} accent={accent} on={on} />}
+
+          {promo.description.trim() && (
+            <p className="text-[13.5px] leading-relaxed text-black/65">{promo.description}</p>
+          )}
+
+          {/* Cifras destacadas: la fila de atributos de la ficha */}
+          {promo.stats.length > 0 && (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {promo.stats.slice(0, 4).map((s, i) => (
+                <div
+                  key={i}
+                  className="rounded-[10px] border border-black/[0.07] bg-[#F6F5F3] px-3 py-2.5"
+                >
+                  <span className="block text-[15px] font-black leading-none">{s.value}</span>
+                  <span className="mt-1 block text-[10.5px] font-semibold uppercase tracking-[1px] text-black/45">
+                    {s.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Beneficios: la lista corta de "qué incluye" */}
+          {promo.highlights.length > 0 && (
+            <ul className="mt-auto grid gap-1.5 pt-1 sm:grid-cols-2">
+              {promo.highlights.slice(0, 6).map((h, i) => (
+                <li key={i} className="flex items-start gap-2 text-[12.5px] text-black/70">
+                  <span className="mt-[3px] shrink-0" style={{ color: accent }}>
+                    <Icon name={h.icon} size={15} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="font-bold text-[#14110F]">{h.title}</span>
+                    {h.text && <span className="text-black/55"> — {h.text}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* ---- Tarjeta de compra ---- */}
+        <aside className="flex min-h-0 flex-col gap-3.5 overflow-y-auto rounded-[16px] border border-black/[0.07] bg-white p-5">
+          <h2 className="text-[15px] font-extrabold">Cómo comprar</h2>
+          <p className="text-[12.5px] leading-relaxed text-black/60">
+            Toca <span className="font-bold text-[#14110F]">{promo.ctaLabel}</span> y te llevamos al
+            catálogo de la tienda para elegir tus {noun.many} y hacer el pedido. ¿Dudas? Escríbenos
+            por WhatsApp.
+          </p>
+
+          <Link
+            href={link("/")}
+            className="inline-flex items-center justify-center gap-2.5 rounded-[12px] px-5 py-[15px] text-[13px] font-extrabold uppercase tracking-wide transition-transform hover:-translate-y-0.5"
+            style={{ background: accent, color: on }}
+          >
+            <ShoppingCart size={18} /> {promo.ctaLabel}
+          </Link>
+          <button
+            onClick={consultar}
+            className="inline-flex items-center justify-center gap-2.5 rounded-[12px] border-2 border-black/10 px-5 py-[13px] text-[13px] font-extrabold uppercase tracking-wide transition-colors hover:border-black/30"
+          >
+            <WhatsAppIcon size={18} /> Escríbenos
+          </button>
+
+          <ul className="grid gap-2.5 border-t border-black/[0.07] pt-4 text-[12.5px] text-black/65">
+            <li className="flex items-start gap-2">
+              <ShieldCheck size={16} className="mt-px shrink-0" style={{ color: accent }} />
+              <span>
+                <span className="block font-bold text-[#14110F]">Compra directa con nosotros</span>
+                Sin intermediarios: el pedido llega a {business.name}.
+              </span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Check size={16} className="mt-px shrink-0" style={{ color: accent }} />
+              <span>
+                <span className="block font-bold text-[#14110F]">Dónde y cuándo</span>
+                📍 {business.address}
+                <br />🕐 {business.hours}
+              </span>
+            </li>
+          </ul>
+
+          <Link
+            href={link("/")}
+            className="mt-auto inline-flex items-center gap-2 pt-2 text-[12px] font-bold uppercase tracking-wide text-black/50 transition-colors hover:text-black"
+          >
+            Ver todo el catálogo <ArrowRight size={15} />
+          </Link>
+        </aside>
+      </main>
     </div>
   );
 }
@@ -654,84 +325,29 @@ function Countdown({ iso, accent, on }: { iso: string; accent: string; on: strin
   }, [iso]);
 
   const box = (v: number | null, l: string) => (
-    <div className="text-center">
+    <span className="text-center">
       <span
-        className="grid h-[62px] w-[62px] place-items-center rounded-[12px] text-[22px] font-black"
+        className="grid h-[38px] w-[38px] place-items-center rounded-[9px] text-[15px] font-black"
         style={{ background: accent, color: on }}
       >
         {v == null ? "--" : v.toString().padStart(2, "0")}
       </span>
-      <span className="mt-1.5 block text-[10px] font-bold uppercase tracking-[1.5px] text-black/45">
+      <span className="mt-1 block text-[9px] font-bold uppercase tracking-[1.2px] text-black/40">
         {l}
       </span>
-    </div>
+    </span>
   );
 
   return (
-    <div className="flex gap-2.5">
+    <div className="flex items-center gap-2.5">
+      <span className="text-[11px] font-bold uppercase tracking-[1.5px] text-black/45">
+        Termina en
+      </span>
       {box(left == null ? null : Math.floor(left / 86400000), "Días")}
-      {box(left == null ? null : Math.floor((left / 3600000) % 24), "Horas")}
+      {box(left == null ? null : Math.floor((left / 3600000) % 24), "Hrs")}
       {box(left == null ? null : Math.floor((left / 60000) % 60), "Min")}
       {box(left == null ? null : Math.floor((left / 1000) % 60), "Seg")}
     </div>
-  );
-}
-
-// ===================== Decoraciones =====================
-
-function DotGrid({ className, color }: { className?: string; color: string }) {
-  return (
-    <span
-      aria-hidden
-      className={`${className} h-[86px] w-[86px]`}
-      style={{
-        backgroundImage: `radial-gradient(${color} 2.2px, transparent 2.2px)`,
-        backgroundSize: "17px 17px",
-        opacity: 0.55,
-      }}
-    />
-  );
-}
-
-function CrossGrid({ className, color }: { className?: string; color: string }) {
-  return (
-    <svg
-      aria-hidden
-      className={className}
-      width="86"
-      height="60"
-      viewBox="0 0 86 60"
-      fill="none"
-      opacity="0.5"
-    >
-      {[0, 1, 2].map((r) =>
-        [0, 1, 2, 3].map((c) => (
-          <g key={`${r}-${c}`} stroke={color} strokeWidth="2.4" strokeLinecap="round">
-            <line x1={6 + c * 22} y1={6 + r * 22} x2={14 + c * 22} y2={14 + r * 22} />
-            <line x1={14 + c * 22} y1={6 + r * 22} x2={6 + c * 22} y2={14 + r * 22} />
-          </g>
-        ))
-      )}
-    </svg>
-  );
-}
-
-function Chevrons({ className, color }: { className?: string; color: string }) {
-  return (
-    <svg
-      aria-hidden
-      className={className}
-      width="42"
-      height="70"
-      viewBox="0 0 42 70"
-      fill="none"
-      stroke={color}
-      strokeWidth="7"
-      strokeLinecap="round"
-    >
-      <polyline points="6,8 24,22 6,36" />
-      <polyline points="6,32 24,46 6,60" />
-    </svg>
   );
 }
 

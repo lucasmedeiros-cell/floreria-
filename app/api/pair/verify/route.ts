@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { bad, handler, ok } from "@/lib/api";
 import { readBusiness } from "@/lib/businessStore";
+import { panelOrigin } from "@/lib/panelAuth";
 import { currentTenant } from "@/lib/tenant";
 import { deviceToken } from "@/lib/tenantRequest";
 
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 /**
  * Pareo: "este token, ¿de qué negocio es?".
  *
- * Lo llama el CRM móvil apenas escanea el QR que emite el panel de Case
+ * Lo llama el CRM móvil apenas escanea el QR que emite el panel de easy pos
  * (`{url, token}`), para confirmar que el token sirve y que la URL está viva
  * ANTES de dar el pareo por bueno — si esto falla, la app debe deshacerlo y no
  * quedar pegada a un comercio que no existe.
@@ -40,7 +41,9 @@ export const GET = handler(async (req: NextRequest) => {
 
   const { negocio } = tenant;
   const business = await readBusiness();
-  const base = `${req.nextUrl.origin}/n/${negocio.slug}`;
+  // Origen PÚBLICO (headers del proxy): detrás de nginx, req.nextUrl.origin es
+  // el host interno (localhost) y estas URLs viajan a la app del cliente.
+  const base = `${panelOrigin(req.headers)}/n/${negocio.slug}`;
 
   return ok({
     negocio: {

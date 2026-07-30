@@ -50,7 +50,9 @@ export interface VendedorConfig {
 }
 
 export const defaultVendedorConfig: VendedorConfig = {
-  botEnabled: true,
+  // Arranca apagado: el negocio lo enciende cuando ya vinculó su WhatsApp y
+  // revisó la persona, el horario y las formas de pago.
+  botEnabled: false,
   // Vacío = se usa la persona del rubro activo (ver botPersonaFor). El panel
   // permite escribir una propia y esa gana.
   botPersona: "",

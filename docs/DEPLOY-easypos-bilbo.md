@@ -2,8 +2,8 @@
 
 Guía para poner la app **easy pos** (Next.js: app móvil + panel + API) en
 producción, en el servidor **bilbo** (el mismo de `easypaybo.com`), bajo el
-subdominio **`easypos.easypaybo.com`**, en **modo multi-negocio** conectado a la
-central de Case.
+subdominio **`easypos.easypaybo.com`**, en **modo multi-negocio** con la
+**central propia** de easy pos (`bo_epos_central`) y su panel (`/panel`).
 
 > Corré estos pasos **en bilbo** salvo donde se indique. Reemplazá los
 > `<PLACEHOLDERS>`. Cada paso dice si es de una sola vez o repetible.
@@ -12,9 +12,11 @@ central de Case.
 
 ## 0. Cómo encaja todo (leer una vez)
 
-- **Case** (`case.easypaybo.com`) — panel central. Ahí se **activan** los
-  negocios de easy pos. Guarda el registro en la base **`bo_case_central`**
-  (tablas `negocio`, `dispositivo`). **No se toca.**
+- **El panel de easy pos** (`/panel` de esta misma app) — ahí se **crean y
+  activan** los negocios. El registro vive en la base PROPIA
+  **`bo_epos_central`** (tablas `negocio`, `dispositivo`, `usuario`,
+  `actividad`; esquema en `db/central.sql`). Ver `docs/PANEL-easypos.md`.
+  Case ya NO participa: `bo_case_central` quedó como registro muerto y no se lee.
 - **Cada negocio** tiene su propia base: `bo_epos_<slug>`
   (ej. `bo_epos_multipartes`). Ahí viven sus productos, ventas, empleados, etc.
 - **Esta app** (lo que desplegamos) corre en **modo multi-negocio**: lee
@@ -22,8 +24,8 @@ central de Case.
   el slug de la URL `/n/<slug>` o por el token del dispositivo) y trabaja contra
   la base de ese negocio.
 
-Resultado: activás un negocio en Case → queda disponible en
-`easypos.easypaybo.com`, y la app móvil se vincula por QR/código.
+Resultado: creás un negocio en `/panel` → queda disponible en
+`easypos.easypaybo.com/n/<slug>`, y la app móvil se vincula por QR/código.
 
 ---
 
@@ -76,10 +78,12 @@ Creá `/opt/easypos/.env.production` (la app en bilbo llega a Postgres por
 `localhost`):
 
 ```ini
-# --- Modo multi-negocio: central de Case ---
-CENTRAL_DATABASE_URL=postgresql://petrobox:<DBPASS>@localhost:5432/bo_case_central
+# --- Modo multi-negocio: central PROPIA de easy pos ---
+CENTRAL_DATABASE_URL=postgresql://petrobox:<DBPASS>@localhost:5432/bo_epos_central
 # Bases de cada negocio (mismo Postgres). {db} se reemplaza por bo_epos_<slug>.
 TENANT_DATABASE_URL_TEMPLATE=postgresql://petrobox:<DBPASS>@localhost:5432/{db}
+# Clave opcional para usar /api/provision por script (el panel usa su login):
+# PROVISION_KEY=<una-clave-larga>
 
 # Postgres local, sin SSL.
 PGSSL=false
@@ -96,10 +100,10 @@ NODE_ENV=production
 # ANTHROPIC_API_KEY=...
 ```
 
-> **Rol de base de datos:** la app usa el rol **`petrobox`**. Ya le di los
-> permisos (SELECT/INSERT/UPDATE/DELETE + secuencias + default privileges) sobre
-> `bo_case_central`, `bo_epos_multipartes` y `bo_epos_prueba_easy`. `<DBPASS>` es
-> la contraseña del rol `petrobox` en bilbo.
+> **Rol de base de datos:** la app usa el rol **`petrobox`**, que es dueño de
+> `bo_epos_central` y necesita `CREATEDB` (el alta de negocios del panel crea
+> las bases `bo_epos_<slug>`; en bilbo ya lo tiene desde el 2026-07-22).
+> `<DBPASS>` es la contraseña del rol `petrobox` en bilbo.
 >
 > **Autenticación local:** la app corre en bilbo y conecta por `localhost`, así
 > que el `pg_hba.conf` de bilbo tiene que permitir a `petrobox` conectarse local
@@ -192,23 +196,9 @@ curl -s -o /dev/null -w "%{http_code}\n" https://easypos.easypaybo.com/api/busin
 - Las **2 bases existentes** (`bo_epos_multipartes`, `bo_epos_prueba_easy`) **ya
   quedaron migradas** con las tablas nuevas (`sales`, `sale_items`,
   `purchase_orders`, `purchase_order_items`). Nada que hacer.
-- Para **negocios que actives de ahora en más**: el `db/schema.sql` de este repo
-  ya incluye esas tablas, así que si Case aprovisiona la base nueva con
-  `schema.sql`, quedan listas. Si Case usa otra plantilla, hay que agregarle las
-  migraciones `db/migrations/007_sales.sql` y `008_purchase_orders.sql` (son
-  idempotentes).
-- **Permisos del rol en negocios nuevos:** cada base `bo_epos_*` nueva necesita
-  los grants a `petrobox` (los de las existentes ya están hechos). Corré, como
-  superusuario, contra la base nueva:
-
-  ```sql
-  GRANT USAGE ON SCHEMA public TO petrobox;
-  GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO petrobox;
-  GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO petrobox;
-  ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
-    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO petrobox;
-  ```
-  (Lo mejor es que Case incluya estos grants en su plantilla de aprovisionamiento.)
+- Para **negocios que actives de ahora en más**: el alta del panel (`/panel` →
+  Nuevo negocio) crea la base con `db/schema.sql` completo y los grants del rol
+  `petrobox` incluidos. No hay nada manual que hacer.
 
 Para re-aplicar las migraciones a TODAS las bases `bo_epos_*` cuando haga falta:
 
@@ -243,9 +233,10 @@ Con eso:
 
 ## 8. Prueba de humo (fin a fin)
 
-1. En Case, activá/elegí un negocio de easy pos (o usá `multipartes`).
-2. En su panel (`easypos.easypaybo.com/n/multipartes` → Configuración → Vincular
-   dispositivo) generá el QR/código.
+1. En `easypos.easypaybo.com/panel`, entrá y elegí un negocio (o usá
+   `multipartes`), o creá uno nuevo.
+2. Generá el QR de pareo desde la ficha del negocio en el panel (o desde su CRM:
+   `…/n/multipartes` → Configuración → Vincular dispositivo).
 3. En el teléfono (con internet, **sin** cable): abrí easy pos, escaneá el QR.
 4. Entrá con un empleado del negocio, hacé una venta (baja stock) y un pedido a
    proveedor (al recibir, sube stock).
@@ -258,7 +249,10 @@ Si todo eso anda, el backend real está funcionando y ya no depende de tu PC.
 
 - [ ] DNS `easypos.easypaybo.com` → 173.212.251.72
 - [ ] Código en `/opt/easypos` + `npm ci` + `npm run build`
-- [ ] `.env.production` con `CENTRAL_DATABASE_URL` y `TENANT_DATABASE_URL_TEMPLATE`
+- [ ] Central propia `bo_epos_central` creada y migrada desde Case (hecho el
+      2026-07-22; re-correr `db/migrar-central-desde-case.sh` justo antes del
+      cambio de env, por si hubo pareos nuevos)
+- [ ] `.env.production` con `CENTRAL_DATABASE_URL` → `bo_epos_central` y `TENANT_DATABASE_URL_TEMPLATE`
 - [ ] `easypos.service` activo
 - [ ] nginx vhost + certbot (HTTPS)
 - [ ] (hecho) migraciones en las bases `bo_epos_*` existentes

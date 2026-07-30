@@ -3,7 +3,7 @@
 Antes, easy pos era **un negocio por instalación**: un deploy, una base, una tienda.
 Ahora una sola instalación sirve a **muchos negocios**, cada uno con su web, su CRM y
 su base de datos. El **pareo** es lo que conecta un dispositivo (o un navegador) con
-*su* negocio, y es la misma idea que ya usa Case con el POS: la central emite un
+*su* negocio: la central emite un
 **token** por dispositivo, el token identifica al negocio, y con eso la app sabe a qué
 comercio le está hablando.
 
@@ -11,19 +11,19 @@ comercio le está hablando.
 
 | Pieza | Dónde vive | Qué hace |
 |---|---|---|
-| Central | `bo_sole_central` (repo `case`) | Registro de negocios (`negocio`) y de tokens (`dispositivo`). Es de Case; easy pos solo la lee. |
+| Central | `bo_epos_central` (este repo, `db/central.sql`) | Registro de negocios (`negocio`), tokens (`dispositivo`), usuarios del panel y actividad. Es PROPIA de easy pos. |
 | Base del negocio | `bo_epos_<slug>` | Sus productos, pedidos, clientes, empleados y ajustes. Una por comercio. |
-| Panel de Case | `case.easypaybo.com` | Da de alta el comercio, provisiona su base y entrega el **QR de pareo**. |
+| Panel de easy pos | `/panel` (este repo) | Da de alta el comercio, provisiona su base y entrega el **QR de pareo**. Ver `docs/PANEL-easypos.md`. |
 | easy pos | este repo | Sirve la tienda (`/n/<slug>`), la landing (`/n/<slug>/promo`) y el CRM (`/n/<slug>/admin`) de cada negocio. |
 
 Nada de esto se activa solo: **sin `CENTRAL_DATABASE_URL`, easy pos sigue funcionando
 como antes** (un solo negocio, el de `DATABASE_URL`, en `/`, `/admin` y `/promo`).
 
-## Alta de un comercio (desde el panel de Case)
+## Alta de un comercio (desde el panel `/panel`)
 
-1. *Activar comercio* → producto **easy pos**, nombre, rubro, correo y contraseña del dueño.
-2. El panel corre `provision_easypos.sh`, que crea la base `bo_epos_<slug>` con el esquema.
-3. Registra el `negocio` (con `producto='easypos'`) y un `dispositivo` con su token.
+1. *Nuevo negocio* → nombre, rubro, correo y contraseña del dueño.
+2. El alta (`/api/provision`) crea la base `bo_epos_<slug>` con el esquema y los grants.
+3. Registra el `negocio` en la central y, al vincular, un `dispositivo` con su token.
 4. Llama a `POST /api/pair/bootstrap` de easy pos: aplica el rubro (colores, textos,
    categorías, landing), carga el catálogo de ejemplo y crea al dueño.
 5. Muestra el **QR** `{url, token, slug, nombre, producto}` y el **link de pareo**
@@ -37,7 +37,7 @@ Desde ese momento el comercio ya tiene:
 
 ## Cómo se parea la app móvil (el CRM descargable)
 
-Igual que la app de Case: se escanea el QR y se guardan `url` + `token`.
+Se escanea el QR y se guardan `url` + `token`.
 
 ```jsonc
 // Contenido del QR
@@ -108,8 +108,8 @@ Authorization: Bearer {token de sesión} ← quién es
 La sesión queda atada al negocio donde se hizo el login: usarla contra otro comercio no
 funciona (devuelve 401), aunque la firma sea válida.
 
-**4. Reportar el dispositivo** (opcional, pero es lo que el panel de Case muestra en la
-ficha del comercio: última conexión, versión, plataforma):
+**4. Reportar el dispositivo** (opcional, pero es lo que el panel muestra en la
+ficha del negocio: última conexión, versión, plataforma):
 
 ```http
 X-Device-Platform: android   X-Device-Model: SM-A032M
@@ -123,19 +123,49 @@ X-Device-Name: Caja 1
 `/parear?token=…` que da el panel y se parea solo) y lleva al CRM del negocio. El token
 queda guardado en ese navegador para volver a entrar.
 
+## Cómo se parea el programa de PC (escritorio)
+
+El programa de escritorio (`desktop/`) apunta por defecto a la nube
+(`https://easypos.easypaybo.com`) y en el login tiene **"Vincular al negocio"**:
+se pega el **código de 6 dígitos** (se canjea en `POST /api/devices/pair`) o el
+**token** que muestra el panel junto al QR (se valida en `GET /api/pair/verify`).
+El token queda en la config del programa y viaja como `X-Device-Token` en cada
+request: el backend resuelve el negocio y trabaja contra SU base.
+
+- Contra la nube el pareo es **obligatorio** (sin token no se puede entrar: el
+  dominio atiende a muchos negocios).
+- Contra un servidor local (`localhost` o IP de la red — el setup "todo en uno"
+  de Coquito) no hace falta: esa instalación es de un solo negocio.
+- "Desvincular" en el login borra el token para parear el equipo a otro negocio.
+
+## La app móvil de producción (APK)
+
+El APK compilado contra la nube se descarga de
+**`https://easypos.easypaybo.com/descargas/easypos.apk`** (nginx lo sirve
+directo del disco: `~/easypos/public/descargas/` en bilbo — Next no sirve
+archivos agregados a `public/` después del build). Para recompilarlo:
+
+```bash
+cd mobile/admin_app
+flutter build apk --release --dart-define=EASYPOS_API=https://easypos.easypaybo.com
+scp -P 2202 build/app/outputs/flutter-apk/app-release.apk petrobox@bilbo:easypos/public/descargas/easypos.apk
+```
+
+Instalado el APK: pantalla de pareo → escanear el QR del panel (o tipear el
+código de 6 dígitos) y el equipo queda en su negocio.
+
 ## Configuración
 
 ```bash
 # easy pos
-CENTRAL_DATABASE_URL=postgresql://…/bo_sole_central   # sin esto: un solo negocio (como antes)
+CENTRAL_DATABASE_URL=postgresql://…/bo_epos_central   # sin esto: un solo negocio (como antes)
 DATABASE_URL=postgresql://…/easypos                   # base del modo un-solo-negocio
 # Opcional: si las bases de los negocios están en otro servidor que la central.
 # TENANT_DATABASE_URL_TEMPLATE=postgresql://user:pass@host:5432/{db}
 ```
 
 easy pos abre un pool por negocio, contra `bo_epos_<slug>`. Por eso **necesita alcanzar
-el Postgres** donde viven la central y las bases de los comercios: no alcanza con que
-llegue al panel de Case.
+el Postgres** donde viven la central y las bases de los comercios.
 
 ## Migrar la flota
 
@@ -147,6 +177,6 @@ CENTRAL_DATABASE_URL=… PGHOST=… PGUSER=… PGPASSWORD=… ./db/migrate-tenan
 ```
 
 Recorre los negocios de la central y les aplica `schema.sql` + las migraciones (son
-idempotentes). El esquema con el que nacen los comercios nuevos es
-`provision/sql/easypos_v1.sql` **en el repo de Case**: si cambia el esquema de easy pos,
-hay que actualizar esa copia también, o los comercios nuevos nacen viejos.
+idempotentes). Los comercios nuevos nacen del `db/schema.sql` de ESTE repo (el
+alta del panel lo aplica tal cual), así que no hay ninguna copia externa que
+mantener sincronizada.

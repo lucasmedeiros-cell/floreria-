@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Cormorant_Garamond, Poppins, Dancing_Script } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { StoreProvider } from "@/context/StoreProvider";
 import { ToastHost } from "@/components/Toast";
@@ -20,24 +20,37 @@ function conNegocio<T>(fn: () => Promise<T>): Promise<T> {
   return runWithSlug(headers().get(NEGOCIO_HEADER), fn);
 }
 
-const cormorant = Cormorant_Garamond({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+// Fuentes auto-hospedadas (subset latin, mismos pesos que antes). Se sirven
+// desde app/fonts/ para que el `next build` no dependa de bajar nada de Google
+// en tiempo de compilación: builds reproducibles y sin cortes de red.
+const cormorant = localFont({
+  src: [
+    { path: "./fonts/cormorant-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/cormorant-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/cormorant-600.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/cormorant-700.woff2", weight: "700", style: "normal" },
+  ],
   variable: "--font-cormorant",
   display: "swap",
 });
 
-const poppins = Poppins({
-  subsets: ["latin"],
+const poppins = localFont({
   // 800/900: titulares gruesos de la landing promocional.
-  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  src: [
+    { path: "./fonts/poppins-300.woff2", weight: "300", style: "normal" },
+    { path: "./fonts/poppins-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/poppins-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/poppins-600.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/poppins-700.woff2", weight: "700", style: "normal" },
+    { path: "./fonts/poppins-800.woff2", weight: "800", style: "normal" },
+    { path: "./fonts/poppins-900.woff2", weight: "900", style: "normal" },
+  ],
   variable: "--font-poppins",
   display: "swap",
 });
 
-const dancing = Dancing_Script({
-  subsets: ["latin"],
-  weight: ["700"],
+const dancing = localFont({
+  src: [{ path: "./fonts/dancing-700.woff2", weight: "700", style: "normal" }],
   variable: "--font-dancing",
   display: "swap",
 });
