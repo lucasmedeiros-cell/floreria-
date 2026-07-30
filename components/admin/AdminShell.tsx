@@ -15,6 +15,7 @@ import {
   Settings,
   ShoppingCart,
   Truck,
+  Warehouse,
   X,
 } from "lucide-react";
 import { useAuth, useBusiness } from "@/context/StoreProvider";
@@ -23,12 +24,14 @@ import Image from "next/image";
 import { Icon } from "@/components/Icon";
 import { EASYPOS } from "@/lib/easypos";
 import type { ModuleId } from "@/lib/modules";
+import { DEFAULT_RUBRO_ID } from "@/lib/rubros";
 import { PrimaryButton } from "@/components/ui";
 import { InicioScreen } from "./InicioScreen";
 import { CurvedHeader } from "./kit";
 import { VentasScreen } from "./VentasScreen";
 import { NewOrderPage } from "./NewOrderPage";
 import { OrdersPage } from "./OrdersPage";
+import { ProveedorPage } from "./ProveedorPage";
 import { ClientsPage } from "./ClientsPage";
 import { ProductsPage } from "./ProductsPage";
 import { AgendaPage } from "./AgendaPage";
@@ -45,6 +48,7 @@ type Section =
   | "ventas"
   | "nuevoPedido"
   | "pedidos"
+  | "proveedor"
   | "agenda"
   | "clientes"
   | "productos"
@@ -67,12 +71,13 @@ interface NavDef {
 const NAV: NavDef[] = [
   { s: "ventas", icon: <ShoppingCart size={19} />, label: "Ventas", mod: "ventas" },
   { s: "pedidos", icon: <ListOrdered size={19} />, label: "Pedidos" },
+  { s: "proveedor", icon: <Warehouse size={19} />, label: "Proveedor" },
   { s: "agenda", icon: <CalendarClock size={19} />, label: "Agenda", mod: "agenda" },
   { s: "productos", icon: <Flower2 size={19} />, label: "Productos", mod: "productos" },
   { s: "entregas", icon: <Truck size={19} />, label: "Entregas", mod: "entregas" },
   { s: "reportes", icon: <LineChart size={19} />, label: "Reportes", mod: "reportes" },
   { s: "configuracion", icon: <Settings size={19} />, label: "Configuración" },
-  // Usuarios y Clientes se administran desde Case, no desde el CRM del negocio.
+  // Usuarios y Clientes se administran desde el panel de easy pos (/panel).
 ];
 
 // Secciones ya convertidas al diseño de la app (header curvo + kit). Se van
@@ -82,6 +87,7 @@ const SECTION_TITLE: Partial<Record<Section, string>> = {
   inicio: "Inicio",
   ventas: "Ventas",
   pedidos: "Pedidos",
+  proveedor: "Pedidos a proveedor",
   productos: "Productos",
   reportes: "Reportes",
   configuracion: "Configuración",
@@ -110,19 +116,15 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
   const page = () => {
     switch (seccion) {
       case "inicio":
-        return (
-          <InicioScreen
-            onVentas={() => go("ventas")}
-            onProductos={() => go("productos")}
-            onPedidos={() => go("pedidos")}
-          />
-        );
+        return <InicioScreen onGo={go} />;
       case "ventas":
         return <VentasScreen />;
       case "nuevoPedido":
         return <NewOrderPage onDone={() => go("pedidos")} />;
       case "pedidos":
         return <OrdersPage onNew={() => go("nuevoPedido")} />;
+      case "proveedor":
+        return <ProveedorPage />;
       case "clientes":
         return <ClientsPage onNew={() => go("nuevoPedido")} />;
       case "agenda":
@@ -245,13 +247,19 @@ function Sidebar({
           </button>
         )}
       </div>
-      {/* Rubro activo: se cambia en Configuración → Rubro del negocio. */}
-      <div className="px-5 pb-4">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-pinkSoft px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[1px] text-ink">
-          <Icon name={business.rubro.icon} size={12} />
-          {business.rubro.label}
-        </span>
-      </div>
+      {/* Rubro activo: se cambia en Configuración → Rubro del negocio.
+          Si todavía no se eligió rubro no mostramos la etiqueta: sería un
+          "SIN DEFINIR" que no aporta nada. */}
+      {business.rubro.id === DEFAULT_RUBRO_ID ? (
+        <div className="pb-3" />
+      ) : (
+        <div className="px-5 pb-4">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-pinkSoft px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[1px] text-ink">
+            <Icon name={business.rubro.icon} size={12} />
+            {business.rubro.label}
+          </span>
+        </div>
+      )}
       <div className="px-4">
         <PrimaryButton
           label="Nuevo Pedido"
