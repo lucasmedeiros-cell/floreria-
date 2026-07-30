@@ -4,13 +4,24 @@ import { readFile } from "fs/promises";
 import path from "path";
 import { randomBytes } from "crypto";
 import QRCode from "qrcode";
+import { getPanelSession, logActividad } from "@/lib/panelAuth";
+import { waNumber } from "@/lib/business";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Clave simple para proteger la provisión (crear negocios / dispositivos).
-// SIN la env var el endpoint queda apagado: nunca una clave por defecto en el
-// código, porque este panel crea bases y admins de todos los negocios.
+// ============================================================
+//  Motor de administración de negocios (lo consume el panel `/panel`).
+//  Trabaja contra la central PROPIA de easy pos (`bo_epos_central`):
+//  altas de negocio (crea la base y el admin), estados, dispositivos
+//  de pareo, empleados y credenciales de cobro QR.
+//
+//  Autorización: la sesión del panel (cookie `panel_session`), o la
+//  clave PROVISION_KEY (header `x-provision-key`) para scripts. Sin
+//  PROVISION_KEY configurada, la clave queda apagada; el panel sigue
+//  funcionando con su sesión.
+// ============================================================
+
 const KEY = process.env.PROVISION_KEY || "";
 
 function centralUrl(): string {
@@ -31,10 +42,13 @@ async function withPool<T>(url: string, fn: (p: Pool) => Promise<T>): Promise<T>
     await pool.end();
   }
 }
-function authorized(req: NextRequest, body?: { key?: string }): boolean {
-  if (!KEY) return false; // sin PROVISION_KEY configurada, la provisión está apagada
-  const k = req.headers.get("x-provision-key") || body?.key || "";
-  return k === KEY;
+
+/** Quién está operando: el usuario del panel, o "clave-api" si vino por clave. */
+function actor(req: NextRequest, body?: { key?: string }): string | null {
+  const s = getPanelSession();
+  if (s) return s.email;
+  if (KEY && (req.headers.get("x-provision-key") || body?.key || "") === KEY) return "clave-api";
+  return null;
 }
 function serverBase(req: NextRequest): string {
   const proto = req.headers.get("x-forwarded-proto") || "https";
@@ -44,15 +58,23 @@ function serverBase(req: NextRequest): string {
 const cleanSlug = (s: string) =>
   (s || "").toString().trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
-// GET /api/provision  → lista los negocios easy pos (para el selector).
+const ESTADOS = ["prueba", "activo", "suspendido", "baja"] as const;
+
+// GET /api/provision  → lista los negocios (para la tabla del panel).
 export async function GET(req: NextRequest) {
-  if (!authorized(req)) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const who = actor(req);
+  if (!who) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
     const rows = await withPool(centralUrl(), (p) =>
       p.query(
-        `SELECT n.id, n.nombre, n.slug, n.db_name, n.estado,
-                (SELECT count(*) FROM dispositivo d WHERE d.negocio_id = n.id)::int AS dispositivos
-           FROM negocio n WHERE n.producto = 'easypos'
+        `SELECT n.id, n.nombre, n.slug, n.db_name, n.estado, n.rubro,
+                n.ciudad, n.nit, n.email, n.telefono,
+                COALESCE(NULLIF(n.nit,''), NULLIF(n.email,''), '—') AS propietario,
+                n.comision_qr::float8 AS "comisionQr", n.cuenta_qr AS "cuentaQr",
+                n.fecha_alta AS "fechaAlta",
+                (SELECT count(*) FROM dispositivo d WHERE d.negocio_id = n.id)::int AS dispositivos,
+                (SELECT max(d.last_seen) FROM dispositivo d WHERE d.negocio_id = n.id) AS "ultimoUso"
+           FROM negocio n
           ORDER BY n.fecha_alta DESC`
       ).then((r) => r.rows)
     );
@@ -67,7 +89,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  if (!authorized(req, body)) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const who = actor(req, body);
+  if (!who) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const action = body?.action;
 
   try {
@@ -142,12 +165,13 @@ export async function POST(req: NextRequest) {
         // 3) alta del negocio en la central
         const neg = await withPool(centralUrl(), (p) =>
           p.query(
-            `INSERT INTO negocio (nombre, slug, db_name, producto, estado, rubro)
-             VALUES ($1,$2,$3,'easypos','activo',$4)
+            `INSERT INTO negocio (nombre, slug, db_name, estado, rubro)
+             VALUES ($1,$2,$3,'activo',$4)
              RETURNING id, nombre, slug, db_name, estado`,
             [nombre, slug, dbName, rubro]
           ).then((r) => r.rows[0])
         );
+        logActividad(who, "alta-negocio", neg.id, { nombre, slug, rubro });
         return NextResponse.json({ business: neg });
       } catch (err) {
         // Compensación: si la DB la creamos en ESTE request y el alta no llegó
@@ -161,35 +185,152 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (action === "setEstado") {
+      const slug = cleanSlug(body.slug);
+      const estado = (body.estado || "").toString();
+      if (!ESTADOS.includes(estado as (typeof ESTADOS)[number]))
+        return NextResponse.json({ error: "Estado inválido (prueba, activo, suspendido o baja)." }, { status: 400 });
+      const neg = await withPool(centralUrl(), (p) =>
+        p.query(
+          `UPDATE negocio SET estado = $2 WHERE slug = $1
+           RETURNING id, nombre, slug, estado`,
+          [slug, estado]
+        ).then((r) => r.rows[0])
+      );
+      if (!neg) return NextResponse.json({ error: "Negocio no encontrado." }, { status: 404 });
+      logActividad(who, "estado-negocio", neg.id, { slug, estado });
+      // La app resuelve el negocio con un cache de 30 s (lib/tenant.ts): una
+      // suspensión tarda a lo sumo eso en cortar el acceso.
+      return NextResponse.json({ business: neg });
+    }
+
+    if (action === "updateNegocio") {
+      const slug = cleanSlug(body.slug);
+      const campos: Record<string, string | number | null> = {};
+      for (const k of ["nombre", "rubro", "nit", "telefono", "email", "direccion", "ciudad"] as const) {
+        if (k in body) {
+          const v = (body[k] ?? "").toString().trim();
+          if (k === "nombre" && !v)
+            return NextResponse.json({ error: "El nombre no puede quedar vacío." }, { status: 400 });
+          campos[k] = v || null;
+        }
+      }
+      // Config de cobro con QR: % de comisión (0..100) y a qué cuenta cae.
+      if ("comisionQr" in body) {
+        const c = Number(body.comisionQr);
+        campos.comision_qr = Number.isFinite(c) ? Math.min(100, Math.max(0, c)) : 0;
+      }
+      if ("cuentaQr" in body) {
+        campos.cuenta_qr = body.cuentaQr === "comercio" ? "comercio" : "empresa";
+      }
+      if (!Object.keys(campos).length)
+        return NextResponse.json({ error: "Nada para actualizar." }, { status: 400 });
+      const sets = Object.keys(campos).map((k, i) => `${k} = $${i + 2}`);
+      const neg = await withPool(centralUrl(), (p) =>
+        p.query(
+          `UPDATE negocio SET ${sets.join(", ")} WHERE slug = $1
+           RETURNING id, nombre, slug, db_name, estado, rubro, nit, telefono, email, direccion, ciudad,
+                     comision_qr::float8 AS "comisionQr", cuenta_qr AS "cuentaQr"`,
+          [slug, ...Object.values(campos)]
+        ).then((r) => r.rows[0])
+      );
+      if (!neg) return NextResponse.json({ error: "Negocio no encontrado." }, { status: 404 });
+      logActividad(who, "editar-negocio", neg.id, campos);
+
+      // El teléfono del panel es el WhatsApp con el que sale a la calle la
+      // tienda: se copia a la config del negocio para que la vea (y lo pueda
+      // cambiar) su CRM, y para que la landing lo use aunque el negocio nunca
+      // haya entrado a Configuración.
+      if ("telefono" in campos && neg.db_name) {
+        try {
+          await withPool(urlForDb(neg.db_name), (p) =>
+            p.query(
+              `INSERT INTO settings (key, value, updated_at)
+                 VALUES ('business', jsonb_build_object('whatsapp', $1::text, 'phone', $1::text), now())
+               ON CONFLICT (key) DO UPDATE
+                 SET value = settings.value
+                       || jsonb_build_object('whatsapp', $1::text, 'phone', $1::text),
+                     updated_at = now()`,
+              [waNumber(campos.telefono as string | null)]
+            )
+          );
+        } catch (error) {
+          // El alta en la central ya quedó guardada: que falle la copia (base
+          // del negocio caída, por ejemplo) no debe tumbar la edición.
+          console.warn("[panel] no se pudo copiar el teléfono al negocio:", error);
+        }
+      }
+      return NextResponse.json({ business: neg });
+    }
+
+    if (action === "getNegocio") {
+      const slug = cleanSlug(body.slug);
+      const neg = await withPool(centralUrl(), (p) =>
+        p.query(
+          `SELECT id, nombre, slug, db_name, estado, rubro, nit, telefono, email,
+                  direccion, ciudad, comision_qr::float8 AS "comisionQr", cuenta_qr AS "cuentaQr",
+                  fecha_alta AS "fechaAlta"
+             FROM negocio WHERE slug = $1`,
+          [slug]
+        ).then((r) => r.rows[0])
+      );
+      if (!neg) return NextResponse.json({ error: "Negocio no encontrado." }, { status: 404 });
+      return NextResponse.json({ business: neg });
+    }
+
     if (action === "createDevice") {
       const slug = cleanSlug(body.slug);
       const label = (body.label || "Dispositivo").toString().trim();
       if (!slug) return NextResponse.json({ error: "Elegí un negocio." }, { status: 400 });
 
       const neg = await withPool(centralUrl(), (p) =>
-        p.query(`SELECT id, nombre FROM negocio WHERE slug = $1 AND producto = 'easypos'`, [slug]).then((r) => r.rows[0])
+        p.query(`SELECT id, nombre FROM negocio WHERE slug = $1`, [slug]).then((r) => r.rows[0])
       );
       if (!neg) return NextResponse.json({ error: "Negocio no encontrado." }, { status: 404 });
 
       const token = randomBytes(24).toString("hex");
+      // Código corto (4 dígitos) para tipear a mano cuando no se puede escanear.
+      // Se reintenta si choca con otro código vigente (a lo sumo unas pocas veces).
+      const PAIR_CODE_TTL_MIN = 30;
+      let code = "";
+      for (let intento = 0; intento < 6; intento++) {
+        const c = (randomBytes(2).readUInt16BE(0) % 10000).toString().padStart(4, "0");
+        const choca = await withPool(centralUrl(), (p) =>
+          p.query(`SELECT 1 FROM dispositivo WHERE pair_code = $1 AND pair_code_exp > now()`, [c]).then(
+            (r) => r.rowCount
+          )
+        );
+        if (!choca) {
+          code = c;
+          break;
+        }
+      }
       await withPool(centralUrl(), (p) =>
         p.query(
-          `INSERT INTO dispositivo (id, negocio_id, token, habilitado, fecha_alta, label)
-           VALUES (gen_random_uuid()::text, $1, $2, true, now(), $3)`,
-          [neg.id, token, label]
+          `INSERT INTO dispositivo (id, negocio_id, token, habilitado, fecha_alta, label, pair_code, pair_code_exp)
+           VALUES (gen_random_uuid()::text, $1, $2, true, now(), $3, $4, now() + ($5 || ' minutes')::interval)`,
+          [neg.id, token, label, code || null, String(PAIR_CODE_TTL_MIN)]
         )
       );
+      logActividad(who, "alta-dispositivo", neg.id, { slug, label });
 
       const server = serverBase(req);
-      const qrContent = JSON.stringify({ token, server });
-      const qrImage = await QRCode.toDataURL(qrContent, { margin: 1, width: 320 });
-      return NextResponse.json({ token, server, negocio: neg.nombre, label, qrImage });
+      // El QR lleva el TOKEN completo (lo más seguro para escanear); el código
+      // de 4 dígitos es solo el atajo manual. QR más grande para leer de lejos.
+      const qrContent = JSON.stringify({ token, server, code });
+      const qrImage = await QRCode.toDataURL(qrContent, { margin: 1, width: 520 });
+      return NextResponse.json({ token, code, server, negocio: neg.nombre, label, qrImage });
     }
 
-    if (action === "listEmployees" || action === "createEmployee" || action === "setRole") {
+    if (
+      action === "listEmployees" ||
+      action === "createEmployee" ||
+      action === "setRole" ||
+      action === "setEmployeePass"
+    ) {
       const slug = cleanSlug(body.slug);
       const neg = await withPool(centralUrl(), (p) =>
-        p.query(`SELECT db_name FROM negocio WHERE slug = $1 AND producto = 'easypos'`, [slug]).then((r) => r.rows[0])
+        p.query(`SELECT id, db_name FROM negocio WHERE slug = $1`, [slug]).then((r) => r.rows[0])
       );
       if (!neg) return NextResponse.json({ error: "Negocio no encontrado." }, { status: 404 });
       const tenantUrl = urlForDb(neg.db_name);
@@ -221,6 +362,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Ya existe un usuario con ese correo." }, { status: 400 });
           throw err;
         }
+        logActividad(who, "alta-empleado", neg.id, { slug, email, role });
         return NextResponse.json({ ok: true });
       }
 
@@ -231,6 +373,27 @@ export async function POST(req: NextRequest) {
         const upd = await withPool(tenantUrl, (p) =>
           p.query(`UPDATE employees SET role = $2 WHERE id = $1 RETURNING id`, [id, role]).then((r) => r.rowCount)
         );
+        if (upd) logActividad(who, "rol-empleado", neg.id, { slug, employeeId: id, role });
+        return upd
+          ? NextResponse.json({ ok: true })
+          : NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
+      }
+
+      // Asignar una contraseña NUEVA a un usuario. No se puede "ver" la actual
+      // (está hasheada con bcrypt, es de una sola vía): esto la reemplaza por la
+      // que teclea el equipo del panel, para poder entregársela al negocio.
+      if (action === "setEmployeePass") {
+        const id = (body.employeeId || "").toString();
+        const pass = (body.pass || "").toString();
+        if (!id) return NextResponse.json({ error: "Falta el usuario." }, { status: 400 });
+        if (pass.length < 6)
+          return NextResponse.json({ error: "La contraseña necesita 6+ caracteres." }, { status: 400 });
+        const upd = await withPool(tenantUrl, (p) =>
+          p
+            .query(`UPDATE employees SET pass_hash = crypt($2, gen_salt('bf')) WHERE id = $1 RETURNING email`, [id, pass])
+            .then((r) => r.rows[0])
+        );
+        if (upd) logActividad(who, "reset-clave-empleado", neg.id, { slug, email: upd.email });
         return upd
           ? NextResponse.json({ ok: true })
           : NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
@@ -245,7 +408,7 @@ export async function POST(req: NextRequest) {
                   d.modelo, d.plataforma, d.app_version AS "appVersion", d.ultimo_ip AS "ip",
                   left(d.token, 8) AS "tokenHint"
              FROM dispositivo d JOIN negocio n ON n.id = d.negocio_id
-            WHERE n.slug = $1 AND n.producto = 'easypos'
+            WHERE n.slug = $1
             ORDER BY d.fecha_alta DESC`,
           [slug]
         ).then((r) => r.rows)
@@ -253,10 +416,198 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ devices: rows });
     }
 
+    // Control de uso del QR de cobro de la empresa: cuánto facturó cada negocio
+    // y cuánto de eso entró por QR, en un rango de fechas (hora de Bolivia).
+    // Recorre la base de CADA negocio; si una no responde, el reporte sigue y
+    // esa fila sale marcada con el error (mejor un hueco visible que nada).
+    if (action === "reporteQr") {
+      const hoy = new Date().toISOString().slice(0, 10);
+      const desde = /^\d{4}-\d{2}-\d{2}$/.test(body.desde ?? "") ? body.desde : hoy.slice(0, 8) + "01";
+      const hasta = /^\d{4}-\d{2}-\d{2}$/.test(body.hasta ?? "") ? body.hasta : hoy;
+
+      const negocios = await withPool(centralUrl(), (p) =>
+        p.query<{ id: string; nombre: string; slug: string; db_name: string; estado: string }>(
+          `SELECT id, nombre, slug, db_name, estado FROM negocio WHERE estado <> 'baja' ORDER BY nombre`
+        ).then((r) => r.rows)
+      );
+
+      const filas = await Promise.all(
+        negocios.map(async (n) => {
+          try {
+            const row = await withPool(urlForDb(n.db_name), (p) =>
+              p.query(
+                `SELECT count(*)::int                                            AS ventas,
+                        COALESCE(sum(total), 0)::float8                          AS total,
+                        count(*) FILTER (WHERE pay_method ILIKE '%qr%')::int     AS "qrVentas",
+                        COALESCE(sum(total) FILTER (WHERE pay_method ILIKE '%qr%'), 0)::float8 AS "qrTotal"
+                   FROM sales
+                  WHERE kind = 'factura'
+                    AND (created_at AT TIME ZONE 'America/La_Paz')::date BETWEEN $1::date AND $2::date`,
+                [desde, hasta]
+              ).then((r) => r.rows[0])
+            );
+            return { nombre: n.nombre, slug: n.slug, estado: n.estado, ...row };
+          } catch (e) {
+            return {
+              nombre: n.nombre,
+              slug: n.slug,
+              estado: n.estado,
+              ventas: 0,
+              total: 0,
+              qrVentas: 0,
+              qrTotal: 0,
+              error: (e as Error).message,
+            };
+          }
+        })
+      );
+
+      return NextResponse.json({ desde, hasta, negocios: filas });
+    }
+
+    // Dashboard/Ventas del panel: agrega las ventas de TODOS los negocios (o de
+    // uno si viene `slug`) en un rango, con las series para las gráficas. Mismo
+    // patrón cross-tenant que reporteQr; una base caída se ignora. La comisión
+    // generada = Σ recaudado_qr × comision_qr% de cada negocio.
+    if (action === "dashboard") {
+      const hoy = new Date().toISOString().slice(0, 10);
+      const desde = /^\d{4}-\d{2}-\d{2}$/.test(body.desde ?? "") ? body.desde : hoy.slice(0, 8) + "01";
+      const hasta = /^\d{4}-\d{2}-\d{2}$/.test(body.hasta ?? "") ? body.hasta : hoy;
+      const soloSlug = body.slug ? cleanSlug(body.slug) : "";
+
+      const negocios = await withPool(centralUrl(), (p) =>
+        p.query<{ nombre: string; slug: string; db_name: string; comision_qr: number }>(
+          `SELECT nombre, slug, db_name, comision_qr::float8 AS comision_qr
+             FROM negocio
+            WHERE estado <> 'baja' ${soloSlug ? "AND slug = $1" : ""}
+            ORDER BY nombre`,
+          soloSlug ? [soloSlug] : []
+        ).then((r) => r.rows)
+      );
+
+      const porDia = new Map<string, { total: number; qr: number; efectivo: number; otros: number }>();
+      const porComercio: { nombre: string; slug: string; total: number; qr: number }[] = [];
+      let ventasTotales = 0, ventasQR = 0, efectivoTotal = 0, otrosTotal = 0, numVentas = 0, comisionGenerada = 0;
+
+      await Promise.all(
+        negocios.map(async (n) => {
+          try {
+            const rows = await withPool(urlForDb(n.db_name), (p) =>
+              p.query<{ fecha: string; total: number; qr: number; efectivo: number; ventas: number }>(
+                `SELECT (created_at AT TIME ZONE 'America/La_Paz')::date::text AS fecha,
+                        COALESCE(sum(total),0)::float8 AS total,
+                        COALESCE(sum(total) FILTER (WHERE pay_method ILIKE '%qr%'),0)::float8 AS qr,
+                        COALESCE(sum(total) FILTER (WHERE pay_method ILIKE '%efec%'),0)::float8 AS efectivo,
+                        count(*)::int AS ventas
+                   FROM sales
+                  WHERE kind = 'factura' AND NOT voided
+                    AND (created_at AT TIME ZONE 'America/La_Paz')::date BETWEEN $1::date AND $2::date
+                  GROUP BY 1`,
+                [desde, hasta]
+              ).then((r) => r.rows)
+            );
+            let negTotal = 0, negQr = 0;
+            for (const r of rows) {
+              const otros = Math.max(0, r.total - r.qr - r.efectivo);
+              const cur = porDia.get(r.fecha) ?? { total: 0, qr: 0, efectivo: 0, otros: 0 };
+              cur.total += r.total; cur.qr += r.qr; cur.efectivo += r.efectivo; cur.otros += otros;
+              porDia.set(r.fecha, cur);
+              ventasTotales += r.total; ventasQR += r.qr; efectivoTotal += r.efectivo; otrosTotal += otros;
+              numVentas += r.ventas; negTotal += r.total; negQr += r.qr;
+            }
+            comisionGenerada += negQr * (n.comision_qr / 100);
+            porComercio.push({ nombre: n.nombre, slug: n.slug, total: negTotal, qr: negQr });
+          } catch {
+            /* base caída: se ignora */
+          }
+        })
+      );
+
+      const ventasPorDia = [...porDia.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([fecha, v]) => ({ fecha, total: v.total, qr: v.qr, efectivo: v.efectivo, otros: v.otros }));
+
+      return NextResponse.json({
+        desde, hasta,
+        soloSlug: soloSlug || null,
+        ventasTotales, ventasQR, numVentas, comisionGenerada,
+        ticketPromedio: numVentas > 0 ? ventasTotales / numVentas : 0,
+        pagosPorMetodo: { qr: ventasQR, efectivo: efectivoTotal, otros: otrosTotal },
+        ventasPorDia,
+        porComercio: porComercio.sort((a, b) => b.total - a.total),
+      });
+    }
+
+    // Estado de la plataforma (solo datos de la central, rápido): conteos por
+    // estado, altas por mes y lo que "requiere atención" (suspendidos). Las
+    // facturas vencidas entran cuando exista la facturación de suscripciones.
+    if (action === "estadoPlataforma") {
+      const [conteos, altas, suspendidos] = await withPool(centralUrl(), async (p) => {
+        const c = await p.query<{ estado: string; n: number }>(
+          `SELECT estado, count(*)::int AS n FROM negocio GROUP BY estado`
+        );
+        const a = await p.query<{ mes: string; n: number }>(
+          `SELECT to_char(date_trunc('month', fecha_alta), 'YYYY-MM') AS mes, count(*)::int AS n
+             FROM negocio
+            WHERE fecha_alta >= (now() - interval '6 months')
+            GROUP BY 1 ORDER BY 1`
+        );
+        const s = await p.query<{ nombre: string; slug: string }>(
+          `SELECT nombre, slug FROM negocio WHERE estado = 'suspendido' ORDER BY nombre`
+        );
+        return [c.rows, a.rows, s.rows] as const;
+      });
+      const cnt = (e: string) => conteos.find((r) => r.estado === e)?.n ?? 0;
+      return NextResponse.json({
+        activos: cnt("activo"),
+        prueba: cnt("prueba"),
+        suspendidos: cnt("suspendido"),
+        baja: cnt("baja"),
+        total: conteos.reduce((s, r) => s + r.n, 0),
+        altasPorMes: altas.map((r) => ({ mes: r.mes, n: r.n })),
+        requiereAtencion: suspendidos.map((r) => ({ tipo: "suspendido", nombre: r.nombre, slug: r.slug })),
+      });
+    }
+
+    // Todos los dispositivos de todos los negocios: la vista "Vinculación QR"
+    // del panel muestra el parque completo sin entrar ficha por ficha.
+    if (action === "listAllDevices") {
+      const rows = await withPool(centralUrl(), (p) =>
+        p.query(
+          `SELECT d.id, d.label, d.habilitado, d.last_seen AS "lastSeen", d.fecha_alta AS "altaAt",
+                  d.modelo, d.plataforma, d.app_version AS "appVersion", left(d.token, 8) AS "tokenHint",
+                  n.nombre AS negocio, n.slug
+             FROM dispositivo d JOIN negocio n ON n.id = d.negocio_id
+            ORDER BY d.last_seen DESC NULLS LAST, d.fecha_alta DESC`
+        ).then((r) => r.rows)
+      );
+      return NextResponse.json({ devices: rows });
+    }
+
+    if (action === "listActividad") {
+      const slug = cleanSlug(body.slug || "");
+      const rows = await withPool(centralUrl(), (p) =>
+        (slug
+          ? p.query(
+              `SELECT a.usuario, a.accion, a.detalle, a.created_at AS "fecha"
+                 FROM actividad a JOIN negocio n ON n.id = a.negocio_id
+                WHERE n.slug = $1 ORDER BY a.created_at DESC LIMIT 30`,
+              [slug]
+            )
+          : p.query(
+              `SELECT a.usuario, a.accion, a.detalle, a.created_at AS "fecha",
+                      (SELECT n.nombre FROM negocio n WHERE n.id = a.negocio_id) AS negocio
+                 FROM actividad a ORDER BY a.created_at DESC LIMIT 50`
+            )
+        ).then((r) => r.rows)
+      );
+      return NextResponse.json({ actividad: rows });
+    }
+
     if (action === "getBaas" || action === "setBaas") {
       const slug = cleanSlug(body.slug);
       const neg = await withPool(centralUrl(), (p) =>
-        p.query(`SELECT db_name FROM negocio WHERE slug = $1 AND producto = 'easypos'`, [slug]).then((r) => r.rows[0])
+        p.query(`SELECT id, db_name FROM negocio WHERE slug = $1`, [slug]).then((r) => r.rows[0])
       );
       if (!neg) return NextResponse.json({ error: "Negocio no encontrado." }, { status: 404 });
       const tenantUrl = urlForDb(neg.db_name);
@@ -296,32 +647,32 @@ export async function POST(req: NextRequest) {
           [JSON.stringify(merged)]
         );
       });
+      logActividad(who, "credenciales-qr", neg.id, { slug });
       return NextResponse.json({ ok: true });
     }
-
-    // La tabla `dispositivo` de la central es COMPARTIDA con otros productos
-    // (Case): estas acciones solo pueden tocar dispositivos de negocios easypos.
-    const soloEasypos = `EXISTS (SELECT 1 FROM negocio n
-                                  WHERE n.id = dispositivo.negocio_id AND n.producto = 'easypos')`;
 
     if (action === "blockDevice") {
       const id = (body.deviceId || "").toString();
       const blocked = body.blocked === true;
-      const upd = await withPool(centralUrl(), (p) =>
+      const row = await withPool(centralUrl(), (p) =>
         p.query(
-          `UPDATE dispositivo SET habilitado = $2 WHERE id = $1 AND ${soloEasypos} RETURNING id`,
+          `UPDATE dispositivo SET habilitado = $2 WHERE id = $1 RETURNING id, negocio_id`,
           [id, !blocked]
-        ).then((r) => r.rowCount)
+        ).then((r) => r.rows[0])
       );
-      return upd ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Dispositivo no encontrado." }, { status: 404 });
+      if (!row) return NextResponse.json({ error: "Dispositivo no encontrado." }, { status: 404 });
+      logActividad(who, blocked ? "bloquear-dispositivo" : "habilitar-dispositivo", row.negocio_id, { deviceId: id });
+      return NextResponse.json({ ok: true });
     }
 
     if (action === "deleteDevice") {
       const id = (body.deviceId || "").toString();
-      const del = await withPool(centralUrl(), (p) =>
-        p.query(`DELETE FROM dispositivo WHERE id = $1 AND ${soloEasypos} RETURNING id`, [id]).then((r) => r.rowCount)
+      const row = await withPool(centralUrl(), (p) =>
+        p.query(`DELETE FROM dispositivo WHERE id = $1 RETURNING id, negocio_id`, [id]).then((r) => r.rows[0])
       );
-      return del ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Dispositivo no encontrado." }, { status: 404 });
+      if (!row) return NextResponse.json({ error: "Dispositivo no encontrado." }, { status: 404 });
+      logActividad(who, "borrar-dispositivo", row.negocio_id, { deviceId: id });
+      return NextResponse.json({ ok: true });
     }
 
     return NextResponse.json({ error: "Acción desconocida." }, { status: 400 });

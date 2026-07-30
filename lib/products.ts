@@ -3,13 +3,11 @@
 // negocio carga los propios desde el CRM. Este archivo solo define el modelo y
 // los helpers que comparten la tienda, el panel y el bot.
 
-/**
- * Número de respaldo del negocio. La tienda usa el número al que está vinculado
- * el Vendedor 24/7 (Baileys, vía /api/whatsapp/number) o el de Configuración;
- * este valor solo entra cuando ninguno está disponible (p. ej. en Netlify, que
- * es serverless y no mantiene la conexión de Baileys).
- */
-export const kWhatsapp = "59177648081";
+// Acá vivía `kWhatsapp`, un número de respaldo escrito en el código. Cuando un
+// negocio no tenía teléfono cargado, la tienda mandaba los pedidos a ESE
+// número: el cliente le escribía a un desconocido. El número sale ahora del
+// negocio (Configuración del CRM o el teléfono del panel de easy pos) y, si no
+// hay ninguno, WhatsApp se abre sin destinatario. Ver lib/whatsapp.ts.
 
 export type ProductStatus = "activo" | "inactivo";
 

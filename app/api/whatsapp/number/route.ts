@@ -7,10 +7,10 @@ export const dynamic = "force-dynamic";
 /**
  * Número de WhatsApp del negocio para la tienda (público).
  *
- * Es el número al que está vinculado el Vendedor 24/7 (Baileys). Así, cuando el
- * cliente pulsa "Continuar por WhatsApp", cae en el mismo WhatsApp que atiende
- * el bot. Si no hay número vinculado, devuelve null y la tienda usa el de
- * respaldo (kWhatsapp).
+ * Es el número al que está vinculado el Vendedor 24/7 (Baileys). Solo se usa
+ * cuando el negocio NO tiene teléfono propio (ni en su CRM ni en el panel de
+ * easy pos): manda el del negocio, que es el que su dueño cargó. Sin ninguno de
+ * los dos, la tienda abre WhatsApp sin destinatario.
  *
  * GET /api/whatsapp/number → { phone: string | null, connected: boolean }
  */

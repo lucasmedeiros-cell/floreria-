@@ -127,6 +127,24 @@ export const defaultBusinessConfig: BusinessConfig =
  * Normaliza una config leída de la BD (o enviada por el cliente) contra los
  * defaults del rubro, para tolerar configs viejas a las que les falte un campo.
  */
+/**
+ * Un teléfono como lo entiende wa.me: solo dígitos y con código de país.
+ *
+ * El número se carga a mano en varios lados (panel de easy pos, Configuración
+ * del CRM) y cada uno lo escribe a su manera: "79874920", "+591 79874920",
+ * "0059179874920". Sin esto, el enlace de WhatsApp queda roto y el cliente
+ * termina en un chat vacío.
+ */
+export function waNumber(raw: string | null | undefined): string {
+  let d = (raw ?? "").replace(/\D/g, "");
+  d = d.replace(/^0+/, ""); // 00591… / 0591… → 591…
+  if (!d) return "";
+  if (d.startsWith("591")) return d;
+  // Bolivia: fijos y celulares son de 8 dígitos. Con otra longitud se asume que
+  // ya trae su propio código de país y se deja tal cual.
+  return d.length === 8 ? `591${d}` : d;
+}
+
 export function normalizeBusiness(raw: Partial<BusinessConfig> | null | undefined): BusinessConfig {
   const rubroId = getRubro(raw?.rubroId).id;
   const base = businessFromRubro(rubroId);

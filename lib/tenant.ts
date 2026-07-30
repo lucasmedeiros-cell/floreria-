@@ -1,13 +1,13 @@
 import { AsyncLocalStorage } from "async_hooks";
-import { Pool } from "pg";
+import { Pool, type QueryResultRow } from "pg";
 
 /**
  * Multi-negocio (multi-tenant) de easy pos.
  *
- * Cada negocio tiene su PROPIA base (`bo_epos_<slug>`), igual que en Case cada
- * comercio tiene su instancia AccountingBox. El registro de quién es quién vive
- * en la base central de Case (`bo_sole_central`): la tabla `negocio` dice qué
- * base le toca a cada slug, y `dispositivo` guarda los tokens de pareo.
+ * Cada negocio tiene su PROPIA base (`bo_epos_<slug>`). El registro de quién es
+ * quién vive en la central PROPIA de easy pos (`bo_epos_central`, db/central.sql):
+ * la tabla `negocio` dice qué base le toca a cada slug, y `dispositivo` guarda
+ * los tokens de pareo. La administra el panel (`/panel`), no Case.
  *
  * Este módulo hace tres cosas:
  *   1. Resuelve el negocio (por slug de la URL o por token de pareo).
@@ -27,6 +27,12 @@ export interface Negocio {
   /** prueba | activo | suspendido | baja */
   estado: string;
   rubro: string | null;
+  /**
+   * Teléfono que cargó el panel de easy pos al dar de alta el negocio. Es el
+   * número del que sale el WhatsApp de la tienda mientras el negocio no cargue
+   * uno propio en su CRM (ver lib/businessStore.ts).
+   */
+  telefono: string | null;
 }
 
 export interface TenantContext {
@@ -70,7 +76,7 @@ function ssl() {
   return process.env.PGSSL === "true" ? { rejectUnauthorized: false } : undefined;
 }
 
-/** Pool contra la base central de Case (registro de negocios y dispositivos). */
+/** Pool contra la central de easy pos (registro de negocios y dispositivos). */
 function centralPool(): Pool {
   const url = process.env.CENTRAL_DATABASE_URL;
   if (!url) throw new Error("CENTRAL_DATABASE_URL no está configurada");
@@ -90,11 +96,22 @@ function centralPool(): Pool {
 }
 
 /**
+ * Consulta directa contra la central. La usan el login del panel y el registro
+ * de actividad. Tira si no hay CENTRAL_DATABASE_URL configurada.
+ */
+export async function centralQuery<T extends QueryResultRow = QueryResultRow>(
+  text: string,
+  params?: unknown[]
+): Promise<T[]> {
+  const { rows } = await centralPool().query<T>(text, params as unknown[] | undefined);
+  return rows;
+}
+
+/**
  * Cadena de conexión a la base de UN negocio. Las bases de los negocios viven
  * en el mismo Postgres que la central, así que se toma la URL de la central y
- * se le cambia el nombre de la base (mismo truco que `tenantConnString` en el
- * panel de Case). `TENANT_DATABASE_URL_TEMPLATE` permite apuntar a otro
- * servidor: usar `{db}` como marcador.
+ * se le cambia el nombre de la base. `TENANT_DATABASE_URL_TEMPLATE` permite
+ * apuntar a otro servidor: usar `{db}` como marcador.
  */
 function tenantConnString(dbName: string): string {
   const tpl = process.env.TENANT_DATABASE_URL_TEMPLATE;
@@ -159,6 +176,7 @@ interface NegocioRow {
   db_name: string;
   estado: string;
   rubro: string | null;
+  telefono: string | null;
 }
 
 const toNegocio = (r: NegocioRow): Negocio => ({
@@ -168,6 +186,7 @@ const toNegocio = (r: NegocioRow): Negocio => ({
   dbName: r.db_name,
   estado: r.estado,
   rubro: r.rubro,
+  telefono: r.telefono ?? null,
 });
 
 /** Busca un negocio de easy pos por su slug (el de la URL `/n/<slug>`). */
@@ -178,9 +197,9 @@ export async function negocioBySlug(slug: string): Promise<Negocio | null> {
   if (cached !== undefined) return cached;
 
   const { rows } = await centralPool().query<NegocioRow>(
-    `SELECT id, nombre, slug, db_name, estado, rubro
+    `SELECT id, nombre, slug, db_name, estado, rubro, telefono
        FROM negocio
-      WHERE slug = $1 AND producto = 'easypos'`,
+      WHERE slug = $1`,
     [slug]
   );
   const negocio = rows[0] ? toNegocio(rows[0]) : null;
@@ -196,9 +215,9 @@ export async function negocioBySlug(slug: string): Promise<Negocio | null> {
 export async function negociosEasyposActivos(): Promise<Negocio[]> {
   if (!isMultiTenant()) return [];
   const { rows } = await centralPool().query<NegocioRow>(
-    `SELECT id, nombre, slug, db_name, estado, rubro
+    `SELECT id, nombre, slug, db_name, estado, rubro, telefono
        FROM negocio
-      WHERE producto = 'easypos' AND estado NOT IN ('suspendido', 'baja')
+      WHERE estado NOT IN ('suspendido', 'baja')
       ORDER BY fecha_alta DESC`
   );
   return rows.map(toNegocio);
@@ -206,8 +225,7 @@ export async function negociosEasyposActivos(): Promise<Negocio[]> {
 
 /**
  * Resuelve el negocio por el token de pareo del dispositivo (app móvil).
- * Devuelve null si el token no existe o el dispositivo está bloqueado —
- * mismo criterio que `posAuth` en el panel de Case.
+ * Devuelve null si el token no existe o el dispositivo está bloqueado.
  */
 export async function negocioByToken(token: string): Promise<Negocio | null> {
   if (!isMultiTenant() || !token) return null;
@@ -216,10 +234,10 @@ export async function negocioByToken(token: string): Promise<Negocio | null> {
   if (cached !== undefined) return cached;
 
   const { rows } = await centralPool().query<NegocioRow & { habilitado: boolean }>(
-    `SELECT n.id, n.nombre, n.slug, n.db_name, n.estado, n.rubro, d.habilitado
+    `SELECT n.id, n.nombre, n.slug, n.db_name, n.estado, n.rubro, n.telefono, d.habilitado
        FROM dispositivo d
        JOIN negocio n ON n.id = d.negocio_id
-      WHERE d.token = $1 AND n.producto = 'easypos'`,
+      WHERE d.token = $1`,
     [token]
   );
   const row = rows[0];
@@ -254,8 +272,36 @@ export async function registrarTokenCentral(
 }
 
 /**
+ * Canjea el código corto (4 dígitos) que emitió el panel: busca el dispositivo
+ * de la central con ese código vigente, devuelve su token y su negocio, y borra
+ * el código (un solo uso). null si el código no existe o venció.
+ */
+export async function redeemCentralPairCode(
+  code: string
+): Promise<{ token: string; negocio: { slug: string; nombre: string } } | null> {
+  if (!isMultiTenant() || !/^\d{4}$/.test(code)) return null;
+  const { rows } = await centralPool().query<{
+    token: string;
+    slug: string;
+    nombre: string;
+  }>(
+    `UPDATE dispositivo d
+        SET pair_code = NULL, pair_code_exp = NULL, last_seen = now()
+       FROM negocio n
+      WHERE d.negocio_id = n.id
+        AND d.pair_code = $1
+        AND d.pair_code_exp > now()
+        AND d.habilitado
+      RETURNING d.token, n.slug, n.nombre`,
+    [code]
+  );
+  const r = rows[0];
+  return r ? { token: r.token, negocio: { slug: r.slug, nombre: r.nombre } } : null;
+}
+
+/**
  * Marca el dispositivo como visto y guarda lo que reportó (plataforma, versión
- * de la app, IP). Es lo que el panel de Case muestra en la ficha del comercio.
+ * de la app, IP). Es lo que el panel muestra en la ficha del negocio.
  * Nunca tira: si la central falla, la request del negocio igual debe responder.
  */
 export async function touchDevice(token: string, meta: DeviceMeta): Promise<void> {

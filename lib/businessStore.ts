@@ -3,9 +3,11 @@ import {
   defaultBusinessConfig,
   normalizeBusiness,
   resolveBusiness,
+  waNumber,
   type Business,
   type BusinessConfig,
 } from "./business";
+import { currentTenant } from "./tenant";
 
 const KEY = "business";
 
@@ -20,14 +22,33 @@ export async function readBusinessConfig(): Promise<BusinessConfig> {
       `SELECT value FROM settings WHERE key = $1`,
       [KEY]
     );
-    return normalizeBusiness(row?.value);
+    return conTelefonoDelPanel(normalizeBusiness(row?.value));
   } catch (error) {
     console.warn(
       "[business] no se pudo leer la config del negocio; usando el rubro por defecto.",
       error
     );
-    return defaultBusinessConfig;
+    return conTelefonoDelPanel(defaultBusinessConfig);
   }
+}
+
+/**
+ * Si el negocio todavía no cargó su WhatsApp en el CRM, se usa el teléfono que
+ * el panel de easy pos guardó al darlo de alta.
+ *
+ * Sin esto, la tienda y la landing caían a un número de respaldo escrito en el
+ * código: el cliente abría WhatsApp y le escribía a un desconocido. El dato ya
+ * viaja con el negocio de la request (lib/tenant.ts), así que no cuesta una
+ * consulta extra.
+ */
+function conTelefonoDelPanel(cfg: BusinessConfig): BusinessConfig {
+  const delPanel = waNumber(currentTenant()?.negocio.telefono);
+  if (!delPanel) return cfg;
+  return {
+    ...cfg,
+    whatsapp: waNumber(cfg.whatsapp) || delPanel,
+    phone: cfg.phone?.trim() || delPanel,
+  };
 }
 
 /** Igual que readBusinessConfig, pero ya resuelto contra el preset del rubro. */
