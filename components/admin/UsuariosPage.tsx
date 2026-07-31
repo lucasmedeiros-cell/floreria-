@@ -83,7 +83,9 @@ export function UsuariosPage() {
     <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-serif text-[30px] font-semibold text-ink">Usuarios</h1>
+          <h1 className="text-[27px] font-extrabold leading-none tracking-[-0.4px] text-ink">
+            Usuarios
+          </h1>
           <p className="mt-1 text-[13px] text-ink2">
             {activos} {activos === 1 ? "cuenta activa" : "cuentas activas"} · quién entra al CRM y
             qué puede hacer
@@ -224,8 +226,8 @@ function Chip({
   tone: "ok" | "off" | "neutral";
 }) {
   const cls = {
-    ok: "bg-success/12 text-success",
-    off: "bg-error/12 text-error",
+    ok: "bg-success/[0.14] text-success",
+    off: "bg-error/[0.14] text-error",
     neutral: "bg-surface2 text-ink2",
   }[tone];
   return (

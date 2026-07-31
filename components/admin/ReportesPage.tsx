@@ -50,7 +50,9 @@ export function ReportesPage() {
 
   return (
     <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
-      <h1 className="font-serif text-[30px] font-semibold text-ink">Reportes</h1>
+      <h1 className="text-[27px] font-extrabold leading-none tracking-[-0.4px] text-ink">
+        Reportes
+      </h1>
       <p className="mt-1 text-[13px] text-ink2">Ventas facturadas, ganancia y productos más vendidos</p>
 
       {error && (
@@ -79,8 +81,10 @@ export function ReportesPage() {
               return (
                 <div key={m.mes} className="flex flex-1 flex-col items-center justify-end">
                   <span className="text-[10.5px] font-semibold text-ink2">{bs2(m.total)}</span>
+                  {/* Ancho tope: con un solo mes cargado, una barra al 100% del
+                      panel se lee como un bloque de color, no como un gráfico. */}
                   <div
-                    className="mt-1.5 w-full rounded-t-lg"
+                    className="mt-1.5 w-full max-w-[92px] rounded-t-lg"
                     style={{
                       height: `${Math.max(4, (m.total / maxMonthly) * 140)}px`,
                       background: last
