@@ -158,6 +158,21 @@ CREATE TABLE IF NOT EXISTS wa_messages (
 
 CREATE INDEX IF NOT EXISTS idx_wa_messages_phone ON wa_messages(phone, created_at);
 
+-- Consumo de IA del vendedor: una fila por llamada al modelo. Ver migrations/013.
+CREATE TABLE IF NOT EXISTS ia_uso (
+  id             bigserial PRIMARY KEY,
+  modelo         text        NOT NULL DEFAULT '',
+  tipo           text        NOT NULL DEFAULT '',
+  input_tokens   integer     NOT NULL DEFAULT 0,
+  output_tokens  integer     NOT NULL DEFAULT 0,
+  cache_read     integer     NOT NULL DEFAULT 0,
+  cache_creation integer     NOT NULL DEFAULT 0,
+  costo_usd      numeric(12, 6) NOT NULL DEFAULT 0,
+  created_at     timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ia_uso_fecha ON ia_uso(created_at);
+
 -- ---------- Pedidos ----------
 CREATE TABLE IF NOT EXISTS orders (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),

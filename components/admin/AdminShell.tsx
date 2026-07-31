@@ -1,30 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Boxes,
+  ChevronDown,
+  ChevronsLeft,
+  ChevronsRight,
   Coins,
-  Home,
+  LayoutGrid,
   LineChart,
   LogOut,
   Menu,
+  Moon,
   Receipt,
   Settings,
   ShoppingCart,
+  Store,
+  Sun,
   Users,
   Wallet,
   Warehouse,
   X,
 } from "lucide-react";
 import { useAuth, useBusiness } from "@/context/StoreProvider";
-import { BrandMark, Wordmark } from "@/components/Brand";
 import Image from "next/image";
-import { Icon } from "@/components/Icon";
 import { EASYPOS } from "@/lib/easypos";
-import { DEFAULT_RUBRO_ID } from "@/lib/rubros";
-import { PrimaryButton } from "@/components/ui";
 import { InicioScreen } from "./InicioScreen";
-import { CurvedHeader } from "./kit";
 import { VentasScreen } from "./VentasScreen";
 import { HistorialPage } from "./HistorialPage";
 import { ProveedorPage } from "./ProveedorPage";
@@ -64,42 +65,59 @@ interface NavDef {
   label: string;
   /** Solo para el administrador (el backend lo vuelve a exigir igual). */
   soloAdmin?: boolean;
+  /**
+   * Sección válida pero fuera del menú: se llega a ella desde otra pantalla.
+   * Proveedor vive dentro de Inventario ("Proveedores"), como en el diseño.
+   */
+  oculto?: boolean;
 }
 
 const NAV: NavDef[] = [
-  { s: "inicio", icon: <Home size={19} />, label: "Inicio" },
-  { s: "venta", icon: <ShoppingCart size={19} />, label: "Venta" },
-  { s: "catalogo", icon: <Boxes size={19} />, label: "Catálogo" },
+  { s: "inicio", icon: <LayoutGrid size={19} />, label: "Resumen" },
+  { s: "venta", icon: <ShoppingCart size={19} />, label: "Ventas" },
+  { s: "catalogo", icon: <Boxes size={19} />, label: "Catálogo / Inventario" },
   { s: "historial", icon: <Receipt size={19} />, label: "Historial" },
-  { s: "proveedor", icon: <Warehouse size={19} />, label: "Proveedor" },
   { s: "gastos", icon: <Wallet size={19} />, label: "Gastos" },
   { s: "caja", icon: <Coins size={19} />, label: "Corte de caja" },
   { s: "reportes", icon: <LineChart size={19} />, label: "Reportes" },
   { s: "usuarios", icon: <Users size={19} />, label: "Usuarios", soloAdmin: true },
   { s: "configuracion", icon: <Settings size={19} />, label: "Configuración" },
+  { s: "proveedor", icon: <Warehouse size={19} />, label: "Proveedores", oculto: true },
 ];
 
-// Secciones ya convertidas al diseño de la app (header curvo + kit). Se van
-// sumando a medida que se rehace cada pantalla para la paridad web ↔ móvil.
-const KIT_SECTIONS = new Set<Section>(["inicio"]);
-const SECTION_TITLE: Record<Section, string> = {
-  inicio: "Inicio",
-  venta: "Venta",
-  catalogo: "Catálogo",
-  historial: "Historial",
-  proveedor: "Pedidos a proveedor",
-  gastos: "Gastos",
-  caja: "Corte de caja",
-  reportes: "Reportes",
-  usuarios: "Usuarios",
-  configuracion: "Configuración",
-};
+/** Preferencia de modo oscuro del CRM. Se recuerda por navegador. */
+const DARK_KEY = "easypos.crm.dark";
 
 export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
   const [drawer, setDrawer] = useState(false);
+  const [colapsado, setColapsado] = useState(false);
   const auth = useAuth();
+  const business = useBusiness();
   // Igual que la app de escritorio: el CRM abre en Inicio.
   const [section, setSection] = useState<Section>("inicio");
+
+  /**
+   * Modo oscuro. Arranca en claro y se hidrata desde localStorage después de
+   * montar: leerlo durante el render rompería el HTML del servidor.
+   */
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    try {
+      setDark(window.localStorage.getItem(DARK_KEY) === "1");
+    } catch {
+      /* navegador sin storage (modo privado): queda en claro */
+    }
+  }, []);
+  const toggleDark = useCallback(() => {
+    setDark((d) => {
+      try {
+        window.localStorage.setItem(DARK_KEY, d ? "0" : "1");
+      } catch {
+        /* no se pudo recordar: igual cambia por esta sesión */
+      }
+      return !d;
+    });
+  }, []);
 
   const go = (s: Section) => {
     setSection(s);
@@ -107,10 +125,11 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
   };
 
   const esAdmin = auth.role === "Administrador";
-  const nav = NAV.filter((n) => !n.soloAdmin || esAdmin);
+  const permitidas = NAV.filter((n) => !n.soloAdmin || esAdmin);
+  const nav = permitidas.filter((n) => !n.oculto);
   // Si a alguien le cambian el rol mientras mira Usuarios, el CRM lo devuelve a
   // Inicio en vez de dejarlo en una pantalla que ya no le corresponde.
-  const seccion: Section = nav.some((n) => n.s === section) ? section : "inicio";
+  const seccion: Section = permitidas.some((n) => n.s === section) ? section : "inicio";
 
   const page = () => {
     switch (seccion) {
@@ -119,7 +138,7 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
       case "venta":
         return <VentasScreen />;
       case "catalogo":
-        return <ProductsPage />;
+        return <ProductsPage onGo={go} />;
       case "historial":
         return <HistorialPage />;
       case "proveedor":
@@ -138,12 +157,20 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
   };
 
   return (
-    <div className="flex h-screen bg-bg">
+    <div className={`${dark ? "dark " : ""}flex h-screen bg-bg`}>
       <EasyPosSplash enabled={adminIntro} />
 
       {/* Sidebar (lg) */}
       <div className="hidden lg:block">
-        <Sidebar current={seccion} nav={nav} onSelect={go} />
+        <Sidebar
+          current={seccion}
+          nav={nav}
+          onSelect={go}
+          colapsado={colapsado}
+          onColapsar={() => setColapsado((c) => !c)}
+          dark={dark}
+          onDark={toggleDark}
+        />
       </div>
 
       {/* Drawer (mobile) */}
@@ -151,39 +178,57 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
         <div className="fixed inset-0 z-[70] lg:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setDrawer(false)} />
           <div className="absolute left-0 top-0 h-full">
-            <Sidebar current={seccion} nav={nav} onSelect={go} onClose={() => setDrawer(false)} />
+            <Sidebar
+              current={seccion}
+              nav={nav}
+              onSelect={go}
+              onClose={() => setDrawer(false)}
+              dark={dark}
+              onDark={toggleDark}
+            />
           </div>
         </div>
       )}
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        {KIT_SECTIONS.has(seccion) ? (
-          // Pantallas con el diseño de la app: header amarillo curvo + contenido.
-          <div className="flex h-full flex-col">
-            <CurvedHeader
-              title={SECTION_TITLE[seccion]}
-              onMenu={() => setDrawer(true)}
-              onBell={() => {}}
-            />
-            <div className="-mt-3 flex-1 overflow-y-auto">{page()}</div>
-          </div>
-        ) : (
-          <>
-            {/* App bar (mobile) — pantallas aún no convertidas al kit. */}
-            <div className="flex items-center gap-3 border-b border-line bg-white px-4 py-3 lg:hidden">
-              <button onClick={() => setDrawer(true)} className="text-ink">
-                <Menu size={24} />
-              </button>
-              <BrandMark size={28} />
-              <Wordmark />
-            </div>
-            <div className="flex-1 overflow-hidden">{page()}</div>
-          </>
-        )}
+        {/* Barra del teléfono: el menú vive en el cajón lateral. */}
+        <div className="flex items-center gap-3 border-b border-line bg-surface px-4 py-3 lg:hidden">
+          <button onClick={() => setDrawer(true)} aria-label="Menú" className="text-ink">
+            <Menu size={24} />
+          </button>
+          <BusinessAvatar size={30} />
+          <span className="truncate text-[14px] font-extrabold uppercase leading-tight text-ink">
+            {business.name}
+          </span>
+        </div>
+        <div className="flex-1 overflow-hidden">{page()}</div>
       </div>
 
       <DebugReporter surface="crm" />
     </div>
+  );
+}
+
+/** Isotipo del negocio: su logo o, si no cargó ninguno, el icono de tienda. */
+function BusinessAvatar({ size = 44 }: { size?: number }) {
+  const business = useBusiness();
+  return (
+    <span
+      className="grid shrink-0 place-items-center overflow-hidden rounded-full border-2 border-onAccent/25 bg-onAccent/[0.07] text-onAccent"
+      style={{ height: size, width: size }}
+    >
+      {business.logoUrl ? (
+        <Image
+          src={business.logoUrl}
+          alt={business.name}
+          width={size}
+          height={size}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <Store size={size * 0.5} />
+      )}
+    </span>
   );
 }
 
@@ -192,12 +237,20 @@ function Sidebar({
   nav,
   onSelect,
   onClose,
+  colapsado = false,
+  onColapsar,
+  dark,
+  onDark,
 }: {
   current: Section;
   /** Menú ya filtrado por el rol de quien inició sesión. */
   nav: NavDef[];
   onSelect: (s: Section) => void;
   onClose?: () => void;
+  colapsado?: boolean;
+  onColapsar?: () => void;
+  dark: boolean;
+  onDark: () => void;
 }) {
   const auth = useAuth();
   const business = useBusiness();
@@ -215,75 +268,134 @@ function Sidebar({
       <button
         key={n.s}
         onClick={() => onSelect(n.s)}
-        className={`flex w-full items-center gap-3 rounded-[11px] px-3 py-2.5 text-left transition-colors ${
-          active ? "bg-pinkSoft" : "hover:bg-surface2"
-        }`}
+        title={colapsado ? n.label : undefined}
+        className={`relative flex w-full items-center gap-3 rounded-[12px] py-2.5 text-left transition-colors ${
+          colapsado ? "justify-center px-0" : "px-3.5"
+        } ${active ? "bg-pinkSoft" : "hover:bg-surface2"}`}
       >
+        {/* Barra amarilla de la sección activa (como en el diseño). */}
+        {active && (
+          <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-pink" aria-hidden />
+        )}
         <span className={active ? "text-ink" : "text-faint"}>{n.icon}</span>
-        <span
-          className={`text-[13.5px] ${
-            active ? "font-semibold text-ink" : "font-medium text-ink2"
-          }`}
-        >
-          {n.label}
-        </span>
+        {!colapsado && (
+          <span
+            className={`truncate text-[13.5px] ${
+              active ? "font-semibold text-ink" : "font-medium text-ink2"
+            }`}
+          >
+            {n.label}
+          </span>
+        )}
       </button>
     );
   };
 
   return (
-    <div className="flex h-full w-64 flex-col border-r border-line bg-white">
-      <div className="flex items-center gap-2.5 px-5 pb-2 pt-5">
-        <BrandMark size={38} />
-        <Wordmark />
+    <div
+      className={`flex h-full flex-col border-r border-line bg-surface transition-[width] duration-200 ${
+        colapsado ? "w-[78px]" : "w-[272px]"
+      }`}
+    >
+      {/* Cabecera amarilla con la marca del NEGOCIO (no la de easy pos). */}
+      <div
+        className="flex items-center gap-3 px-4 py-4"
+        style={{ background: "linear-gradient(135deg,#FFC93C 0%,#FEBB03 55%,#F5A800 100%)" }}
+      >
+        <BusinessAvatar size={colapsado ? 38 : 44} />
+        {!colapsado && (
+          <span className="min-w-0 flex-1 text-[15px] font-extrabold uppercase leading-[1.15] tracking-[-0.2px] text-onAccent">
+            {business.name}
+          </span>
+        )}
+        {onColapsar && (
+          <button
+            onClick={onColapsar}
+            aria-label={colapsado ? "Expandir el menú" : "Contraer el menú"}
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-onAccent/10 text-onAccent hover:bg-onAccent/20"
+          >
+            {colapsado ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+          </button>
+        )}
         {onClose && (
-          <button onClick={onClose} className="ml-auto text-ink2">
+          <button onClick={onClose} aria-label="Cerrar el menú" className="shrink-0 text-onAccent">
             <X size={20} />
           </button>
         )}
       </div>
-      {/* Rubro activo. Si todavía no se definió no mostramos la etiqueta: un
-          "SIN DEFINIR" no le dice nada al negocio. */}
-      {business.rubro.id === DEFAULT_RUBRO_ID ? (
-        <div className="pb-3" />
-      ) : (
-        <div className="px-5 pb-4">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-pinkSoft px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[1px] text-ink">
-            <Icon name={business.rubro.icon} size={12} />
-            {business.rubro.label}
-          </span>
-        </div>
-      )}
-      <div className="px-4">
-        <PrimaryButton
-          label="Nueva venta"
-          icon={<ShoppingCart size={18} />}
-          expand
-          onClick={() => onSelect("venta")}
-        />
-      </div>
+
+      {/* Secciones */}
       <div className="mt-4 flex-1 overflow-y-auto px-3">
         <div className="flex flex-col gap-0.5">{nav.map((n) => item(n))}</div>
       </div>
-      <div className="h-px bg-line" />
-      <div className="flex items-center gap-2.5 px-4 py-3.5">
-        <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-pink text-[13px] font-bold text-onAccent">
-          {initials}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-ink">{auth.name}</p>
-          <p className="text-[11px] text-faint">{auth.role}</p>
+
+      {/* Quién está usando el CRM */}
+      <div className="px-3 pb-1">
+        <div
+          className={`flex items-center gap-2.5 rounded-[14px] border border-line px-3 py-2.5 ${
+            colapsado ? "justify-center px-0" : ""
+          }`}
+          title={colapsado ? `${auth.name} · ${auth.role}` : undefined}
+        >
+          <span className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full bg-pinkSoft text-[13px] font-bold text-ink">
+            {initials}
+          </span>
+          {!colapsado && (
+            <>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-semibold text-ink">
+                  {auth.name}
+                </span>
+                <span className="block text-[11px] italic text-faint">{auth.role}</span>
+              </span>
+              <ChevronDown size={16} className="shrink-0 text-faint" />
+            </>
+          )}
         </div>
-        <button onClick={auth.logout} title="Cerrar sesión" className="text-ink2 hover:text-ink">
-          <LogOut size={19} />
+      </div>
+
+      {/* Administración: lo que no es una sección del negocio */}
+      <div className="px-3 pb-2 pt-3">
+        {!colapsado && (
+          <span className="block px-1 pb-1.5 text-[11px] font-bold uppercase tracking-[0.5px] text-error">
+            Administración
+          </span>
+        )}
+        <button
+          onClick={onDark}
+          title={colapsado ? (dark ? "Modo claro" : "Modo oscuro") : undefined}
+          className={`flex w-full items-center gap-3 rounded-[12px] py-2.5 text-left text-ink2 transition-colors hover:bg-surface2 ${
+            colapsado ? "justify-center px-0" : "px-3.5"
+          }`}
+        >
+          <span className="text-faint">{dark ? <Sun size={19} /> : <Moon size={19} />}</span>
+          {!colapsado && (
+            <span className="text-[13.5px] font-medium">{dark ? "Modo claro" : "Modo oscuro"}</span>
+          )}
+        </button>
+        <button
+          onClick={auth.logout}
+          title={colapsado ? "Cerrar sesión" : undefined}
+          className={`flex w-full items-center gap-3 rounded-[12px] py-2.5 text-left text-ink2 transition-colors hover:bg-surface2 ${
+            colapsado ? "justify-center px-0" : "px-3.5"
+          }`}
+        >
+          <span className="text-faint">
+            <LogOut size={19} />
+          </span>
+          {!colapsado && <span className="text-[13.5px] font-medium">Cerrar sesión</span>}
         </button>
       </div>
-      {/* Marca del producto: el CRM es easy pos (el negocio es el inquilino). */}
-      <div className="flex items-center justify-center gap-2 border-t border-line py-3">
-        <Image src={EASYPOS.logo} alt="" width={22} height={22} className="rounded-[4px]" />
-        <span className="text-[10.5px] font-bold uppercase tracking-[2px] text-faint">
-          {EASYPOS.name}
-        </span>
+
+      {/* Pie: el negocio y la versión de easy pos que está corriendo. */}
+      <div className="border-t border-line px-4 py-3">
+        {colapsado ? (
+          <p className="text-center text-[10px] font-bold text-faint">V{EASYPOS.version}</p>
+        ) : (
+          <p className="truncate text-[10px] font-bold uppercase tracking-[0.5px] text-faint">
+            {business.name} • V{EASYPOS.version}
+          </p>
+        )}
       </div>
     </div>
   );

@@ -13,6 +13,35 @@
   --c-accent-soft: 255 243 210; /* #FFF3D2 amarillo claro (chips/íconos) */
   --c-accent-hero: 255 250 235; /* #FFFAEB amarillo muy claro (hero) */
   --c-on-accent: 26 18 0;       /* #1A1200 negro — texto SOBRE el amarillo */
+
+  /* Neutros del CRM. Son variables (y no colores fijos) para que el modo
+     oscuro del panel se resuelva solo: ver `.dark` acá abajo. */
+  --c-ink: 32 26 23;        /* #201A17 texto principal */
+  --c-ink2: 107 97 91;      /* #6B615B texto secundario */
+  --c-faint: 154 146 140;   /* #9A928C texto tenue */
+  --c-bg: 246 244 241;      /* #F6F4F1 fondo de la pantalla */
+  --c-surface: 255 255 255; /* #FFFFFF tarjetas */
+  --c-surface2: 247 244 240;/* #F7F4F0 tarjetas hundidas */
+  --c-line: 231 225 218;    /* #E7E1DA bordes */
+}
+
+/**
+ * Modo oscuro del CRM. La clase se pone en el contenedor del panel (no en
+ * <html>), así la tienda pública y las landings siguen claras aunque el
+ * administrador prefiera trabajar en oscuro.
+ */
+.dark {
+  --c-ink: 242 238 234;
+  --c-ink2: 178 170 163;
+  --c-faint: 138 130 124;
+  --c-bg: 19 17 15;
+  --c-surface: 30 27 24;
+  --c-surface2: 39 35 31;
+  --c-line: 58 52 46;
+  /* El amarillo de marca no cambia, pero sus tintes claros (chips, íconos)
+     tienen que oscurecerse o queman la pantalla. */
+  --c-accent-soft: 62 48 8;
+  --c-accent-hero: 41 33 12;
 }
 
 html,

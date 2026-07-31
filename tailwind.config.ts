@@ -9,13 +9,15 @@ const config: Config = {
     extend: {
       colors: {
         // Paleta easy pos (misma que la app móvil, lib/theme.dart).
-        ink: "#201A17",
-        ink2: "#6B615B",
-        faint: "#9A928C",
-        bg: "#F6F4F1",
-        surface: "#FFFFFF",
-        surface2: "#F7F4F0",
-        line: "#E7E1DA",
+        // Neutros por variable CSS (app/globals.css): así el modo oscuro del
+        // CRM se resuelve con una clase y no repintando cada pantalla.
+        ink: "rgb(var(--c-ink) / <alpha-value>)",
+        ink2: "rgb(var(--c-ink2) / <alpha-value>)",
+        faint: "rgb(var(--c-faint) / <alpha-value>)",
+        bg: "rgb(var(--c-bg) / <alpha-value>)",
+        surface: "rgb(var(--c-surface) / <alpha-value>)",
+        surface2: "rgb(var(--c-surface2) / <alpha-value>)",
+        line: "rgb(var(--c-line) / <alpha-value>)",
         // ---------------------------------------------------------------
         // Colores de easy pos (amarillo + negro), FIJOS. Las variables las
         // inyecta app/globals.css / app/layout.tsx; son las mismas siempre.

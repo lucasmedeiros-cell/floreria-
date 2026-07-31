@@ -14,6 +14,8 @@ export const EASYPOS = {
   yellow: "#FEBB03",
   ink: "#000000",
   tagline: "PUNTO DE VENTA Y GESTIÓN",
+  /** Versión que se muestra al pie del menú del CRM. */
+  version: "1.6.0",
   /** Logo original, por si se necesita como imagen (favicon, adjuntos, PDFs). */
   logo: "/images/easypos.png",
 } as const;

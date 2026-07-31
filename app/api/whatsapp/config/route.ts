@@ -5,6 +5,7 @@ import {
   readVendedorConfig,
   writeVendedorConfig,
   aiConfigured,
+  authMode,
   defaultVendedorConfig,
   type VendedorConfig,
 } from "@/lib/vendedor247";
@@ -20,12 +21,8 @@ export const GET = handler(async () => {
   return ok({
     config,
     status: {
-      aiConfigured,
-      authMode: process.env.ANTHROPIC_API_KEY
-        ? "api-key"
-        : aiConfigured
-          ? "cuenta"
-          : "simulado",
+      aiConfigured: aiConfigured(),
+      authMode: authMode(),
       cloudConnected: cloudEnabled(),
     },
   });
@@ -51,12 +48,8 @@ export const POST = handler(async (req: NextRequest) => {
   return ok({
     config: saved,
     status: {
-      aiConfigured,
-      authMode: process.env.ANTHROPIC_API_KEY
-        ? "api-key"
-        : aiConfigured
-          ? "cuenta"
-          : "simulado",
+      aiConfigured: aiConfigured(),
+      authMode: authMode(),
       cloudConnected: cloudEnabled(),
     },
   });

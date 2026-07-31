@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
+import { planEnabled, runClaudePlan } from "./claudePlan";
 import { query, queryOne } from "./db";
 import { type Product } from "./products";
 import { readBusinessConfig } from "./businessStore";
@@ -196,12 +197,34 @@ function toMessages(history: { direction: string; body: string }[]): ChatMsg[] {
 }
 
 /**
- * Autenticación con Claude. Dos modos:
- *  1) API key clásica (ANTHROPIC_API_KEY) → header x-api-key.
- *  2) Token de la CUENTA (OAuth de Claude Code/suscripción) → Bearer + beta.
- *     Se toma de ANTHROPIC_AUTH_TOKEN o, en local, del archivo de credenciales
- *     de Claude Code (~/.claude/.credentials.json). El token se relee en cada
- *     llamada para tomar el valor renovado (los OAuth caducan y se refrescan).
+ * El CLI del plan recibe UN solo prompt: la conversación etiquetada más la
+ * consigna. La persona, las reglas y el catálogo viajan aparte, en
+ * `--system-prompt`.
+ */
+function planPrompt(messages: ChatMsg[]): string {
+  const convo = messages
+    .map((m) => (m.role === "assistant" ? "[Vendedor]: " : "[Cliente]: ") + m.content)
+    .join("\n");
+  return [
+    "=== CONVERSACIÓN DE WHATSAPP ===",
+    convo,
+    "",
+    "Escribe SOLO el texto del próximo mensaje del vendedor: sin comillas, sin firma, sin markdown y sin explicar lo que haces.",
+  ].join("\n");
+}
+
+/**
+ * Autenticación con Claude, en orden de preferencia:
+ *
+ *  1) PLAN — `CLAUDE_CODE_OAUTH_TOKEN` de la cuenta dedicada al vendedor. Se
+ *     llama por el CLI de Claude Code (ver lib/claudePlan.ts) y consume de la
+ *     suscripción de esa cuenta, sin crédito de API. Es el modo de producción.
+ *  2) API key clásica (ANTHROPIC_API_KEY) → header x-api-key. Sirve de respaldo
+ *     si el plan se queda sin cupo.
+ *  3) Token de la sesión local de Claude Code (~/.claude/.credentials.json) →
+ *     Bearer + header beta. Solo para probar en la máquina de desarrollo: ese
+ *     token caduca en horas y nadie lo renueva en un servidor.
+ *  4) Ninguno → modo simulado (respuestas de ejemplo).
  */
 const OAUTH_BETA = "oauth-2025-04-20";
 
@@ -216,11 +239,24 @@ function accountToken(): string | null {
   }
 }
 
-const hasApiKey = !!process.env.ANTHROPIC_API_KEY;
+export type AuthMode = "plan" | "api-key" | "cuenta" | "simulado";
 
-/** Construye el cliente + headers según el modo de autenticación disponible. */
+/** Con qué credencial va a responder el vendedor ahora mismo. */
+export function authMode(): AuthMode {
+  if (planEnabled()) return "plan";
+  if (process.env.ANTHROPIC_API_KEY) return "api-key";
+  if (accountToken()) return "cuenta";
+  return "simulado";
+}
+
+/** ¿Hay IA real disponible? (false = modo simulado). */
+export function aiConfigured(): boolean {
+  return authMode() !== "simulado";
+}
+
+/** Construye el cliente + headers de la API (modos 2 y 3). */
 function buildClient(): { client: Anthropic; headers?: Record<string, string> } | null {
-  if (hasApiKey) return { client: new Anthropic() };
+  if (process.env.ANTHROPIC_API_KEY) return { client: new Anthropic() };
   const tok = accountToken();
   if (tok) {
     return {
@@ -230,9 +266,6 @@ function buildClient(): { client: Anthropic; headers?: Record<string, string> } 
   }
   return null;
 }
-
-/** ¿Hay IA real disponible? (false = modo simulado). */
-export const aiConfigured = hasApiKey || !!accountToken();
 
 /**
  * Genera la respuesta del vendedor para una conversación.
@@ -255,6 +288,19 @@ export async function generateReply(
     rubro.noun
   );
   const messages = toMessages(history);
+
+  // Modo PLAN: el CLI de Claude Code con el token de la cuenta del vendedor.
+  // Si falla (sin cupo, CLI caído), sigue de largo y prueba con la API.
+  if (planEnabled()) {
+    try {
+      const raw = await runClaudePlan(system, planPrompt(messages), cfg.aiModel, "responder");
+      const text = stripEmojis(raw).trim();
+      if (text) return { text, simulated: false };
+      console.warn("[vendedor247] el plan devolvió una respuesta vacía; pruebo con la API.");
+    } catch (error) {
+      console.error("[vendedor247] error llamando a Claude por el plan:", error);
+    }
+  }
 
   const built = buildClient();
   if (!built) {

@@ -18,7 +18,7 @@ interface VendedorConfig {
 
 interface Status {
   aiConfigured: boolean;
-  authMode: "api-key" | "cuenta" | "simulado";
+  authMode: "plan" | "api-key" | "cuenta" | "simulado";
   cloudConnected: boolean;
 }
 
@@ -29,6 +29,14 @@ interface BaileysStatus {
   qr: string | null;
   error?: string | null;
 }
+
+/** Con qué credencial está respondiendo la IA (lo dice /api/whatsapp/config). */
+const MODO_IA: Record<Status["authMode"], string> = {
+  plan: "IA conectada (plan del vendedor)",
+  "api-key": "IA conectada (API key)",
+  cuenta: "IA conectada (token de cuenta)",
+  simulado: "IA en modo simulado",
+};
 
 const fallback: VendedorConfig = {
   botEnabled: false,
@@ -199,7 +207,7 @@ export function VendedorEditor() {
       <div className="mt-3 flex flex-wrap gap-2 text-[11.5px] font-semibold">
         <Badge
           ok={status.aiConfigured}
-          on={status.authMode === "cuenta" ? "IA conectada (token de cuenta)" : "IA conectada (Claude)"}
+          on={MODO_IA[status.authMode] ?? "IA conectada (Claude)"}
           off="IA en modo simulado"
         />
         <Badge ok={!!wa?.connected} on="WhatsApp vinculado (Baileys)" off="WhatsApp sin vincular" />
