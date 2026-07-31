@@ -89,6 +89,54 @@ contraseña"  →  Aplicar  →  escribir la contraseña de esa cuenta.
 
 ---
 
+## 3.bis Error 0x80070002 al iniciar sesión en el quiosco
+
+> «No pudimos iniciar la aplicación. Presiona CTRL+ALT+SUPR para cerrar la
+> sesión… código de error 0x80070002.»
+
+`0x80070002` es **"no encuentro el archivo"**: el *Acceso asignado* de Windows
+no abre URLs, abre **aplicaciones**. Si en el asistente se pegó la dirección del
+CRM (o la ruta de un programa) en el lugar de la app, al iniciar sesión Windows
+busca una aplicación con ese nombre, no la encuentra y muestra esa pantalla
+azul. **El link está bien**; lo que falta es decirle a Windows qué programa
+abrir y pasarle la dirección como argumento.
+
+Tres salidas, de la más simple a la más cerrada:
+
+**A. Que el asistente abra Edge (no la URL).** Quitá el quiosco actual y
+rehacelo eligiendo la aplicación **Microsoft Edge**; recién ahí Windows pide la
+URL, y ahí va la del CRM:
+
+```
+Configuración → Cuentas → Otros usuarios → Configurar un quiosco
+  → (si ya hay uno) Quitar quiosco
+  → Comenzar → cuenta del quiosco → Microsoft Edge
+  → "Como quiosco digital (pantalla completa)"
+  → URL:  https://easypos.easypaybo.com/n/auto_piezas_coquito/admin
+```
+
+**B. Sin Acceso asignado, funciona en cualquier Windows.** El script
+`configurar-kiosco.ps1` de esta carpeta (ver punto 1): no necesita
+administrador, arranca solo al iniciar sesión y abre el CRM a pantalla completa.
+Se sale con `Alt+F4`, que para un mostrador a la vista suele alcanzar.
+
+**C. Acceso asignado con Edge + la URL, escrito a mano.** Es lo que el asistente
+no deja hacer. Requiere **Windows 11 22H2 o superior** y administrador:
+
+```powershell
+# 1) crear la cuenta del mostrador, si no existe:
+net user kiosco /add
+# 2) configurar el quiosco:
+powershell -ExecutionPolicy Bypass -File .\configurar-quiosco-asignado.ps1
+```
+
+Después, cerrar sesión e iniciar con la cuenta `kiosco`: arranca dentro del CRM,
+sin escritorio y sin forma de salir. Para administrar la PC se entra con la
+cuenta de siempre. Se desarma con
+`.\configurar-quiosco-asignado.ps1 -Quitar`.
+
+---
+
 ## 4. Kiosco "de verdad" (Windows Pro/Enterprise)
 
 Lo de arriba es un kiosco práctico: el usuario puede salir con `Alt+F4` y llegar
