@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, ShieldCheck, Users, X } from "lucide-react";
+import { Mail, Phone, Plus, ShieldCheck, Users, X } from "lucide-react";
 import { useAuth, useToast } from "@/context/StoreProvider";
 import {
   apiCreateEmployee,
@@ -103,100 +103,94 @@ export function UsuariosPage() {
         </div>
       )}
 
-      <div className="mt-5 overflow-x-auto rounded-[18px] border border-line bg-surface shadow-soft">
-        {loading ? (
-          <p className="px-5 py-10 text-center text-[13px] text-ink2">Cargando…</p>
-        ) : users.length === 0 ? (
-          <div className="px-5 py-14 text-center">
-            <Users size={34} className="mx-auto text-faint" />
-            <p className="mt-3 text-[14px] font-medium text-ink">Todavía no hay usuarios.</p>
-          </div>
-        ) : (
-          <table className="w-full min-w-[720px]">
-            <thead>
-              <tr className="border-b border-line text-[11px] uppercase tracking-wide text-faint">
-                <th className="px-4 py-3 text-left font-semibold">Nombre</th>
-                <th className="px-4 py-3 text-left font-semibold">Correo</th>
-                <th className="px-4 py-3 text-left font-semibold">Teléfono</th>
-                <th className="px-4 py-3 text-left font-semibold">Rol</th>
-                <th className="px-4 py-3 text-center font-semibold">Catálogo</th>
-                <th className="px-4 py-3 text-center font-semibold">Estado</th>
-                <th className="px-4 py-3 text-right font-semibold">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => {
-                const admin = u.role === "Administrador";
-                const puede = u.perms?.products === true;
-                // Sin `id` en la sesión del contexto, el correo alcanza para
-                // reconocerse; el backend igual impide autodesactivarse.
-                const yo = !!auth.email && u.email === auth.email;
-                return (
-                  <tr
-                    key={u.id}
-                    className={`border-b border-line last:border-0 ${u.active ? "" : "opacity-50"}`}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-pinkSoft text-[11px] font-bold text-ink">
-                          {initials(u.name)}
-                        </span>
-                        <span className="text-[13px] font-semibold text-ink">{u.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-[13px] text-ink2">{u.email || "—"}</td>
-                    <td className="px-4 py-3 text-[13px] text-ink2">{u.phone || "—"}</td>
-                    <td className="px-4 py-3 text-[13px] text-ink">{u.role}</td>
-                    <td className="px-4 py-3 text-center">
-                      {admin ? (
-                        <span className="inline-block rounded-full bg-surface2 px-2.5 py-1 text-[11px] font-semibold text-ink2">
-                          Siempre
-                        </span>
-                      ) : (
-                        <button
-                          disabled={busy === u.id}
-                          onClick={() => patch(u.id, { perms: { products: !puede } })}
-                          className={`rounded-full px-2.5 py-1 text-[11px] font-bold disabled:opacity-50 ${
-                            puede ? "bg-emerald-100 text-emerald-700" : "bg-surface2 text-ink2"
-                          }`}
-                        >
-                          {puede ? "Sí" : "No"}
-                        </button>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                          u.active ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
+      {/* Vista de tarjetas: una por cuenta, con su rol, sus datos y lo que
+          puede hacer a la vista, sin tener que leer una fila de tabla. */}
+      {loading ? (
+        <p className="mt-5 rounded-[18px] border border-line bg-surface px-5 py-10 text-center text-[13px] text-ink2">
+          Cargando…
+        </p>
+      ) : users.length === 0 ? (
+        <div className="mt-5 rounded-[18px] border border-line bg-surface px-5 py-14 text-center">
+          <Users size={34} className="mx-auto text-faint" />
+          <p className="mt-3 text-[14px] font-medium text-ink">Todavía no hay usuarios.</p>
+        </div>
+      ) : (
+        <div className="mt-5 flex flex-wrap gap-4">
+          {users.map((u) => {
+            const admin = u.role === "Administrador";
+            const puede = u.perms?.products === true;
+            // Sin `id` en la sesión del contexto, el correo alcanza para
+            // reconocerse; el backend igual impide autodesactivarse.
+            const yo = !!auth.email && u.email === auth.email;
+            return (
+              <div
+                key={u.id}
+                className={`flex w-full max-w-[320px] flex-col rounded-[18px] border border-line bg-surface p-5 shadow-card sm:w-[320px] ${
+                  u.active ? "" : "opacity-60"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-pinkSoft text-[15px] font-bold text-ink">
+                    {initials(u.name)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[15px] font-bold text-ink">{u.name}</p>
+                    <p className="text-[12px] text-ink2">
+                      {u.role}
+                      {yo && <span className="text-faint"> · vos</span>}
+                    </p>
+                  </div>
+                  <Chip tone={u.active ? "ok" : "off"}>{u.active ? "Activo" : "Inactivo"}</Chip>
+                </div>
+
+                <div className="mt-4 flex flex-col gap-1.5 border-t border-line pt-3.5 text-[12.5px]">
+                  <p className="flex items-center gap-2 text-ink2">
+                    <Mail size={14} className="shrink-0 text-faint" />
+                    <span className="truncate">{u.email || "Sin correo"}</span>
+                  </p>
+                  <p className="flex items-center gap-2 text-ink2">
+                    <Phone size={14} className="shrink-0 text-faint" />
+                    <span className="truncate">{u.phone || "Sin teléfono"}</span>
+                  </p>
+                </div>
+
+                <div className="mt-3.5 flex items-center gap-2 border-t border-line pt-3.5">
+                  <span className="text-[12.5px] font-semibold text-ink2">Catálogo</span>
+                  {admin ? (
+                    <Chip tone="neutral">Siempre</Chip>
+                  ) : (
+                    <button
+                      disabled={busy === u.id}
+                      onClick={() => patch(u.id, { perms: { products: !puede } })}
+                      title="Deja que esta cuenta registre y edite productos"
+                      className="disabled:opacity-50"
+                    >
+                      <Chip tone={puede ? "ok" : "neutral"}>{puede ? "Sí" : "No"}</Chip>
+                    </button>
+                  )}
+                  <span className="ml-auto">
+                    {yo ? (
+                      <span className="text-[12px] text-faint">Tu cuenta</span>
+                    ) : (
+                      <button
+                        disabled={busy === u.id}
+                        onClick={() => patch(u.id, { active: !u.active })}
+                        className={`rounded-[10px] border px-3 py-1.5 text-[12px] font-semibold disabled:opacity-50 ${
+                          u.active
+                            ? "border-error/50 text-error"
+                            : "border-line text-ink2 hover:text-ink"
                         }`}
                       >
-                        {u.active ? "Activo" : "Inactivo"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {yo ? (
-                        <span className="text-[12px] text-faint">Vos</span>
-                      ) : (
-                        <button
-                          disabled={busy === u.id}
-                          onClick={() => patch(u.id, { active: !u.active })}
-                          className={`rounded-[9px] border px-3 py-1.5 text-[12px] font-semibold disabled:opacity-50 ${
-                            u.active
-                              ? "border-error/50 text-error"
-                              : "border-line text-ink2 hover:text-ink"
-                          }`}
-                        >
-                          {u.active ? "Desactivar" : "Activar"}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+                        {u.active ? "Desactivar" : "Activar"}
+                      </button>
+                    )}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="mt-4 flex items-start gap-2.5 rounded-[18px] border border-line bg-surface2 p-[18px]">
         <ShieldCheck size={20} className="mt-0.5 shrink-0 text-ink" />
@@ -218,6 +212,26 @@ export function UsuariosPage() {
         />
       )}
     </div>
+  );
+}
+
+/** Etiqueta redonda de estado o permiso, con los tres tonos que usa el CRM. */
+function Chip({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone: "ok" | "off" | "neutral";
+}) {
+  const cls = {
+    ok: "bg-success/12 text-success",
+    off: "bg-error/12 text-error",
+    neutral: "bg-surface2 text-ink2",
+  }[tone];
+  return (
+    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${cls}`}>
+      {children}
+    </span>
   );
 }
 

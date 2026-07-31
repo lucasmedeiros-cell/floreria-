@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { DollarSign, ReceiptText, TrendingUp, AlertTriangle } from "lucide-react";
 import { bs2 } from "@/lib/products";
-import { onAccent } from "@/lib/business";
 import { useBusiness } from "@/context/StoreProvider";
 import { apiReports, type Reports } from "@/lib/reportsClient";
 
@@ -62,10 +61,10 @@ export function ReportesPage() {
 
       {/* KPIs */}
       <div className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Kpi icon={<DollarSign size={22} />} label="Ventas acumuladas" value={loading ? "—" : bs2(rep?.totalVentas ?? 0)} color={colors.accent} />
-        <Kpi icon={<ReceiptText size={22} />} label="N° de ventas" value={loading ? "—" : `${rep?.numVentas ?? 0}`} color="#3B6FD4" />
-        <Kpi icon={<TrendingUp size={22} />} label="Ganancia" value={loading ? "—" : bs2(rep?.ganancia ?? 0)} color="#2EA66B" />
-        <Kpi icon={<AlertTriangle size={22} />} label="Stock bajo" value={loading ? "—" : `${rep?.stockBajo ?? 0}`} color="#E0324E" />
+        <Kpi icon={<DollarSign size={22} />} label="Ventas acumuladas" value={loading ? "—" : bs2(rep?.totalVentas ?? 0)} />
+        <Kpi icon={<ReceiptText size={22} />} label="N° de ventas" value={loading ? "—" : `${rep?.numVentas ?? 0}`} />
+        <Kpi icon={<TrendingUp size={22} />} label="Ganancia" value={loading ? "—" : bs2(rep?.ganancia ?? 0)} />
+        <Kpi icon={<AlertTriangle size={22} />} label="Stock bajo" value={loading ? "—" : `${rep?.stockBajo ?? 0}`} />
       </div>
 
       {/* Ventas por mes (datos reales) */}
@@ -124,14 +123,33 @@ export function ReportesPage() {
   );
 }
 
-function Kpi({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
+/**
+ * Tarjeta de dato de Reportes.
+ *
+ * Todos los íconos van en el amarillo de easy pay y sin sombra propia: antes
+ * cada tarjeta tenía su color (azul, verde, rojo) y el ícono flotaba como una
+ * pastilla pegada encima. Ahora el ícono es parte de la tarjeta, y las cuatro
+ * se leen como una sola familia — la misma de Resumen e Inventario.
+ */
+function Kpi({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  const { colors } = useBusiness();
   return (
-    <div className="flex flex-col items-center rounded-[18px] border border-line bg-surface p-5 text-center shadow-soft">
-      <span className="flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: `linear-gradient(140deg, ${color}, ${color}cc)`, boxShadow: `0 10px 20px ${color}44`, color: onAccent(color) }}>
+    <div
+      className="flex items-center gap-4 rounded-[18px] border border-line bg-surface p-5 shadow-card"
+      style={{ borderTopColor: colors.accent }}
+    >
+      <span
+        className="grid h-[54px] w-[54px] shrink-0 place-items-center rounded-full"
+        style={{ background: `${colors.accent}24`, color: colors.accentDeep }}
+      >
         {icon}
       </span>
-      <p className="mt-3.5 text-[26px] font-bold leading-none text-ink">{value}</p>
-      <p className="mt-2 text-[12.5px] text-ink2">{label}</p>
+      <span className="min-w-0">
+        <span className="block truncate text-[12.5px] font-semibold text-ink2">{label}</span>
+        <span className="mt-1 block truncate text-[24px] font-extrabold leading-none text-ink">
+          {value}
+        </span>
+      </span>
     </div>
   );
 }
