@@ -233,11 +233,11 @@ export function ProductsPage({ onGo }: { onGo?: (s: "proveedor") => void }) {
             onDelete={borrar}
           />
         ) : (
-          // Fila que se corre de lado: las tarjetas mantienen su ancho y la foto
-          // grande en vez de achicarse para entrar todas en la pantalla.
-          <div className="mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3">
+          // Las tarjetas mantienen su ancho (la foto se ve grande) y bajan de
+          // fila cuando no entran: nada que deslizar de costado.
+          <div className="mt-5 flex flex-wrap gap-4">
             {visibles.map((p) => (
-              <div key={p.id} className="w-[280px] shrink-0 snap-start">
+              <div key={p.id} className="w-full max-w-[280px] sm:w-[280px]">
                 <TarjetaProducto
                   p={p}
                   onEdit={() => setEditing(p)}
