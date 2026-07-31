@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeftRight,
   Bell,
-  GalleryHorizontal,
   LayoutGrid,
   List,
   Package,
@@ -35,8 +34,11 @@ import { ImageGalleryField } from "./ImageGalleryField";
 /** Igual que el umbral del reporte (`app/api/reports`): 5 o menos es alerta. */
 const STOCK_BAJO = 5;
 
-/** Cómo se listan los productos. El carrusel es para revisarlos de a uno. */
-type Vista = "tarjeta" | "lista" | "carrusel";
+/**
+ * Cómo se listan los productos: la tabla, o la fila de tarjetas con foto que
+ * se corre de lado (es la que deja reconocer el producto por la imagen).
+ */
+type Vista = "tarjeta" | "lista";
 
 /** Movimiento manual de stock: lo que entra sin pedido y lo que se devuelve. */
 type Movimiento = "recibir" | "devolver";
@@ -212,13 +214,6 @@ export function ProductsPage({ onGo }: { onGo?: (s: "proveedor") => void }) {
               label="Vista Lista"
               onClick={setVista}
             />
-            <VistaBtn
-              actual={vista}
-              id="carrusel"
-              icon={<GalleryHorizontal size={15} />}
-              label="Vista Carrusel"
-              onClick={setVista}
-            />
           </div>
         </div>
 
@@ -237,18 +232,9 @@ export function ProductsPage({ onGo }: { onGo?: (s: "proveedor") => void }) {
             onEdit={setEditing}
             onDelete={borrar}
           />
-        ) : vista === "tarjeta" ? (
-          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {visibles.map((p) => (
-              <TarjetaProducto
-                key={p.id}
-                p={p}
-                onEdit={() => setEditing(p)}
-                onDelete={() => borrar(p)}
-              />
-            ))}
-          </div>
         ) : (
+          // Fila que se corre de lado: las tarjetas mantienen su ancho y la foto
+          // grande en vez de achicarse para entrar todas en la pantalla.
           <div className="mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3">
             {visibles.map((p) => (
               <div key={p.id} className="w-[280px] shrink-0 snap-start">
