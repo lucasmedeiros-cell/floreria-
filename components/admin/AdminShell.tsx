@@ -299,7 +299,11 @@ function Sidebar({
     >
       {/* Cabecera amarilla con la marca del NEGOCIO (no la de easy pos). */}
       <div
-        className="flex items-center gap-3 px-4 py-4"
+        className={`flex px-4 py-4 ${
+          // Contraído no entran el isotipo y el botón lado a lado (78 px de
+          // ancho): se apilan, que si no el botón de expandir queda cortado.
+          colapsado ? "flex-col items-center gap-2.5" : "items-center gap-3"
+        }`}
         style={{ background: "linear-gradient(135deg,#FFC93C 0%,#FEBB03 55%,#F5A800 100%)" }}
       >
         <BusinessAvatar size={colapsado ? 38 : 44} />

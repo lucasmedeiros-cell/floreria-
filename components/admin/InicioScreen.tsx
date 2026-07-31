@@ -243,7 +243,13 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
               Resumen general
             </h1>
             <p className="mt-1.5 text-[13px] text-ink2">
-              Panel comercial · {fromIso(fecha).toLocaleDateString("es-BO")} ·{" "}
+              Panel comercial ·{" "}
+              {fromIso(fecha).toLocaleDateString("es-BO", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              })}{" "}
+              ·{" "}
               <span className="font-semibold text-success">
                 <span className="pulse-soft">●</span> En vivo
               </span>
