@@ -18,6 +18,7 @@ import { apiReports } from "@/lib/reportsClient";
 import { apiListPurchaseOrders, type PurchaseOrder } from "@/lib/purchaseClient";
 import { apiListSales, type SaleRow } from "@/lib/salesClient";
 import { bs2 } from "@/lib/products";
+import { IconTile } from "./kit";
 
 /**
  * Secciones a las que el Resumen puede mandar. Es un subconjunto del `Section`
@@ -294,7 +295,7 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
         {/* ---------- Vistazo ---------- */}
         <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
-            icon={<TrendingUp size={24} />}
+            icon={<TrendingUp size={28} />}
             tone="#F5A800"
             label={r.etiqueta}
             value={dato(bs2(ventas))}
@@ -302,14 +303,14 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
             extra={<Sparkline data={serie} />}
           />
           <KpiCard
-            icon={<Wallet size={24} />}
+            icon={<Wallet size={28} />}
             tone="#7C6BE0"
             label="Costo"
             value={dato(bs2(costo))}
             onClick={() => onGo("reportes")}
           />
           <KpiCard
-            icon={<Boxes size={24} />}
+            icon={<Boxes size={28} />}
             tone="#2EA66B"
             label="Productos"
             value={dato(`${productos}`)}
@@ -317,7 +318,7 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
             chip={{ text: "En el catálogo", tone: "up" }}
           />
           <KpiCard
-            icon={<AlertTriangle size={24} />}
+            icon={<AlertTriangle size={28} />}
             tone="#E0324E"
             label="Stock bajo"
             value={dato(`${stockBajo}`)}
@@ -455,12 +456,7 @@ function KpiCard({
       className="flex items-center gap-4 rounded-[18px] border border-line bg-surface p-5 text-left shadow-card transition-transform hover:-translate-y-0.5"
       style={{ borderTopColor: tone }}
     >
-      <span
-        className="grid h-[58px] w-[58px] shrink-0 place-items-center rounded-full"
-        style={{ background: `${tone}1F`, color: tone }}
-      >
-        {icon}
-      </span>
+      <IconTile icon={icon} tone={tone} size={60} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[14.5px] font-semibold text-ink2">{label}</span>
         <span className="mt-1.5 block truncate text-[26px] font-extrabold leading-none text-ink">

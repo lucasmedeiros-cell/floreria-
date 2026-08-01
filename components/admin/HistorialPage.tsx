@@ -17,6 +17,7 @@ import {
 import { bs2 } from "@/lib/products";
 import { useBusiness, useToast } from "@/context/StoreProvider";
 import { exportComprobante } from "@/lib/comprobante";
+import { IconTile } from "./kit";
 import {
   apiGetSale,
   apiListSales,
@@ -119,12 +120,7 @@ export function HistorialPage() {
             style={{ borderColor: "#FEBB0355" }}
           >
             <Sparkles size={15} className="absolute right-3 top-2.5 text-pink" />
-            <span
-              className="grid h-12 w-12 shrink-0 place-items-center rounded-[13px]"
-              style={{ background: "#F5A80024", color: "#C88600" }}
-            >
-              <Receipt size={22} />
-            </span>
+            <IconTile icon={<Receipt size={26} />} tone="#C88600" size={54} />
             <span>
               <span className="block text-[11px] font-bold uppercase tracking-[2px] text-ink2">
                 Facturado
@@ -154,9 +150,9 @@ export function HistorialPage() {
 
         {/* Cuántos comprobantes hay de cada tipo. */}
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <ConteoCard icon={<FileText size={20} />} tone="#F5A800" label="Facturas" n={nFacturas} />
-          <ConteoCard icon={<FileText size={20} />} tone="#3B6FD4" label="Proformas" n={nProformas} />
-          <ConteoCard icon={<XCircle size={20} />} tone="#E0324E" label="Anuladas" n={nAnuladas} />
+          <ConteoCard icon={<FileText size={24} />} tone="#F5A800" label="Facturas" n={nFacturas} />
+          <ConteoCard icon={<FileText size={24} />} tone="#3B6FD4" label="Proformas" n={nProformas} />
+          <ConteoCard icon={<XCircle size={24} />} tone="#E0324E" label="Anuladas" n={nAnuladas} />
         </div>
 
       {err && (
@@ -371,11 +367,8 @@ function ConteoCard({
           opacity: 0.28,
         }}
       />
-      <span
-        className="relative grid h-11 w-11 shrink-0 place-items-center rounded-[13px]"
-        style={{ background: `${tone}24`, color: tone }}
-      >
-        {icon}
+      <span className="relative block">
+        <IconTile icon={icon} tone={tone} size={54} />
       </span>
       <span className="relative">
         <span className="block text-[12.5px] text-ink2">{label}</span>

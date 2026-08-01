@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DollarSign, ReceiptText, TrendingUp, AlertTriangle } from "lucide-react";
+import { IconTile } from "./kit";
 import { bs2 } from "@/lib/products";
 import { useBusiness } from "@/context/StoreProvider";
 import { apiReports, type Reports } from "@/lib/reportsClient";
@@ -63,10 +64,10 @@ export function ReportesPage() {
 
       {/* KPIs */}
       <div className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Kpi icon={<DollarSign size={22} />} label="Ventas acumuladas" value={loading ? "—" : bs2(rep?.totalVentas ?? 0)} />
-        <Kpi icon={<ReceiptText size={22} />} label="N° de ventas" value={loading ? "—" : `${rep?.numVentas ?? 0}`} />
-        <Kpi icon={<TrendingUp size={22} />} label="Ganancia" value={loading ? "—" : bs2(rep?.ganancia ?? 0)} />
-        <Kpi icon={<AlertTriangle size={22} />} label="Stock bajo" value={loading ? "—" : `${rep?.stockBajo ?? 0}`} />
+        <Kpi icon={<DollarSign size={28} />} label="Ventas acumuladas" value={loading ? "—" : bs2(rep?.totalVentas ?? 0)} />
+        <Kpi icon={<ReceiptText size={28} />} label="N° de ventas" value={loading ? "—" : `${rep?.numVentas ?? 0}`} />
+        <Kpi icon={<TrendingUp size={28} />} label="Ganancia" value={loading ? "—" : bs2(rep?.ganancia ?? 0)} />
+        <Kpi icon={<AlertTriangle size={28} />} label="Stock bajo" value={loading ? "—" : `${rep?.stockBajo ?? 0}`} />
       </div>
 
       {/* Ventas por mes (datos reales) */}
@@ -142,12 +143,7 @@ function Kpi({ icon, label, value }: { icon: React.ReactNode; label: string; val
       className="flex items-center gap-4 rounded-[18px] border border-line bg-surface p-5 shadow-card"
       style={{ borderTopColor: colors.accent }}
     >
-      <span
-        className="grid h-[54px] w-[54px] shrink-0 place-items-center rounded-full"
-        style={{ background: `${colors.accent}24`, color: colors.accentDeep }}
-      >
-        {icon}
-      </span>
+      <IconTile icon={icon} tone={colors.accentDeep} size={62} />
       <span className="min-w-0">
         <span className="block truncate text-[12.5px] font-semibold text-ink2">{label}</span>
         <span className="mt-1 block truncate text-[24px] font-extrabold leading-none text-ink">

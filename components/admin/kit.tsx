@@ -90,6 +90,43 @@ export function CurvedHeader({
   );
 }
 
+/* ============================ Ícono de tarjeta ============================ */
+
+/**
+ * El bloque de ícono de las tarjetas de dato del CRM (Resumen, Reportes, Corte
+ * de caja, Gastos, Historial).
+ *
+ * Es un cuadrado redondeado con un degradado suave del color de la tarjeta, sin
+ * borde ni sombra propia: así el ícono se lee como PARTE de la tarjeta y no
+ * como una pastilla pegada encima. Todas las pantallas usan este mismo bloque,
+ * que es lo que hace que el panel se vea de una sola familia.
+ */
+export function IconTile({
+  icon,
+  tone,
+  size = 58,
+}: {
+  icon: ReactNode;
+  /** Color de la tarjeta (el ícono va en ese color, más oscuro). */
+  tone: string;
+  size?: number;
+}) {
+  return (
+    <span
+      className="relative grid shrink-0 place-items-center"
+      style={{
+        height: size,
+        width: size,
+        borderRadius: Math.round(size * 0.32),
+        background: `linear-gradient(145deg, ${tone}2E, ${tone}12)`,
+        color: tone,
+      }}
+    >
+      {icon}
+    </span>
+  );
+}
+
 /* ============================ Tarjeta de dato ============================ */
 
 export function StatCard({

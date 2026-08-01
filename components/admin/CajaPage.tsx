@@ -5,6 +5,7 @@ import { Banknote, Coins, Info, Lock, QrCode, Scale, Wallet } from "lucide-react
 import { bs2 } from "@/lib/products";
 import { useToast } from "@/context/StoreProvider";
 import { apiCashShift, apiCloseCash, type CashShift } from "@/lib/cashClient";
+import { IconTile } from "./kit";
 
 function fmt(iso: string | null): string {
   if (!iso) return "el inicio del día";
@@ -93,25 +94,25 @@ export function CajaPage() {
           <>
             <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <CajaCard
-                icon={<Wallet size={22} />}
+                icon={<Wallet size={28} />}
                 tone="#F5A800"
                 value={bs2(turno.totalVentas)}
                 label="Total vendido"
               />
               <CajaCard
-                icon={<Banknote size={22} />}
+                icon={<Banknote size={28} />}
                 tone="#2EA66B"
                 value={bs2(turno.totalEfectivo)}
                 label="Efectivo"
               />
               <CajaCard
-                icon={<QrCode size={22} />}
+                icon={<QrCode size={28} />}
                 tone="#3B6FD4"
                 value={bs2(turno.totalQr)}
                 label="QR / Transferencia"
               />
               <CajaCard
-                icon={<Coins size={22} />}
+                icon={<Coins size={28} />}
                 tone="#7C6BE0"
                 value={bs2(turno.totalOtros)}
                 label="Otros medios"
@@ -122,12 +123,7 @@ export function CajaPage() {
             <div className="relative mt-4 max-w-[540px] overflow-hidden rounded-[18px] border border-line bg-surface p-6 shadow-card">
               <Puntos className="-bottom-2 left-4 h-[60px] w-[110px]" />
               <div className="relative flex items-center gap-3">
-                <span
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-[13px]"
-                  style={{ background: "#F5A80024", color: "#C88600" }}
-                >
-                  <Scale size={22} />
-                </span>
+                <IconTile icon={<Scale size={26} />} tone="#C88600" size={52} />
                 <h2 className="text-[19px] font-extrabold text-ink">Arqueo</h2>
               </div>
               <p className="relative mt-3 text-[13px] text-ink2">
@@ -213,11 +209,8 @@ function CajaCard({
         className="pointer-events-none absolute -bottom-8 -right-8 h-24 w-28 rounded-[40%]"
         style={{ background: `linear-gradient(135deg, ${tone}00, ${tone}33)` }}
       />
-      <span
-        className="relative grid h-12 w-12 place-items-center rounded-[13px]"
-        style={{ background: `${tone}24`, color: tone }}
-      >
-        {icon}
+      <span className="relative block">
+        <IconTile icon={icon} tone={tone} size={62} />
       </span>
       <p className="relative mt-4 truncate text-[25px] font-extrabold leading-none text-ink">
         {value}
