@@ -74,7 +74,9 @@ export function DebugReporter({ surface = "web" }: { surface?: "web" | "crm" }) 
       <button
         onClick={() => setOpen(true)}
         aria-label="Reportar un bug"
-        className="fixed bottom-5 right-5 z-[85] inline-flex items-center gap-2 rounded-full bg-[#1f2937] px-4 py-3 text-[13px] font-semibold text-white shadow-[0_6px_20px_rgba(0,0,0,0.28)] transition-transform hover:scale-[1.04] active:scale-95"
+        // Abajo a la IZQUIERDA: a la derecha se sentaba justo encima del botón
+        // de cobrar del punto de venta, que es el que no se puede tapar.
+        className="fixed bottom-5 left-5 z-[85] inline-flex items-center gap-2 rounded-full bg-[#1f2937] px-4 py-3 text-[13px] font-semibold text-white shadow-[0_6px_20px_rgba(0,0,0,0.28)] transition-transform hover:scale-[1.04] active:scale-95"
       >
         <Bug size={17} /> Debug
       </button>
