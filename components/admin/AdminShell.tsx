@@ -77,12 +77,15 @@ const NAV: NavDef[] = [
   { s: "venta", icon: <ShoppingCart size={19} />, label: "Ventas" },
   { s: "catalogo", icon: <Boxes size={19} />, label: "Inventario" },
   { s: "historial", icon: <Receipt size={19} />, label: "Historial" },
-  { s: "gastos", icon: <Wallet size={19} />, label: "Gastos" },
   { s: "caja", icon: <Coins size={19} />, label: "Corte de caja" },
   { s: "reportes", icon: <LineChart size={19} />, label: "Reportes" },
   { s: "usuarios", icon: <Users size={19} />, label: "Usuarios", soloAdmin: true },
   { s: "configuracion", icon: <Settings size={19} />, label: "Configuración" },
   { s: "proveedor", icon: <Warehouse size={19} />, label: "Proveedores", oculto: true },
+  // Gastos salió del menú por pedido del negocio. La pantalla sigue entera y
+  // Reportes sigue restando los gastos cargados: para volver a mostrarla,
+  // alcanza con sacarle el `oculto`.
+  { s: "gastos", icon: <Wallet size={19} />, label: "Gastos", oculto: true },
 ];
 
 /** Preferencia de modo oscuro del CRM. Se recuerda por navegador. */
