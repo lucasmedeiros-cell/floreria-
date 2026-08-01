@@ -2,6 +2,8 @@
 
 import { useMemo, useRef, useState } from "react";
 import {
+  BadgeDollarSign,
+  Barcode,
   Check,
   FileText,
   Minus,
@@ -10,6 +12,7 @@ import {
   Search,
   ShoppingCart,
   Trash2,
+  UserRound,
   X,
 } from "lucide-react";
 import { bs } from "@/lib/products";
@@ -151,16 +154,34 @@ export function VentasScreen() {
     }
   };
 
+  /**
+   * Los lectores de código de barras USB "escriben" el código y mandan Enter:
+   * alcanza con dejar el cursor en el buscador para que la lectura entre sola.
+   */
+  const escanear = () => {
+    searchRef.current?.focus();
+    showToast("Escaneá el código con el lector: entra solo en el buscador.");
+  };
+
   return (
-    <div className="flex h-full flex-col lg:flex-row">
+    <div className="flex h-full flex-col gap-4 overflow-y-auto bg-bg p-4 lg:flex-row lg:overflow-hidden lg:p-5">
       {/* ==================== Buscador + resultados ==================== */}
-      <div className="flex min-h-0 flex-1 flex-col border-r border-line px-6 pb-6 pt-6">
-        <div>
-          <span className="eyebrow text-[10.5px] font-semibold text-pink">Punto de venta</span>
-          <h1 className="text-[28px] font-semibold text-ink">Ventas</h1>
-          <p className="mt-0.5 text-[13px] text-ink2">
-            Busca el producto en el inventario, agrégalo y cobra. La venta descuenta el stock.
-          </p>
+      <div className="flex min-h-0 flex-1 flex-col rounded-[18px] border border-line bg-surface p-6 shadow-card">
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-[30px] font-extrabold leading-none tracking-[-0.5px] text-ink">
+              Ventas
+            </h1>
+            <p className="mt-2 text-[13px] text-ink2">
+              Busca el producto en el inventario, agrégalo y cobra. La venta descuenta el stock.
+            </p>
+          </div>
+          <button
+            onClick={escanear}
+            className="inline-flex h-[46px] shrink-0 items-center gap-2.5 rounded-[12px] border border-line bg-surface px-4 text-[13px] font-semibold text-ink2 transition-colors hover:text-ink"
+          >
+            <Barcode size={18} className="text-pinkDeep" /> Código de barras
+          </button>
         </div>
 
         {/* Buscador tipo Google */}
@@ -172,7 +193,7 @@ export function VentasScreen() {
             onChange={(e) => setQ(e.target.value)}
             autoFocus
             placeholder="Buscar por código, nombre, código de barras, marca…"
-            className="w-full rounded-[14px] border border-line bg-surface py-3.5 pl-12 pr-4 text-[14px] text-ink outline-none focus:border-pink"
+            className="w-full rounded-[14px] border border-line bg-surface py-4 pl-12 pr-4 text-[14px] text-ink outline-none focus:border-pink"
           />
           {q && (
             <button
@@ -185,12 +206,21 @@ export function VentasScreen() {
         </div>
 
         {/* Resultados */}
-        <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
+        <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
           {q.trim() === "" ? (
-            <div className="flex h-full flex-col items-center justify-center py-16 text-center text-ink2">
-              <Search size={34} className="text-faint" />
-              <p className="mt-3 text-[13.5px]">Escribe para buscar en el inventario.</p>
-              <p className="mt-1 text-[12px] text-faint">
+            <div
+              className="flex h-full min-h-[300px] flex-col items-center justify-center rounded-[16px] border border-line bg-surface2/40 py-16 text-center"
+              style={{ borderTopColor: "#FEBB03" }}
+            >
+              <span className="relative grid h-[150px] w-[150px] place-items-center rounded-full bg-pinkSoft/60 text-ink">
+                <Search size={62} strokeWidth={1.6} />
+                <Sparkle className="absolute right-4 top-6" />
+                <Sparkle className="absolute bottom-8 left-6" />
+              </span>
+              <p className="mt-5 text-[16px] font-extrabold text-ink">
+                Escribe para buscar en el inventario.
+              </p>
+              <p className="mt-1.5 text-[13px] text-ink2">
                 Podés poner varias referencias (ej. “freno delantero cerámico”).
               </p>
             </div>
@@ -243,11 +273,11 @@ export function VentasScreen() {
       </div>
 
       {/* ==================== Carrito / cobro ==================== */}
-      <div className="flex w-full min-h-0 flex-col bg-surface2 lg:w-[420px]">
-        <div className="flex items-center gap-2 border-b border-line px-5 py-4">
-          <ShoppingCart size={18} className="text-pink" />
-          <span className="text-[14px] font-semibold text-ink">Comprobante</span>
-          <span className="ml-auto text-[12px] text-ink2">
+      <div className="flex w-full min-h-0 flex-col rounded-[18px] border border-line bg-surface shadow-card lg:w-[420px]">
+        <div className="flex items-center gap-2.5 border-b border-line px-5 py-4">
+          <ShoppingCart size={20} className="text-pinkDeep" />
+          <span className="text-[16px] font-extrabold text-ink">Comprobante</span>
+          <span className="ml-auto text-[12.5px] text-ink2">
             {items} {items === 1 ? "ítem" : "ítems"}
           </span>
           {items > 0 && (
@@ -264,9 +294,13 @@ export function VentasScreen() {
         {/* Líneas */}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
           {lines.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center py-16 text-center text-ink2">
-              <Receipt size={30} className="text-faint" />
-              <p className="mt-2 text-[13px]">Agrega productos desde la búsqueda.</p>
+            <div className="flex h-full min-h-[240px] flex-col items-center justify-center py-16 text-center">
+              <span className="relative grid h-[110px] w-[110px] place-items-center rounded-full bg-pinkSoft/60 text-ink2">
+                <Receipt size={44} strokeWidth={1.6} />
+                <Sparkle className="absolute right-3 top-4" />
+                <Sparkle className="absolute bottom-5 left-4" />
+              </span>
+              <p className="mt-4 text-[13.5px] text-ink2">Agrega productos desde la búsqueda.</p>
             </div>
           ) : (
             <div className="flex flex-col gap-2.5">
@@ -338,61 +372,103 @@ export function VentasScreen() {
 
         {/* Datos + totales + acciones */}
         <div className="border-t border-line px-5 py-4">
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
-              placeholder="Cliente (opcional)"
-              className="rounded-[10px] border border-line bg-surface px-3 py-2.5 text-[13px] text-ink outline-none focus:border-pink"
-            />
-            <input
-              value={clientNit}
-              onChange={(e) => setClientNit(e.target.value)}
-              placeholder="NIT / CI (opcional)"
-              className="rounded-[10px] border border-line bg-surface px-3 py-2.5 text-[13px] text-ink outline-none focus:border-pink"
-            />
+          <div className="grid grid-cols-2 gap-2.5">
+            <CampoConIcono icon={<UserRound size={16} />}>
+              <input
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                placeholder="Cliente (opcional)"
+                className="w-full bg-transparent text-[13px] text-ink outline-none placeholder:text-faint"
+              />
+            </CampoConIcono>
+            <CampoConIcono icon={<FileText size={16} />}>
+              <input
+                value={clientNit}
+                onChange={(e) => setClientNit(e.target.value)}
+                placeholder="NIT / CI (opcional)"
+                className="w-full bg-transparent text-[13px] text-ink outline-none placeholder:text-faint"
+              />
+            </CampoConIcono>
           </div>
-          <select
-            value={payMethod}
-            onChange={(e) => setPayMethod(e.target.value)}
-            className="mt-2 w-full rounded-[10px] border border-line bg-surface px-3 py-2.5 text-[13px] text-ink outline-none focus:border-pink"
-          >
-            <option>Efectivo</option>
-            <option>QR / Transferencia</option>
-            <option>Tarjeta</option>
-          </select>
+          <CampoConIcono icon={<BadgeDollarSign size={16} />} className="mt-2.5">
+            <select
+              value={payMethod}
+              onChange={(e) => setPayMethod(e.target.value)}
+              className="w-full bg-transparent text-[13px] text-ink outline-none"
+            >
+              <option>Efectivo</option>
+              <option>QR / Transferencia</option>
+              <option>Tarjeta</option>
+            </select>
+          </CampoConIcono>
 
-          <div className="mt-3 space-y-1">
+          <div className="mt-4 space-y-1">
             {descuento > 0.005 && (
               <div className="flex justify-between text-[12.5px] text-ink2">
                 <span>Descuento</span>
                 <span>- {bs(Math.round(descuento))}</span>
               </div>
             )}
-            <div className="flex items-end justify-between">
-              <span className="text-[13px] font-semibold text-ink2">Total</span>
-              <span className="text-[26px] font-bold text-ink">{bs(Math.round(total))}</span>
+            <div className="flex items-center justify-between">
+              <span className="text-[14px] font-bold text-ink">Total</span>
+              <span className="text-[30px] font-extrabold leading-none text-ink">
+                {bs(Math.round(total))}
+              </span>
             </div>
           </div>
 
-          <div className="mt-3 flex gap-2.5">
+          <div className="mt-4 flex gap-2.5">
             <button
               onClick={() => cobrar("proforma")}
               disabled={busy || items === 0}
-              className="flex flex-1 items-center justify-center gap-2 rounded-[12px] border border-line bg-surface py-3 text-[13px] font-semibold text-ink transition-colors hover:border-pink disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-[12px] border border-line bg-surface py-3.5 text-[13px] font-semibold text-ink transition-colors hover:border-pink disabled:opacity-50"
             >
               <FileText size={17} /> Proforma
             </button>
             <button
               onClick={() => cobrar("factura")}
               disabled={busy || items === 0}
-              className="flex flex-[1.4] items-center justify-center gap-2 rounded-[12px] bg-pink py-3 text-[13.5px] font-bold text-onAccent transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="flex flex-[1.4] items-center justify-center gap-2 rounded-[12px] py-3.5 text-[14px] font-extrabold text-onAccent transition-transform hover:-translate-y-0.5 disabled:opacity-50"
+              style={{ background: "linear-gradient(100deg,#FFC93C,#FEBB03 55%,#F0A400)" }}
             >
-              {busy ? "Procesando…" : <><Check size={18} /> Cobrar y facturar</>}
+              {busy ? "Procesando…" : <><Check size={18} /> Cobrar</>}
             </button>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+/** Campo del comprobante: el ícono adentro de la caja, como en el diseño. */
+function CampoConIcono({
+  icon,
+  className = "",
+  children,
+}: {
+  icon: React.ReactNode;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-2 rounded-[11px] border border-line bg-surface px-3 py-3 focus-within:border-pink ${className}`}
+    >
+      <span className="shrink-0 text-faint">{icon}</span>
+      {children}
+    </div>
+  );
+}
+
+/** Destello de los estados vacíos. Decorativo. */
+function Sparkle({ className = "" }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={`absolute text-pinkDeep ${className}`}
+      style={{ fontSize: 13, lineHeight: 1 }}
+    >
+      ✦
+    </span>
   );
 }

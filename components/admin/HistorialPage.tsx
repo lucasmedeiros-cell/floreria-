@@ -1,7 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Eye, FileText, Receipt, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronRight,
+  Clock,
+  Eye,
+  FileText,
+  Inbox,
+  LineChart,
+  Receipt,
+  Sparkles,
+  X,
+  XCircle,
+} from "lucide-react";
 import { bs2 } from "@/lib/products";
 import { useBusiness, useToast } from "@/context/StoreProvider";
 import { exportComprobante } from "@/lib/comprobante";
@@ -70,6 +82,13 @@ export function HistorialPage() {
     [rows]
   );
 
+  /** Últimos comprobantes registrados y últimos cobros, para los dos paneles. */
+  const recientes = useMemo(() => rows.slice(0, 3), [rows]);
+  const movimientos = useMemo(
+    () => rows.filter((r) => !r.voided && r.kind === "factura").slice(0, 3),
+    [rows]
+  );
+
   const abrir = async (id: string) => {
     try {
       setVer(await apiGetSale(id));
@@ -78,38 +97,67 @@ export function HistorialPage() {
     }
   };
 
-  return (
-    <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-serif text-[30px] font-semibold text-ink">Historial</h1>
-          <p className="mt-1 text-[13px] text-ink2">
-            Ventas y proformas. Anular una factura devuelve el stock.
-          </p>
-        </div>
-        <div className="text-right">
-          <span className="text-[11px] font-semibold uppercase tracking-[2px] text-faint">
-            Facturado
-          </span>
-          <p className="font-serif text-[26px] font-bold leading-none text-ink">{bs2(total)}</p>
-        </div>
-      </div>
+  const nFacturas = rows.filter((r) => r.kind === "factura" && !r.voided).length;
+  const nProformas = rows.filter((r) => r.kind === "proforma" && !r.voided).length;
+  const nAnuladas = rows.filter((r) => r.voided).length;
 
-      <div className="mt-4 flex gap-2">
-        {FILTROS.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setFiltro(f.id)}
-            className={`rounded-full px-4 py-1.5 text-[12.5px] font-semibold transition-colors ${
-              filtro === f.id
-                ? "bg-pink text-onAccent"
-                : "border border-line bg-surface text-ink2 hover:text-ink"
-            }`}
+  return (
+    <div className="h-full overflow-y-auto bg-bg">
+      <div className="mx-auto w-full max-w-[1500px] px-5 pb-10 pt-6 sm:px-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-[27px] font-extrabold leading-none tracking-[-0.4px] text-ink">
+              Historial
+            </h1>
+            <p className="mt-1.5 text-[13px] text-ink2">
+              Ventas y proformas. Anular una factura devuelve el stock.
+            </p>
+          </div>
+          {/* Lo facturado del listado: es el número que se viene a mirar. */}
+          <div
+            className="relative flex items-center gap-4 overflow-hidden rounded-[18px] border-2 bg-surface px-5 py-3.5 shadow-card"
+            style={{ borderColor: "#FEBB0355" }}
           >
-            {f.label}
-          </button>
-        ))}
-      </div>
+            <Sparkles size={15} className="absolute right-3 top-2.5 text-pink" />
+            <span
+              className="grid h-12 w-12 shrink-0 place-items-center rounded-[13px]"
+              style={{ background: "#F5A80024", color: "#C88600" }}
+            >
+              <Receipt size={22} />
+            </span>
+            <span>
+              <span className="block text-[11px] font-bold uppercase tracking-[2px] text-ink2">
+                Facturado
+              </span>
+              <span className="mt-1 block text-[25px] font-extrabold leading-none text-ink">
+                {bs2(total)}
+              </span>
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2.5">
+          {FILTROS.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFiltro(f.id)}
+              className={`rounded-full px-5 py-2.5 text-[13px] font-bold transition-colors ${
+                filtro === f.id
+                  ? "bg-pink text-onAccent"
+                  : "border border-line bg-surface text-ink2 hover:text-ink"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Cuántos comprobantes hay de cada tipo. */}
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <ConteoCard icon={<FileText size={20} />} tone="#F5A800" label="Facturas" n={nFacturas} />
+          <ConteoCard icon={<FileText size={20} />} tone="#3B6FD4" label="Proformas" n={nProformas} />
+          <ConteoCard icon={<XCircle size={20} />} tone="#E0324E" label="Anuladas" n={nAnuladas} />
+        </div>
 
       {err && (
         <div className="mt-5 rounded-[14px] border border-error/30 bg-error/5 px-4 py-3 text-[13px] text-error">
@@ -117,15 +165,28 @@ export function HistorialPage() {
         </div>
       )}
 
-      <div className="mt-5 overflow-x-auto rounded-[18px] border border-line bg-surface shadow-soft">
+      <div className="mt-4 overflow-x-auto rounded-[18px] border border-line bg-surface shadow-card">
         {loading ? (
           <p className="px-5 py-10 text-center text-[13px] text-ink2">Cargando…</p>
         ) : rows.length === 0 ? (
-          <div className="px-5 py-14 text-center">
-            <Receipt size={34} className="mx-auto text-faint" />
-            <p className="mt-3 text-[14px] font-medium text-ink">Todavía no hay ventas.</p>
-            <p className="mt-1 text-[12.5px] text-ink2">
-              Lo que cobres en Venta aparece acá al instante.
+          <div className="relative overflow-hidden px-5 py-16 text-center">
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{
+                backgroundImage: "radial-gradient(rgb(var(--c-faint)) 1.2px, transparent 1.2px)",
+                backgroundSize: "10px 10px",
+                opacity: 0.13,
+              }}
+            />
+            <span className="relative mx-auto grid h-[110px] w-[110px] place-items-center rounded-full bg-pinkSoft text-ink2">
+              <Receipt size={46} />
+            </span>
+            <p className="relative mt-5 text-[19px] font-extrabold text-ink">
+              Todavía no hay ventas.
+            </p>
+            <p className="relative mt-1.5 text-[13px] text-ink2">
+              Lo que cobres en Ventas aparece acá al instante.
             </p>
           </div>
         ) : (
@@ -200,6 +261,78 @@ export function HistorialPage() {
         )}
       </div>
 
+        {/* Lo último que pasó, en dos lecturas: qué se registró y qué plata
+            entró. Con el historial vacío, cada panel lo dice con todas las
+            letras en vez de mostrar una lista en blanco. */}
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <MiniPanel
+            icon={<Clock size={18} />}
+            tone="#F5A800"
+            title="Actividad reciente"
+            onVerTodo={() => setFiltro("todo")}
+          >
+            {recientes.length === 0 ? (
+              <PanelVacio
+                icon={<Inbox size={22} />}
+                title="Sin actividad todavía."
+                text="Cuando registres ventas o proformas, las verás aquí."
+              />
+            ) : (
+              recientes.map((s) => (
+                <div key={s.id} className="flex items-center gap-3 py-2.5">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-pinkSoft text-ink">
+                    <Receipt size={16} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-semibold text-ink">
+                      {s.voided
+                        ? "Venta anulada"
+                        : s.kind === "factura"
+                          ? "Venta registrada"
+                          : "Proforma generada"}
+                    </span>
+                    <span className="block truncate text-[11.5px] text-ink2">#{s.code}</span>
+                  </span>
+                  <span className="shrink-0 text-[11.5px] text-faint">{fmt(s.createdAt)}</span>
+                </div>
+              ))
+            )}
+          </MiniPanel>
+
+          <MiniPanel
+            icon={<LineChart size={18} />}
+            tone="#3B6FD4"
+            title="Últimos movimientos"
+            onVerTodo={() => setFiltro("factura")}
+          >
+            {movimientos.length === 0 ? (
+              <PanelVacio
+                icon={<FileText size={22} />}
+                title="Sin movimientos."
+                text="Tus movimientos recientes aparecerán en esta sección."
+              />
+            ) : (
+              movimientos.map((s) => (
+                <div key={s.id} className="flex items-center gap-3 py-2.5">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#3B6FD4]/10 text-[#3B6FD4]">
+                    <LineChart size={16} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-semibold text-ink">
+                      {s.payMethod || "Sin método"}
+                    </span>
+                    <span className="block truncate text-[11.5px] text-ink2">
+                      {s.clientName || "Consumidor final"}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-[13px] font-bold text-ink">{bs2(s.total)}</span>
+                </div>
+              ))
+            )}
+          </MiniPanel>
+        </div>
+      </div>
+
       {ver && <VentaModal sale={ver} onClose={() => setVer(null)} />}
       {anular && (
         <AnularModal
@@ -211,6 +344,101 @@ export function HistorialPage() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+/** Tarjeta de conteo (Facturas / Proformas / Anuladas). */
+function ConteoCard({
+  icon,
+  tone,
+  label,
+  n,
+}: {
+  icon: React.ReactNode;
+  tone: string;
+  label: string;
+  n: number;
+}) {
+  return (
+    <div className="relative flex items-center gap-4 overflow-hidden rounded-[18px] border border-line bg-surface p-5 shadow-card">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute right-4 top-5 h-[42px] w-[72px]"
+        style={{
+          backgroundImage: "radial-gradient(rgb(var(--c-faint)) 1.3px, transparent 1.3px)",
+          backgroundSize: "9px 9px",
+          opacity: 0.28,
+        }}
+      />
+      <span
+        className="relative grid h-11 w-11 shrink-0 place-items-center rounded-[13px]"
+        style={{ background: `${tone}24`, color: tone }}
+      >
+        {icon}
+      </span>
+      <span className="relative">
+        <span className="block text-[12.5px] text-ink2">{label}</span>
+        <span className="mt-1 block text-[24px] font-extrabold leading-none text-ink">{n}</span>
+      </span>
+    </div>
+  );
+}
+
+/** Panel chico del pie del Historial, con su "Ver todo". */
+function MiniPanel({
+  icon,
+  tone,
+  title,
+  onVerTodo,
+  children,
+}: {
+  icon: React.ReactNode;
+  tone: string;
+  title: string;
+  onVerTodo: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-[18px] border border-line bg-surface p-5 shadow-card">
+      <div className="flex items-center gap-2.5">
+        <span
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px]"
+          style={{ background: `${tone}24`, color: tone }}
+        >
+          {icon}
+        </span>
+        <h2 className="min-w-0 flex-1 truncate text-[15px] font-bold text-ink">{title}</h2>
+        <button
+          onClick={onVerTodo}
+          className="inline-flex shrink-0 items-center gap-1 rounded-[10px] border border-line px-3.5 py-2 text-[12px] font-semibold text-ink2 hover:text-ink"
+        >
+          Ver todo <ChevronRight size={14} />
+        </button>
+      </div>
+      <div className="mt-2 divide-y divide-line">{children}</div>
+    </div>
+  );
+}
+
+function PanelVacio({
+  icon,
+  title,
+  text,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="flex items-center gap-4 py-4">
+      <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-surface2 text-faint">
+        {icon}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[13.5px] font-semibold text-ink">{title}</span>
+        <span className="mt-0.5 block text-[12.5px] leading-snug text-ink2">{text}</span>
+      </span>
     </div>
   );
 }

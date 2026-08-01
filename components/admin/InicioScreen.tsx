@@ -12,8 +12,8 @@ import {
   ShoppingCart,
   Truck,
   TrendingUp,
+  Wallet,
 } from "lucide-react";
-import { useBusiness } from "@/context/StoreProvider";
 import { apiReports } from "@/lib/reportsClient";
 import { apiListPurchaseOrders, type PurchaseOrder } from "@/lib/purchaseClient";
 import { apiListSales, type SaleRow } from "@/lib/salesClient";
@@ -114,8 +114,6 @@ const REFRESCO_MS = 60_000;
  * son números de ejemplo.
  */
 export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
-  const business = useBusiness();
-
   const [periodo, setPeriodo] = useState<Periodo>("hoy");
   const [fecha, setFecha] = useState(() => iso(new Date()));
   const [loading, setLoading] = useState(true);
@@ -124,6 +122,7 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
   const [stockBajo, setStockBajo] = useState(0);
   const [ventas, setVentas] = useState(0);
   const [numVentas, setNumVentas] = useState(0);
+  const [costo, setCosto] = useState(0);
   const [ventasPrevias, setVentasPrevias] = useState(0);
   const [sales, setSales] = useState<SaleRow[]>([]);
   const [pedidos, setPedidos] = useState<PurchaseOrder[]>([]);
@@ -143,6 +142,7 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
           setStockBajo(todo.stockBajo);
           setVentas(actual.totalVentas);
           setNumVentas(actual.numVentas);
+          setCosto(actual.costoVendido);
           setVentasPrevias(previo.totalVentas);
         }
       } catch {
@@ -292,7 +292,7 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
         </div>
 
         {/* ---------- Vistazo ---------- */}
-        <div className="mt-5 grid gap-4 md:grid-cols-3">
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
             icon={<TrendingUp size={24} />}
             tone="#F5A800"
@@ -300,14 +300,13 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
             value={dato(bs2(ventas))}
             onClick={() => onGo("historial")}
             extra={<Sparkline data={serie} />}
-            chip={
-              variacion === null
-                ? { text: numVentas === 1 ? "1 venta" : `${numVentas} ventas`, tone: "neutral" }
-                : {
-                    text: `${variacion >= 0 ? "↑" : "↓"} ${Math.abs(variacion)}%`,
-                    tone: variacion >= 0 ? "up" : "down",
-                  }
-            }
+          />
+          <KpiCard
+            icon={<Wallet size={24} />}
+            tone="#7C6BE0"
+            label="Costo"
+            value={dato(bs2(costo))}
+            onClick={() => onGo("reportes")}
           />
           <KpiCard
             icon={<Boxes size={24} />}
@@ -323,10 +322,7 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
             label="Stock bajo"
             value={dato(`${stockBajo}`)}
             onClick={() => onGo("catalogo")}
-            chip={{
-              text: stockBajo > 0 ? "Hay que reponer" : "Todo en orden",
-              tone: stockBajo > 0 ? "down" : "up",
-            }}
+            chip={{ text: stockBajo > 0 ? "Reponer" : "En orden", tone: stockBajo > 0 ? "down" : "up" }}
           />
         </div>
 
@@ -407,11 +403,20 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
               }
               onClick={() => onGo("proveedor")}
             />
+            {/* El sistema todavía no lleva cuentas por cobrar, así que esta
+                fila informa que no hay nada por vencer y no inventa un número. */}
+            <Alerta
+              n={0}
+              tone="#F5A800"
+              title="Facturas por vencer"
+              text="No tienes facturas próximas a vencer."
+              onClick={() => onGo("historial")}
+            />
           </Panel>
         </div>
 
         <p className="mt-6 flex items-center justify-center gap-2 text-[12.5px] text-faint">
-          <Info size={15} /> Los datos de {business.name} se actualizan solos cada minuto.
+          <Info size={15} /> Los datos se actualizan en tiempo real.
         </p>
       </div>
     </div>
@@ -440,32 +445,32 @@ function KpiCard({
 }) {
   const chipCls =
     chip?.tone === "up"
-      ? "bg-success/10 text-success"
+      ? "bg-success/[0.12] text-success"
       : chip?.tone === "down"
-        ? "bg-error/10 text-error"
+        ? "bg-error/[0.12] text-error"
         : "bg-ink/[0.06] text-ink2";
   return (
     <button
       onClick={onClick}
-      className="rounded-[18px] border border-line bg-surface p-5 text-left shadow-card transition-transform hover:-translate-y-0.5"
+      className="flex items-center gap-4 rounded-[18px] border border-line bg-surface p-5 text-left shadow-card transition-transform hover:-translate-y-0.5"
       style={{ borderTopColor: tone }}
     >
-      <div className="flex items-center gap-4">
-        <span
-          className="grid h-[58px] w-[58px] shrink-0 place-items-center rounded-full"
-          style={{ background: `${tone}1F`, color: tone }}
-        >
-          {icon}
+      <span
+        className="grid h-[58px] w-[58px] shrink-0 place-items-center rounded-full"
+        style={{ background: `${tone}1F`, color: tone }}
+      >
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[14.5px] font-semibold text-ink2">{label}</span>
+        <span className="mt-1.5 block truncate text-[26px] font-extrabold leading-none text-ink">
+          {value}
         </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[14.5px] font-semibold text-ink2">{label}</p>
-          <p className="mt-1 truncate text-[27px] font-extrabold leading-none text-ink">{value}</p>
-        </div>
-        {extra}
-      </div>
+      </span>
+      {extra}
       {chip && (
         <span
-          className={`mt-3 inline-block rounded-full px-2.5 py-1 text-[11.5px] font-bold ${chipCls}`}
+          className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold ${chipCls}`}
         >
           {chip.text}
         </span>
