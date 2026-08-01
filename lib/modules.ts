@@ -44,7 +44,7 @@ export const MODULE_LIST: ModuleDef[] = [
     label: "Entregas",
     hint: "Reparto a domicilio. Apagado, el CRM tampoco pide repartidor ni costo de envío al cargar un pedido.",
   },
-  { id: "reportes", label: "Reportes", hint: "Ventas, gastos y ganancias." },
+  { id: "reportes", label: "Reportes", hint: "Ventas y ganancias." },
   { id: "usuarios", label: "Usuarios", hint: "Empleados que entran al CRM." },
 ];
 

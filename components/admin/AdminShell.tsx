@@ -18,7 +18,6 @@ import {
   Store,
   Sun,
   Users,
-  Wallet,
   Warehouse,
   X,
 } from "lucide-react";
@@ -30,7 +29,6 @@ import { VentasScreen } from "./VentasScreen";
 import { HistorialPage } from "./HistorialPage";
 import { ProveedorPage } from "./ProveedorPage";
 import { ProductsPage } from "./ProductsPage";
-import { GastosPage } from "./GastosPage";
 import { CajaPage } from "./CajaPage";
 import { ReportesPage } from "./ReportesPage";
 import { ConfiguracionPage } from "./ConfiguracionPage";
@@ -53,7 +51,6 @@ export type Section =
   | "catalogo"
   | "historial"
   | "proveedor"
-  | "gastos"
   | "caja"
   | "reportes"
   | "usuarios"
@@ -82,10 +79,6 @@ const NAV: NavDef[] = [
   { s: "usuarios", icon: <Users size={19} />, label: "Usuarios", soloAdmin: true },
   { s: "configuracion", icon: <Settings size={19} />, label: "Configuración" },
   { s: "proveedor", icon: <Warehouse size={19} />, label: "Proveedores", oculto: true },
-  // Gastos salió del menú por pedido del negocio. La pantalla sigue entera y
-  // Reportes sigue restando los gastos cargados: para volver a mostrarla,
-  // alcanza con sacarle el `oculto`.
-  { s: "gastos", icon: <Wallet size={19} />, label: "Gastos", oculto: true },
 ];
 
 /** Preferencia de modo oscuro del CRM. Se recuerda por navegador. */
@@ -146,8 +139,6 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
         return <HistorialPage />;
       case "proveedor":
         return <ProveedorPage />;
-      case "gastos":
-        return <GastosPage />;
       case "caja":
         return <CajaPage />;
       case "reportes":

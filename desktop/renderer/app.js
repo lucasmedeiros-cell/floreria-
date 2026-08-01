@@ -54,7 +54,6 @@ const IC = {
   venta: "M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z M3 6h18 M16 10a4 4 0 0 1-8 0",
   catalogo: "M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z M3.3 7 12 12l8.7-5 M12 22V12",
   historial: "M3 3v5h5 M3.05 13A9 9 0 1 0 6 5.3L3 8 M12 7v5l4 2",
-  gastos: "M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6",
   caja: "M3 6h18v12H3z M3 10h18 M7 15h4",
   reportes: "M3 3v18h18 M18 17V9 M13 17V5 M8 17v-3",
   usuarios: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M22 21v-2a4 4 0 0 0-3-3.9",
@@ -285,7 +284,6 @@ const NAV = [
   { s: "catalogo", label: "Catálogo", ic: "catalogo" },
   { s: "historial", label: "Historial", ic: "historial" },
   { s: "proveedor", label: "Proveedor", ic: "proveedor" },
-  { s: "gastos", label: "Gastos", ic: "gastos" },
   { s: "caja", label: "Corte de caja", ic: "caja" },
   { s: "reportes", label: "Reportes", ic: "reportes" },
   { s: "usuarios", label: "Usuarios", ic: "usuarios" },
@@ -348,7 +346,6 @@ function navigate(s) {
     venta: screenVenta,
     catalogo: screenCatalogo,
     historial: screenHistorial,
-    gastos: screenGastos,
     caja: screenCaja,
     reportes: screenReportes,
     usuarios: screenUsuarios,
@@ -1053,47 +1050,6 @@ async function anularVenta(id, code, onDone) {
   };
 }
 
-// ================================================================ GASTOS
-async function screenGastos(c) {
-  c.innerHTML = `
-    <div style="display:flex;align-items:center;margin-bottom:14px">
-      <div><span class="eyebrow">Egresos</span><div id="g-total" class="serif" style="font-size:26px;font-weight:700">Bs 0.00</div></div>
-      <button class="btn btn-primary" id="g-new" style="margin-left:auto">+ Nuevo gasto</button>
-    </div>
-    <div class="card"><table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th class="right">Monto</th></tr></thead><tbody id="g-body"><tr><td colspan="4" class="center" style="color:var(--faint);padding:30px">Cargando…</td></tr></tbody></table></div>`;
-  const load = async () => {
-    try {
-      const rows = await api("GET", "/api/expenses");
-      const total = rows.reduce((a, r) => a + (r.amount || 0), 0);
-      document.getElementById("g-total").textContent = bs(total);
-      const body = document.getElementById("g-body");
-      body.innerHTML = rows.length ? rows.map((g) => `
-        <tr><td style="color:var(--ink2)">${esc(g.spentAt)}</td><td>${esc(g.category)}</td><td>${esc(g.description)}</td><td class="right mono" style="font-weight:700">${bs(g.amount)}</td></tr>`).join("")
-        : `<tr><td colspan="4" class="center" style="color:var(--faint);padding:30px">Sin gastos registrados.</td></tr>`;
-    } catch (e) { toast(e.message, "err"); }
-  };
-  document.getElementById("g-new").onclick = () => {
-    const hoy = new Date().toISOString().slice(0, 10);
-    const m = modal(`<div style="padding:24px">
-      <h3 class="serif" style="font-size:20px">Nuevo gasto</h3>
-      <label class="field"><span>Categoría</span><input id="g-cat" placeholder="Ej. Servicios, Alquiler…"/></label>
-      <label class="field"><span>Descripción</span><input id="g-desc" placeholder="Detalle del gasto"/></label>
-      <label class="field"><span>Monto (Bs)</span><input id="g-amt" type="number" value="0"/></label>
-      <label class="field"><span>Fecha</span><input id="g-date" type="date" value="${hoy}"/></label>
-      <div style="display:flex;gap:10px;margin-top:18px"><button class="btn btn-outline btn-block" id="g-x">Cancelar</button><button class="btn btn-primary btn-block" id="g-ok">Guardar</button></div></div>`);
-    m.querySelector("#g-x").onclick = () => m.remove();
-    m.querySelector("#g-ok").onclick = async () => {
-      const amount = parseFloat(m.querySelector("#g-amt").value) || 0;
-      if (amount <= 0) return toast("Ingresá un monto mayor a cero", "err");
-      try {
-        await api("POST", "/api/expenses", { category: m.querySelector("#g-cat").value.trim() || "General", description: m.querySelector("#g-desc").value.trim(), amount, spentAt: m.querySelector("#g-date").value });
-        toast("Gasto registrado", "ok"); m.remove(); load();
-      } catch (e) { toast(e.message, "err"); }
-    };
-  };
-  load();
-}
-
 // ================================================================ CORTE DE CAJA
 async function screenCaja(c) {
   c.innerHTML = `<div id="caja"></div>`;
@@ -1193,25 +1149,22 @@ async function screenReportes(c) {
       let saldo = 0;
       const filas = L.movimientos.map((m) => {
         saldo += m.monto;
-        const ing = m.monto >= 0;
         return `<tr>
           <td style="color:var(--ink2)">${esc(m.fecha)}</td>
-          <td>${ing ? "🟢 Ingreso" : "🔴 Egreso"}</td>
           <td>${esc(m.concepto)}${m.ref ? ` <span style="color:var(--faint)">· ${esc(m.ref)}</span>` : ""}</td>
           <td style="color:var(--ink2)">${esc(m.metodo)}</td>
-          <td class="right mono" style="font-weight:700;color:${ing ? "var(--success)" : "var(--error)"}">${ing ? "" : "−"}${bs(Math.abs(m.monto))}</td>
+          <td class="right mono" style="font-weight:700;color:var(--success)">${bs(m.monto)}</td>
           <td class="right mono">${bs(saldo)}</td>
         </tr>`;
       }).join("");
       box.innerHTML = `
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
-          ${statCard("Ingresos", bs(L.ingresos), "var(--success)")}
-          ${statCard("Egresos", bs(L.egresos), "var(--error)")}
-          ${statCard("Neto", bs(L.neto), L.neto >= 0 ? "var(--success)" : "var(--error)")}
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px">
+          ${statCard("Cobrado", bs(L.ingresos), "var(--success)")}
+          ${statCard("Comprobantes", String(L.movimientos.length))}
         </div>
         <div class="card" style="padding:0;margin-top:16px;overflow:auto">
-          <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th>Método</th><th class="right">Monto</th><th class="right">Saldo</th></tr></thead>
-          <tbody>${filas || `<tr><td colspan="6" class="center" style="color:var(--faint);padding:24px">Sin movimientos en el período.</td></tr>`}</tbody></table>
+          <table><thead><tr><th>Fecha</th><th>Concepto</th><th>Método</th><th class="right">Monto</th><th class="right">Saldo</th></tr></thead>
+          <tbody>${filas || `<tr><td colspan="5" class="center" style="color:var(--faint);padding:24px">Sin movimientos en el período.</td></tr>`}</tbody></table>
         </div>`;
       R._data = { tipo: "movs", L };
     } else {
@@ -1243,7 +1196,7 @@ async function screenReportes(c) {
             ${r.topProductos.length ? r.topProductos.map((t, i) => `<tr><td style="width:30px;color:var(--yellow-deep);font-weight:700">${i + 1}</td><td>${esc(t.name)}</td><td class="center" style="color:var(--ink2)">${t.qty} u.</td><td class="right mono" style="font-weight:700">${bs(t.revenue)}</td></tr>`).join("") : `<tr><td class="center" style="color:var(--faint);padding:20px">Sin datos.</td></tr>`}
           </tbody></table>
         </div>
-        <p style="margin-top:12px;color:var(--faint);font-size:12px">Ganancia = ventas − costo de lo vendido − gastos. Costo vendido: ${bs(r.costoVendido)} · Gastos: ${bs(r.gastos)}.</p>`;
+        <p style="margin-top:12px;color:var(--faint);font-size:12px">Ganancia = ventas − costo de lo vendido. Costo vendido: ${bs(r.costoVendido)}.</p>`;
       R._data = { tipo: "resumen", r };
     }
   } catch (e) { box.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
@@ -1259,14 +1212,12 @@ async function exportarCSV(R) {
     if (R.tab === "movs") {
       const L = R._data && R._data.tipo === "movs" ? R._data.L : await api("GET", `/api/reports/ledger${qs}`);
       let saldo = 0;
-      const lineas = [["Fecha", "Tipo", "Concepto", "Comprobante", "Metodo", "Monto", "Saldo"].join(",")];
+      const lineas = [["Fecha", "Concepto", "Comprobante", "Metodo", "Monto", "Saldo"].join(",")];
       for (const m of L.movimientos) {
         saldo += m.monto;
-        lineas.push([m.fecha, m.monto >= 0 ? "Ingreso" : "Egreso", csvCel(m.concepto), csvCel(m.ref), csvCel(m.metodo), m.monto.toFixed(2), saldo.toFixed(2)].join(","));
+        lineas.push([m.fecha, csvCel(m.concepto), csvCel(m.ref), csvCel(m.metodo), m.monto.toFixed(2), saldo.toFixed(2)].join(","));
       }
-      lineas.push(["", "", "", "", "Ingresos", L.ingresos.toFixed(2), ""].join(","));
-      lineas.push(["", "", "", "", "Egresos", L.egresos.toFixed(2), ""].join(","));
-      lineas.push(["", "", "", "", "Neto", L.neto.toFixed(2), ""].join(","));
+      lineas.push(["", "", "", "Total", L.ingresos.toFixed(2), ""].join(","));
       descargarArchivo(`movimientos_${R.desde}_a_${R.hasta}.csv`, lineas.join("\n"));
     } else {
       const r = R._data && R._data.tipo === "resumen" ? R._data.r : await api("GET", `/api/reports${qs}`);
@@ -1276,7 +1227,6 @@ async function exportarCSV(R) {
         ["Concepto", "Monto"].join(","),
         ["Ventas", r.totalVentas.toFixed(2)].join(","),
         ["Costo de lo vendido", r.costoVendido.toFixed(2)].join(","),
-        ["Gastos", r.gastos.toFixed(2)].join(","),
         ["Ganancia", r.ganancia.toFixed(2)].join(","),
         ["N ventas", r.numVentas].join(","),
         ["Ticket promedio", r.ticketPromedio.toFixed(2)].join(","),

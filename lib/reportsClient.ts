@@ -20,7 +20,6 @@ export interface Reports {
   numVentas: number;
   ticketPromedio: number;
   costoVendido: number;
-  gastos: number;
   ganancia: number;
   stockBajo: number;
   totalProductos: number;

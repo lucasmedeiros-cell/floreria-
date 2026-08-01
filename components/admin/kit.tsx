@@ -94,7 +94,7 @@ export function CurvedHeader({
 
 /**
  * El bloque de ícono de las tarjetas de dato del CRM (Resumen, Reportes, Corte
- * de caja, Gastos, Historial).
+ * de caja, Historial).
  *
  * Es un cuadrado redondeado con un degradado suave del color de la tarjeta, sin
  * borde ni sombra propia: así el ícono se lee como PARTE de la tarjeta y no

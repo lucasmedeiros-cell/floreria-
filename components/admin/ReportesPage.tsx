@@ -117,10 +117,9 @@ export function ReportesPage() {
       {/* Resumen financiero */}
       <div className="mt-4 rounded-[18px] border border-line bg-surface p-5 shadow-soft">
         <h3 className="text-[15px] font-semibold text-ink">Resumen financiero</h3>
-        <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2.5 lg:grid-cols-4">
+        <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2.5 lg:grid-cols-3">
           <Fin label="Ticket promedio" value={bs2(rep?.ticketPromedio ?? 0)} />
           <Fin label="Costo de lo vendido" value={bs2(rep?.costoVendido ?? 0)} />
-          <Fin label="Gastos" value={bs2(rep?.gastos ?? 0)} />
           <Fin label="Ganancia neta" value={bs2(rep?.ganancia ?? 0)} strong />
         </div>
       </div>

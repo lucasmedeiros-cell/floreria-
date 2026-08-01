@@ -9,9 +9,12 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/reports/ledger?desde=YYYY-MM-DD&hasta=YYYY-MM-DD — libro de caja.
  *
- * Ingresos (ventas factura) y egresos (gastos) juntos, cronológicos, para el
- * período. El saldo acumulado lo arma el cliente al pintar (así el mismo dato
- * sirve ordenado asc o desc). Rango en hora de Bolivia; sin fechas: todo.
+ * Las ventas facturadas del período, cronológicas. El saldo acumulado lo arma
+ * el cliente al pintar (así el mismo dato sirve ordenado asc o desc). Rango en
+ * hora de Bolivia; sin fechas: todo.
+ *
+ * Sigue devolviendo `egresos` (siempre 0) y `neto` para no romper a los
+ * clientes ya instalados que leen esos campos.
  */
 export const GET = handler(async (req: NextRequest) => {
   if (!getSession("employee")) return unauthorized();
@@ -36,15 +39,7 @@ export const GET = handler(async (req: NextRequest) => {
        FROM sales s
       WHERE s.kind = 'factura' AND NOT s.voided
         AND (s.created_at AT TIME ZONE 'America/La_Paz')::date BETWEEN $1::date AND $2::date
-     UNION ALL
-     SELECT e.spent_at::text AS fecha,
-            'egreso' AS tipo, ''::text AS ref,
-            COALESCE(NULLIF(e.description,''), e.category) AS concepto,
-            e.category AS metodo,
-            (-e.amount)::numeric AS monto
-       FROM expenses e
-      WHERE e.spent_at BETWEEN $1::date AND $2::date
-     ORDER BY fecha ASC, tipo DESC`,
+     ORDER BY fecha ASC`,
     [desde, hasta]
   );
 

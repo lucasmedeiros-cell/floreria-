@@ -29,7 +29,6 @@ export type InicioSection =
   | "catalogo"
   | "historial"
   | "proveedor"
-  | "gastos"
   | "caja"
   | "reportes";
 

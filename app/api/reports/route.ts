@@ -36,7 +36,7 @@ export const GET = handler(async (req: NextRequest) => {
   const fVentaSolo = `(created_at AT TIME ZONE 'America/La_Paz')::date BETWEEN $1::date AND $2::date`;
   const p = [desde, hasta];
 
-  const [resumen, porMetodo, topProductos, porMes, stock, costo, gastosRows] =
+  const [resumen, porMetodo, topProductos, porMes, stock, costo] =
     await Promise.all([
       query<{ total: string; n: string }>(
         `SELECT COALESCE(SUM(total),0)::numeric AS total, COUNT(*)::int AS n
@@ -84,18 +84,11 @@ export const GET = handler(async (req: NextRequest) => {
           WHERE s.kind = 'factura' AND NOT s.voided AND ${fVenta}`,
         p
       ),
-      // Gastos del período (por fecha del gasto).
-      query<{ gastos: string }>(
-        `SELECT COALESCE(SUM(amount),0)::numeric AS gastos
-           FROM expenses WHERE spent_at BETWEEN $1::date AND $2::date`,
-        p
-      ),
     ]);
 
   const total = Number(resumen[0]?.total ?? 0);
   const n = Number(resumen[0]?.n ?? 0);
   const costoVendido = Number(costo[0]?.costo ?? 0);
-  const gastos = Number(gastosRows[0]?.gastos ?? 0);
 
   return ok({
     desde,
@@ -104,8 +97,9 @@ export const GET = handler(async (req: NextRequest) => {
     numVentas: n,
     ticketPromedio: n > 0 ? total / n : 0,
     costoVendido,
-    gastos,
-    ganancia: total - costoVendido - gastos,
+    // Ganancia = lo vendido menos lo que costó esa mercadería. El negocio no
+    // carga sus egresos en el sistema, así que no hay nada más que restar.
+    ganancia: total - costoVendido,
     stockBajo: Number(stock[0]?.bajo ?? 0),
     totalProductos: Number(stock[0]?.total ?? 0),
     porMetodo: porMetodo.map((r) => ({
