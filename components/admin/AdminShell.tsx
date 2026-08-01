@@ -75,7 +75,7 @@ interface NavDef {
 const NAV: NavDef[] = [
   { s: "inicio", icon: <LayoutGrid size={19} />, label: "Resumen" },
   { s: "venta", icon: <ShoppingCart size={19} />, label: "Ventas" },
-  { s: "catalogo", icon: <Boxes size={19} />, label: "Catálogo / Inventario" },
+  { s: "catalogo", icon: <Boxes size={19} />, label: "Inventario" },
   { s: "historial", icon: <Receipt size={19} />, label: "Historial" },
   { s: "gastos", icon: <Wallet size={19} />, label: "Gastos" },
   { s: "caja", icon: <Coins size={19} />, label: "Corte de caja" },
