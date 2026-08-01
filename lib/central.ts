@@ -45,13 +45,19 @@ export function centralConfigured(): boolean {
   return !!process.env.CENTRAL_API_TOKEN;
 }
 
-// ---- Ventanas de tiempo (calendario, zona del servidor) ----
+// ---- Ventanas de tiempo (calendario de Bolivia) ----
 // hoy ⊆ semana ⊆ mes ⊆ año. Basadas en created_at del pedido / spent_at del gasto.
+// El corte va SIEMPRE en `America/La_Paz`: la sesión de Postgres corre en GMT,
+// así que un `date_trunc('day', now())` pelado corta a la medianoche UTC — las
+// 20:00 de Bolivia del día anterior, y todo lo vendido de noche se contaba en
+// el día equivocado.
+const corte = (unidad: string) =>
+  `(date_trunc('${unidad}', now() AT TIME ZONE 'America/La_Paz') AT TIME ZONE 'America/La_Paz')`;
 const PERIODS = {
-  hoy: "date_trunc('day', now())",
-  semana: "date_trunc('week', now())",
-  mes: "date_trunc('month', now())",
-  anio: "date_trunc('year', now())",
+  hoy: corte("day"),
+  semana: corte("week"),
+  mes: corte("month"),
+  anio: corte("year"),
 } as const;
 export type Periodo = keyof typeof PERIODS;
 

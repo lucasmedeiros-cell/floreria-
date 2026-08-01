@@ -6,6 +6,15 @@ import { getSession } from "@/lib/auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * Zona horaria del negocio. Va explícita en cada corte de día porque la sesión
+ * de Postgres corre en GMT: sin esto, `date_trunc('day', now())` cae en la
+ * medianoche UTC, que en Bolivia son las 20:00 del día ANTERIOR — el turno
+ * arrancaba cuatro horas antes y las ventas de la noche caían en el día
+ * siguiente.
+ */
+const TZ = "America/La_Paz";
+
 /** Resumen del turno actual: ventas desde el último corte (o inicio del día). */
 async function resumenTurno() {
   const rows = await query<{
@@ -17,7 +26,10 @@ async function resumenTurno() {
     otros: string;
   }>(
     `WITH periodo AS (
-       SELECT COALESCE((SELECT max(closed_at) FROM cash_closes), date_trunc('day', now())) AS from_at
+       SELECT COALESCE(
+                (SELECT max(closed_at) FROM cash_closes),
+                date_trunc('day', now() AT TIME ZONE '${TZ}') AT TIME ZONE '${TZ}'
+              ) AS from_at
      )
      SELECT p.from_at,
             count(s.id)::int AS n,

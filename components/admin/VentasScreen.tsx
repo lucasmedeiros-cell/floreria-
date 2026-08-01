@@ -124,11 +124,14 @@ export function VentasScreen() {
       // Venta confirmada: el próximo cobro usa un ref nuevo.
       pendingRef.current = "";
 
-      // Comprobante PDF (proforma o factura).
+      // Comprobante PDF (proforma o factura). La fecha es la que REGISTRÓ el
+      // servidor, no `new Date()`: con el reloj de la caja desajustado, el
+      // ticket salía con una hora que no coincidía con el historial ni con el
+      // corte de caja. Si la respuesta no la trae, se cae al reloj local.
       exportComprobante({
         code: sale.code,
         kind,
-        date: new Date(),
+        date: sale.createdAt ? new Date(sale.createdAt) : new Date(),
         business: { name: business.name, address: business.address, phone: business.phone },
         client: { name: clientName || "Consumidor final", nit: clientNit },
         items: payload,
