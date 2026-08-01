@@ -156,6 +156,130 @@ body {
   }
 }
 
+/* ---------- Splash: la capa de animación “de escáner” ----------
+   El logo de easy pos tiene las marcas de un lector de código: la animación
+   juega con eso — un halo que respira, un anillo que se expande como un pulso
+   de lectura, una línea que barre el logo y un destello que lo cruza. */
+
+/* Halo amarillo detrás del logo: respira, no parpadea. */
+@keyframes splash-halo {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.12);
+  }
+}
+
+/* Pulso de lectura: un anillo que sale del logo y se disuelve. */
+@keyframes splash-ring {
+  from {
+    opacity: 0.55;
+    transform: scale(0.86);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+
+/* La línea del escáner recorriendo el logo. */
+@keyframes splash-scan {
+  0% {
+    transform: translateY(-120%);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(120%);
+    opacity: 0;
+  }
+}
+
+/* Destello diagonal, una sola pasada: es lo que le da el brillo de “producto”. */
+@keyframes splash-shine {
+  from {
+    transform: translateX(-130%) rotate(18deg);
+  }
+  to {
+    transform: translateX(130%) rotate(18deg);
+  }
+}
+
+/* El logo entra con un pelín de resorte y se asienta. */
+@keyframes splash-logo-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.82) translateY(12px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.04) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Texto que emerge desde abajo detrás de una máscara. */
+@keyframes splash-mask-up {
+  from {
+    transform: translateY(110%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Aparecer saliendo de foco: entra desenfocado y se define. */
+@keyframes splash-focus {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    letter-spacing: 8px;
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    letter-spacing: 4px;
+  }
+}
+
+/* Brillo que recorre la barra de carga. */
+@keyframes splash-bar-shine {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(320%);
+  }
+}
+
+/* Salida: el splash se va “hacia adelante”, como si entraras a la app. */
+@keyframes splash-out {
+  to {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+
+/* Quien pidió menos movimiento ve una entrada simple, no un show. */
+@media (prefers-reduced-motion: reduce) {
+  .splash-motion,
+  .splash-motion * {
+    animation: none !important;
+  }
+}
+
 @keyframes pop-in-center {
   from {
     opacity: 0;
