@@ -2,23 +2,23 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  Boxes,
+  BarChart3,
   ChevronDown,
   ChevronsLeft,
   ChevronsRight,
-  Coins,
   LayoutGrid,
-  LineChart,
   LogOut,
   Menu,
   Moon,
+  Package,
   Receipt,
   Settings,
+  ShoppingBag,
   ShoppingCart,
   Store,
   Sun,
-  Users,
-  Warehouse,
+  UserRound,
+  UsersRound,
   X,
 } from "lucide-react";
 import { useAuth, useBusiness } from "@/context/StoreProvider";
@@ -26,10 +26,10 @@ import Image from "next/image";
 import { EASYPOS } from "@/lib/easypos";
 import { InicioScreen } from "./InicioScreen";
 import { VentasScreen } from "./VentasScreen";
+import { ClientsPage } from "./ClientsPage";
 import { HistorialPage } from "./HistorialPage";
 import { ProveedorPage } from "./ProveedorPage";
 import { ProductsPage } from "./ProductsPage";
-import { CajaPage } from "./CajaPage";
 import { ReportesPage } from "./ReportesPage";
 import { ConfiguracionPage } from "./ConfiguracionPage";
 import { UsuariosPage } from "./UsuariosPage";
@@ -37,24 +37,26 @@ import { EasyPosSplash } from "./EasyPosSplash";
 import { DebugReporter } from "../DebugReporter";
 
 /**
- * Las secciones del CRM web son EXACTAMENTE las de la app de escritorio
- * (desktop/renderer/app.js → NAV), más Configuración, que en el escritorio no
- * existe porque la tienda y la landing se configuran desde acá.
+ * Las secciones del CRM web, en el orden del diseño: el día a día del negocio
+ * primero (vender, atender, reponer), el papeleo después.
  *
- * El flujo de reparto (Nuevo Pedido, Pedidos, Agenda, Entregas, Clientes) quedó
- * fuera del menú: sus pantallas siguen en `components/admin/` por si un negocio
- * de delivery vuelve a necesitarlas, pero hoy no se muestran en ningún lado.
+ * El flujo de reparto (Nuevo Pedido, Pedidos, Agenda, Entregas) y el Corte de
+ * caja quedaron fuera del menú: sus pantallas siguen en `components/admin/` por
+ * si un negocio vuelve a necesitarlas, pero hoy no se muestran en ningún lado.
  */
 export type Section =
   | "inicio"
   | "venta"
+  | "clientes"
   | "catalogo"
-  | "historial"
   | "proveedor"
-  | "caja"
+  | "historial"
   | "reportes"
   | "usuarios"
   | "configuracion";
+
+/** Qué se quiere hacer al llegar a una sección (abrir el alta, por ejemplo). */
+export type Intent = "nuevo";
 
 interface NavDef {
   s: Section;
@@ -62,23 +64,18 @@ interface NavDef {
   label: string;
   /** Solo para el administrador (el backend lo vuelve a exigir igual). */
   soloAdmin?: boolean;
-  /**
-   * Sección válida pero fuera del menú: se llega a ella desde otra pantalla.
-   * Proveedor vive dentro de Inventario ("Proveedores"), como en el diseño.
-   */
-  oculto?: boolean;
 }
 
 const NAV: NavDef[] = [
   { s: "inicio", icon: <LayoutGrid size={19} />, label: "Resumen" },
   { s: "venta", icon: <ShoppingCart size={19} />, label: "Ventas" },
-  { s: "catalogo", icon: <Boxes size={19} />, label: "Inventario" },
+  { s: "clientes", icon: <UserRound size={19} />, label: "Clientes" },
+  { s: "catalogo", icon: <Package size={19} />, label: "Inventario" },
+  { s: "proveedor", icon: <ShoppingBag size={19} />, label: "Compras" },
   { s: "historial", icon: <Receipt size={19} />, label: "Historial" },
-  { s: "caja", icon: <Coins size={19} />, label: "Corte de caja" },
-  { s: "reportes", icon: <LineChart size={19} />, label: "Reportes" },
-  { s: "usuarios", icon: <Users size={19} />, label: "Usuarios", soloAdmin: true },
+  { s: "reportes", icon: <BarChart3 size={19} />, label: "Reportes" },
+  { s: "usuarios", icon: <UsersRound size={19} />, label: "Usuarios", soloAdmin: true },
   { s: "configuracion", icon: <Settings size={19} />, label: "Configuración" },
-  { s: "proveedor", icon: <Warehouse size={19} />, label: "Proveedores", oculto: true },
 ];
 
 /** Preferencia de modo oscuro del CRM. Se recuerda por navegador. */
@@ -115,17 +112,24 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
     });
   }, []);
 
-  const go = (s: Section) => {
+  /**
+   * A qué pantalla se va y, opcionalmente, con qué intención. Los accesos del
+   * Resumen ("Registrar compra", "Nuevo cliente") mandan `nuevo` para que la
+   * pantalla destino abra su formulario de alta sola, sin un clic de más.
+   */
+  const [intent, setIntent] = useState<Intent | null>(null);
+  const go = (s: Section, que?: Intent) => {
     setSection(s);
+    setIntent(que ?? null);
     setDrawer(false);
   };
 
   const esAdmin = auth.role === "Administrador";
-  const permitidas = NAV.filter((n) => !n.soloAdmin || esAdmin);
-  const nav = permitidas.filter((n) => !n.oculto);
+  const nav = NAV.filter((n) => !n.soloAdmin || esAdmin);
   // Si a alguien le cambian el rol mientras mira Usuarios, el CRM lo devuelve a
   // Inicio en vez de dejarlo en una pantalla que ya no le corresponde.
-  const seccion: Section = permitidas.some((n) => n.s === section) ? section : "inicio";
+  const seccion: Section = nav.some((n) => n.s === section) ? section : "inicio";
+  const nuevo = intent === "nuevo";
 
   const page = () => {
     switch (seccion) {
@@ -133,14 +137,14 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
         return <InicioScreen onGo={go} />;
       case "venta":
         return <VentasScreen />;
+      case "clientes":
+        return <ClientsPage nuevo={nuevo} />;
       case "catalogo":
         return <ProductsPage onGo={go} />;
+      case "proveedor":
+        return <ProveedorPage nuevo={nuevo} />;
       case "historial":
         return <HistorialPage />;
-      case "proveedor":
-        return <ProveedorPage />;
-      case "caja":
-        return <CajaPage />;
       case "reportes":
         return <ReportesPage />;
       case "usuarios":

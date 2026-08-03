@@ -29,14 +29,18 @@ function fmt(d: string): string {
 }
 
 /**
- * Pedidos a proveedor — la reposición de inventario (distinta de las ventas a
- * cliente). Al marcar "Recibido", el backend sube el stock de cada ítem.
+ * Compras — la reposición de inventario que se le pide al proveedor (distinta
+ * de las ventas a cliente). Al marcar "Recibido", el backend sube el stock de
+ * cada ítem.
+ *
+ * `nuevo` llega desde el acceso "Registrar compra" del Resumen: abre el
+ * formulario apenas se entra, sin obligar a buscar el botón.
  */
-export function ProveedorPage() {
+export function ProveedorPage({ nuevo = false }: { nuevo?: boolean }) {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
-  const [showNew, setShowNew] = useState(false);
+  const [showNew, setShowNew] = useState(nuevo);
   const [err, setErr] = useState<string | null>(null);
 
   const load = async () => {
@@ -45,7 +49,7 @@ export function ProveedorPage() {
       setOrders(await apiListPurchaseOrders());
       setErr(null);
     } catch {
-      setErr("No se pudieron cargar los pedidos a proveedor.");
+      setErr("No se pudieron cargar las compras.");
     } finally {
       setLoading(false);
     }
@@ -61,7 +65,7 @@ export function ProveedorPage() {
       await apiSetPurchaseStatus(id, status);
       await load();
     } catch {
-      setErr("No se pudo actualizar el pedido.");
+      setErr("No se pudo actualizar la compra.");
     } finally {
       setBusy(null);
     }
@@ -71,14 +75,14 @@ export function ProveedorPage() {
     <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-serif text-[30px] font-semibold text-ink">Pedidos a proveedor</h1>
+          <h1 className="font-serif text-[30px] font-semibold text-ink">Compras</h1>
           <p className="mt-1 text-[13px] text-ink2">Reposición de inventario. Al recibir, sube el stock.</p>
         </div>
         <button
           onClick={() => setShowNew(true)}
           className="flex items-center gap-2 rounded-[12px] bg-pink px-4 py-2.5 text-[13.5px] font-bold text-onAccent"
         >
-          <Plus size={18} /> Nuevo pedido
+          <Plus size={18} /> Registrar compra
         </button>
       </div>
 
@@ -90,8 +94,8 @@ export function ProveedorPage() {
         ) : orders.length === 0 ? (
           <div className="px-5 py-14 text-center">
             <Truck size={34} className="mx-auto text-faint" />
-            <p className="mt-3 text-[14px] font-medium text-ink">Sin pedidos a proveedor todavía.</p>
-            <p className="mt-1 text-[12.5px] text-ink2">Creá uno cuando pidas repuestos a tu distribuidora.</p>
+            <p className="mt-3 text-[14px] font-medium text-ink">Sin compras registradas todavía.</p>
+            <p className="mt-1 text-[12.5px] text-ink2">Registrá una cuando pidas mercadería a tu distribuidora.</p>
           </div>
         ) : (
           <table className="w-full">
@@ -196,7 +200,7 @@ function NuevoPedidoModal({ onClose, onCreated }: { onClose: () => void; onCreat
       await apiCreatePurchaseOrder({ supplier: supplier.trim(), items });
       onCreated();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo crear el pedido.");
+      setError(e instanceof Error ? e.message : "No se pudo registrar la compra.");
       setSaving(false);
     }
   };
@@ -205,7 +209,7 @@ function NuevoPedidoModal({ onClose, onCreated }: { onClose: () => void; onCreat
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="max-h-[88vh] w-full max-w-[560px] overflow-y-auto rounded-[20px] bg-surface p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h2 className="font-serif text-[22px] font-semibold text-ink">Nuevo pedido a proveedor</h2>
+          <h2 className="font-serif text-[22px] font-semibold text-ink">Registrar compra</h2>
           <button onClick={onClose} className="text-ink2 hover:text-ink"><X size={22} /></button>
         </div>
 
@@ -267,7 +271,7 @@ function NuevoPedidoModal({ onClose, onCreated }: { onClose: () => void; onCreat
           <div className="flex gap-2">
             <button onClick={onClose} className="rounded-[11px] border border-line px-4 py-2.5 text-[13.5px] font-semibold text-ink2">Cancelar</button>
             <button onClick={save} disabled={saving} className="rounded-[11px] bg-pink px-5 py-2.5 text-[13.5px] font-bold text-onAccent disabled:opacity-50">
-              {saving ? "Guardando…" : "Crear pedido"}
+              {saving ? "Guardando…" : "Registrar compra"}
             </button>
           </div>
         </div>

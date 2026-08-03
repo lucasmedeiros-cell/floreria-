@@ -1,20 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import {
   AlertTriangle,
   Bell,
-  Boxes,
   ChevronRight,
-  Info,
   Package,
-  Receipt,
+  PackageX,
+  Plus,
+  ShoppingBag,
   ShoppingCart,
-  Truck,
   TrendingUp,
+  Truck,
+  UserRoundPlus,
   Wallet,
 } from "lucide-react";
-import { apiReports } from "@/lib/reportsClient";
+import { useAuth } from "@/context/StoreProvider";
+import { apiReports, type ReportTop } from "@/lib/reportsClient";
 import { apiListPurchaseOrders, type PurchaseOrder } from "@/lib/purchaseClient";
 import { apiListSales, type SaleRow } from "@/lib/salesClient";
 import { bs2 } from "@/lib/products";
@@ -26,10 +29,10 @@ import { IconTile } from "./kit";
  */
 export type InicioSection =
   | "venta"
+  | "clientes"
   | "catalogo"
-  | "historial"
   | "proveedor"
-  | "caja"
+  | "historial"
   | "reportes";
 
 /** Períodos del panel. El rango siempre termina en la fecha elegida. */
@@ -41,6 +44,30 @@ const PERIODOS: { id: Periodo; label: string }[] = [
   { id: "mes", label: "Mes" },
   { id: "anio", label: "Año" },
 ];
+
+/** Cómo se nombra el período en el título de una tarjeta ("Ventas hoy"). */
+const SUFIJO: Record<Periodo, string> = {
+  hoy: "hoy",
+  semana: "de la semana",
+  mes: "del mes",
+  anio: "del año",
+};
+
+/** Contra qué se compara ("0% vs ayer"). */
+const CONTRA: Record<Periodo, string> = {
+  hoy: "vs ayer",
+  semana: "vs semana anterior",
+  mes: "vs mes anterior",
+  anio: "vs año anterior",
+};
+
+/** Colores de las cuatro tarjetas de arriba. */
+const TONO = {
+  ventas: "#F5A800",
+  utilidad: "#2EA66B",
+  unidades: "#3E7BFA",
+  stock: "#E0324E",
+} as const;
 
 /** `Date` → `YYYY-MM-DD` en hora local (no UTC: `toISOString` corre el día). */
 function iso(d: Date): string {
@@ -64,7 +91,6 @@ function rango(periodo: Periodo, hasta: string): {
   desde: string;
   hasta: string;
   previo: { desde: string; hasta: string };
-  etiqueta: string;
 } {
   const fin = fromIso(hasta);
   const dias = periodo === "hoy" ? 1 : periodo === "semana" ? 7 : periodo === "mes" ? 30 : 365;
@@ -78,15 +104,16 @@ function rango(periodo: Periodo, hasta: string): {
     desde: iso(ini),
     hasta: iso(fin),
     previo: { desde: iso(prevIni), hasta: iso(prevFin) },
-    etiqueta:
-      periodo === "hoy"
-        ? "Ventas hoy"
-        : periodo === "semana"
-          ? "Ventas de la semana"
-          : periodo === "mes"
-            ? "Ventas del mes"
-            : "Ventas del año",
   };
+}
+
+/**
+ * Variación porcentual contra el período anterior. `null` cuando antes no hubo
+ * nada con qué comparar: ahí el alta es "nuevo", no un 100% inventado.
+ */
+function variacion(actual: number, previo: number): number | null {
+  if (previo === 0) return actual === 0 ? 0 : null;
+  return Math.round(((actual - previo) / previo) * 100);
 }
 
 /** Fecha de una venta o pedido en corto: "Hoy, 10:23", "Ayer, 16:40", "12/07". */
@@ -102,28 +129,44 @@ function cuando(isoDate: string): string {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}, ${hora}`;
 }
 
+/** "01 Agosto 2026" — la fecha del panel, escrita como en el diseño. */
+function fechaLarga(s: string): string {
+  const d = fromIso(s);
+  const mes = d.toLocaleDateString("es-BO", { month: "long" });
+  return `${String(d.getDate()).padStart(2, "0")} ${mes[0].toUpperCase()}${mes.slice(1)} ${d.getFullYear()}`;
+}
+
 /** Cada cuánto se vuelven a pedir los datos (el panel dice "En vivo"). */
 const REFRESCO_MS = 60_000;
 
 /**
- * Resumen general — el panel comercial con el que arranca el CRM: lo vendido en
- * el período elegido, el estado del inventario, el acceso a la venta nueva, la
- * actividad reciente y las alertas que hay que atender.
+ * Resumen general — el panel comercial con el que arranca el CRM: lo vendido y
+ * lo ganado en el período elegido, las unidades que salieron, el stock que hay
+ * que atender, los accesos del día y qué se movió último.
  *
  * Todo sale de la base del negocio y se refresca solo cada minuto; nada de esto
  * son números de ejemplo.
  */
-export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
+export function InicioScreen({
+  onGo,
+}: {
+  onGo: (s: InicioSection, intent?: "nuevo") => void;
+}) {
+  const auth = useAuth();
   const [periodo, setPeriodo] = useState<Periodo>("hoy");
   const [fecha, setFecha] = useState(() => iso(new Date()));
   const [loading, setLoading] = useState(true);
 
-  const [productos, setProductos] = useState(0);
   const [stockBajo, setStockBajo] = useState(0);
+  const [sinStock, setSinStock] = useState(0);
   const [ventas, setVentas] = useState(0);
-  const [numVentas, setNumVentas] = useState(0);
-  const [costo, setCosto] = useState(0);
-  const [ventasPrevias, setVentasPrevias] = useState(0);
+  const [utilidad, setUtilidad] = useState(0);
+  const [unidades, setUnidades] = useState(0);
+  const [ventasPrev, setVentasPrev] = useState(0);
+  const [utilidadPrev, setUtilidadPrev] = useState(0);
+  const [unidadesPrev, setUnidadesPrev] = useState(0);
+  const [serie, setSerie] = useState<{ total: number; utilidad: number }[]>([]);
+  const [top, setTop] = useState<ReportTop[]>([]);
   const [sales, setSales] = useState<SaleRow[]>([]);
   const [pedidos, setPedidos] = useState<PurchaseOrder[]>([]);
 
@@ -132,18 +175,24 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
   const cargar = useCallback(
     async (alive: () => boolean) => {
       try {
-        const [todo, actual, previo] = await Promise.all([
-          apiReports(),
+        const [actual, previo] = await Promise.all([
           apiReports({ desde: r.desde, hasta: r.hasta }),
           apiReports({ desde: r.previo.desde, hasta: r.previo.hasta }),
         ]);
         if (alive()) {
-          setProductos(todo.totalProductos);
-          setStockBajo(todo.stockBajo);
+          // El conteo de stock no depende del rango: viene igual en los dos.
+          setStockBajo(actual.stockBajo);
+          setSinStock(actual.sinStock);
           setVentas(actual.totalVentas);
-          setNumVentas(actual.numVentas);
-          setCosto(actual.costoVendido);
-          setVentasPrevias(previo.totalVentas);
+          setUtilidad(actual.ganancia);
+          setUnidades(actual.unidadesVendidas);
+          setVentasPrev(previo.totalVentas);
+          setUtilidadPrev(previo.ganancia);
+          setUnidadesPrev(previo.unidadesVendidas);
+          setTop(actual.topProductos);
+          setSerie(
+            actual.porMes.map((m) => ({ total: m.total, utilidad: m.total - m.costo }))
+          );
         }
       } catch {
         /* sin datos */
@@ -179,77 +228,64 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
   const pendientes = pedidos.filter((p) => p.status === "solicitado").length;
   const dato = (v: string) => (loading ? "—" : v);
 
-  // Variación de ventas contra el período anterior. Sin ventas antes no hay
-  // porcentaje que calcular: se muestra el alta como "nuevo", no un 100% falso.
-  const variacion =
-    ventasPrevias > 0 ? Math.round(((ventas - ventasPrevias) / ventasPrevias) * 100) : null;
-
-  /** Ventas del rango, para la curvita de la tarjeta. */
-  const serie = useMemo(() => {
-    const desde = fromIso(r.desde).getTime();
-    const hasta = fromIso(r.hasta).getTime() + 86_400_000;
-    const dentro = sales
-      .filter((s) => !s.voided && s.kind === "factura")
-      .map((s) => ({ t: new Date(s.createdAt).getTime(), total: s.total }))
-      .filter((s) => s.t >= desde && s.t < hasta)
-      .sort((a, b) => a.t - b.t);
-    if (dentro.length === 0) return [];
-    const N = 12;
-    const paso = (hasta - desde) / N;
-    const buckets = Array.from({ length: N }, () => 0);
-    for (const s of dentro) {
-      const i = Math.min(N - 1, Math.floor((s.t - desde) / paso));
-      buckets[i] += s.total;
-    }
-    return buckets;
-  }, [sales, r.desde, r.hasta]);
+  /** Saludo por hora del día, con el nombre de pila de quien está adentro. */
+  const saludo = useMemo(() => {
+    const h = new Date().getHours();
+    const hora = h < 12 ? "Buenos días" : h < 19 ? "Buenas tardes" : "Buenas noches";
+    const pila = auth.name.trim().split(" ").filter(Boolean)[0];
+    return pila ? `${hora}, ${pila}.` : `${hora}.`;
+  }, [auth.name]);
 
   /** Actividad reciente: ventas y pedidos mezclados, lo último primero. */
   const actividad = useMemo(() => {
     const deVentas = sales.slice(0, 8).map((s) => ({
       t: new Date(s.createdAt).getTime(),
       icon: <ShoppingCart size={17} />,
-      titulo: s.voided ? "Venta anulada" : "Venta registrada",
-      detalle: `${s.kind === "proforma" ? "Proforma" : "Venta"} #${s.code}`,
+      tono: s.voided ? TONO.stock : TONO.ventas,
+      titulo: s.voided ? "Venta anulada" : "Venta realizada",
       valor: bs2(s.total),
       cuando: cuando(s.createdAt),
     }));
     const dePedidos = pedidos.slice(0, 8).map((p) => ({
       t: new Date(p.receivedAt ?? p.createdAt).getTime(),
       icon: <Truck size={17} />,
+      tono: p.status === "cancelado" ? TONO.stock : TONO.utilidad,
       titulo:
         p.status === "recibido"
-          ? "Pedido recibido"
+          ? "Compra ingresada"
           : p.status === "cancelado"
-            ? "Pedido cancelado"
-            : "Pedido solicitado",
-      detalle: `Proveedor: ${p.supplier}`,
+            ? "Compra cancelada"
+            : "Compra solicitada",
       valor: `#${p.code}`,
       cuando: cuando(p.receivedAt ?? p.createdAt),
     }));
-    return [...deVentas, ...dePedidos].sort((a, b) => b.t - a.t).slice(0, 3);
+    return [...deVentas, ...dePedidos].sort((a, b) => b.t - a.t).slice(0, 4);
   }, [sales, pedidos]);
 
-  const alertas = stockBajo > 0 ? 1 : 0;
-  const avisos = alertas + (pendientes > 0 ? 1 : 0);
+  /** Top productos del período, con su peso dentro de esa lista. */
+  const ranking = useMemo(() => {
+    const lista = top.slice(0, 4);
+    const suma = lista.reduce((s, t) => s + t.revenue, 0);
+    if (suma <= 0) return [];
+    const conPct = lista.map((t) => ({ ...t, pct: Math.round((t.revenue / suma) * 100) }));
+    const mayor = Math.max(...conPct.map((t) => t.pct), 1);
+    return conPct.map((t) => ({ ...t, barra: Math.round((t.pct / mayor) * 100) }));
+  }, [top]);
+
+  const avisos = (stockBajo > 0 ? 1 : 0) + (pendientes > 0 ? 1 : 0);
 
   return (
     <div className="h-full overflow-y-auto bg-bg">
       <div className="mx-auto w-full max-w-[1500px] px-5 pb-10 pt-6 sm:px-8">
-        {/* ---------- Título y controles del período ---------- */}
-        <div className="flex flex-wrap items-start gap-4">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-[27px] font-extrabold leading-none tracking-[-0.4px] text-ink">
-              Resumen general
+        {/* ---------- Saludo y controles del período ---------- */}
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-[30px] font-extrabold leading-none tracking-[-0.6px] text-ink">
+              {saludo}
             </h1>
-            <p className="mt-1.5 text-[13px] text-ink2">
-              Panel comercial ·{" "}
-              {fromIso(fecha).toLocaleDateString("es-BO", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              })}{" "}
-              ·{" "}
+            <p className="mt-2 text-[13px] text-ink2">
+              {fechaLarga(fecha)}
+              <span className="px-2 text-faint">•</span>
               <span className="font-semibold text-success">
                 <span className="pulse-soft">●</span> En vivo
               </span>
@@ -257,12 +293,19 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            <div className="flex items-center gap-1 rounded-[12px] border border-line bg-surface p-1">
+            <button
+              onClick={() => onGo("venta")}
+              className="flex h-[46px] items-center gap-2 rounded-[14px] border border-line bg-surface px-4 text-[13.5px] font-semibold text-ink transition-colors hover:border-pink"
+            >
+              <Plus size={18} className="text-pink" /> Nueva venta
+            </button>
+
+            <div className="flex h-[46px] items-center gap-1 rounded-[14px] border border-line bg-surface p-1">
               {PERIODOS.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => setPeriodo(p.id)}
-                  className={`rounded-[9px] px-3.5 py-2 text-[12.5px] font-semibold transition-colors ${
+                  className={`rounded-[10px] px-3.5 py-2 text-[12.5px] font-semibold transition-colors ${
                     periodo === p.id ? "bg-pink text-onAccent" : "text-ink2 hover:text-ink"
                   }`}
                 >
@@ -270,20 +313,22 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
                 </button>
               ))}
             </div>
+
             <input
               type="date"
               value={fecha}
               onChange={(e) => setFecha(e.target.value || iso(new Date()))}
-              className="h-[42px] rounded-[12px] border border-line bg-surface px-3.5 text-[13px] font-semibold text-ink outline-none focus:border-pink"
+              className="h-[46px] rounded-[14px] border border-line bg-surface px-3.5 text-[13px] font-semibold text-ink outline-none focus:border-pink"
             />
+
             <button
               onClick={() => onGo("catalogo")}
               aria-label="Alertas"
-              className="relative grid h-[42px] w-[42px] place-items-center rounded-[12px] border border-line bg-surface text-ink2 hover:text-ink"
+              className="relative grid h-[46px] w-[46px] place-items-center rounded-[14px] border border-line bg-surface text-ink2 transition-colors hover:text-ink"
             >
               <Bell size={19} />
               {avisos > 0 && (
-                <span className="absolute -right-1.5 -top-1.5 grid h-[19px] min-w-[19px] place-items-center rounded-full bg-pink px-1 text-[10px] font-bold text-onAccent">
+                <span className="absolute -right-1.5 -top-1.5 grid h-[20px] min-w-[20px] place-items-center rounded-full bg-pink px-1 text-[10.5px] font-bold text-onAccent">
                   {avisos}
                 </span>
               )}
@@ -292,64 +337,78 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
         </div>
 
         {/* ---------- Vistazo ---------- */}
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
-            icon={<TrendingUp size={28} />}
-            tone="#F5A800"
-            label={r.etiqueta}
+            icon={<TrendingUp size={26} />}
+            tone={TONO.ventas}
+            label={`Ventas ${SUFIJO[periodo]}`}
             value={dato(bs2(ventas))}
+            nota={<Comparacion tone={TONO.ventas} v={variacion(ventas, ventasPrev)} periodo={periodo} />}
+            extra={<Sparkline data={serie.map((s) => s.total)} tone={TONO.ventas} />}
             onClick={() => onGo("historial")}
-            extra={<Sparkline data={serie} />}
           />
           <KpiCard
-            icon={<Wallet size={28} />}
-            tone="#7C6BE0"
-            label="Costo"
-            value={dato(bs2(costo))}
+            icon={<Wallet size={26} />}
+            tone={TONO.utilidad}
+            label={`Utilidad ${SUFIJO[periodo]}`}
+            value={dato(bs2(utilidad))}
+            nota={
+              <Comparacion tone={TONO.utilidad} v={variacion(utilidad, utilidadPrev)} periodo={periodo} />
+            }
+            extra={<Sparkline data={serie.map((s) => s.utilidad)} tone={TONO.utilidad} />}
             onClick={() => onGo("reportes")}
           />
           <KpiCard
-            icon={<Boxes size={28} />}
-            tone="#2EA66B"
-            label="Productos"
-            value={dato(`${productos}`)}
-            onClick={() => onGo("catalogo")}
-            chip={{ text: "En el catálogo", tone: "up" }}
+            icon={<ShoppingBag size={26} />}
+            tone={TONO.unidades}
+            label="Productos vendidos"
+            value={dato(`${unidades}`)}
+            nota={
+              <Comparacion tone={TONO.unidades} v={variacion(unidades, unidadesPrev)} periodo={periodo} />
+            }
+            onClick={() => onGo("reportes")}
           />
           <KpiCard
-            icon={<AlertTriangle size={28} />}
-            tone="#E0324E"
-            label="Stock bajo"
+            icon={<AlertTriangle size={26} />}
+            tone={TONO.stock}
+            label="Stock crítico"
             value={dato(`${stockBajo}`)}
+            nota={<span className="text-[12.5px] text-ink2">productos</span>}
+            extra={
+              sinStock > 0 ? (
+                <span
+                  title={`${sinStock} ${sinStock === 1 ? "producto ya está" : "productos ya están"} en cero`}
+                  className="flex shrink-0 items-center gap-1 rounded-full bg-error/[0.12] px-2.5 py-1 text-[11.5px] font-bold text-error"
+                >
+                  <PackageX size={13} /> {sinStock}
+                </span>
+              ) : null
+            }
             onClick={() => onGo("catalogo")}
-            chip={{ text: stockBajo > 0 ? "Reponer" : "En orden", tone: stockBajo > 0 ? "down" : "up" }}
           />
         </div>
 
-        {/* ---------- Acción principal ---------- */}
-        <button
-          onClick={() => onGo("venta")}
-          className="mt-4 flex w-full items-center gap-5 overflow-hidden rounded-[18px] px-6 py-5 text-left text-onAccent transition-transform hover:-translate-y-0.5"
-          style={{ background: "linear-gradient(100deg,#FFC93C 0%,#FEBB03 45%,#F0A400 100%)" }}
-        >
-          <span className="grid h-[62px] w-[62px] shrink-0 place-items-center rounded-full bg-onAccent/10">
-            <ShoppingCart size={28} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[20px] font-extrabold leading-tight">Nueva venta</span>
-            <span className="mt-0.5 block text-[13px] font-medium opacity-75">
-              Crear y procesar una venta rápidamente
-            </span>
-          </span>
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-onAccent/10">
-            <ChevronRight size={24} />
-          </span>
-        </button>
+        {/* ---------- Accesos del día ---------- */}
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <Acceso
+            icon={<ShoppingBag size={24} />}
+            tone={TONO.ventas}
+            title="Registrar compra"
+            subtitle="Ingresar mercadería de un proveedor"
+            onClick={() => onGo("proveedor", "nuevo")}
+          />
+          <Acceso
+            icon={<UserRoundPlus size={24} />}
+            tone={TONO.ventas}
+            title="Nuevo cliente"
+            subtitle="Agregar un cliente a la libreta"
+            onClick={() => onGo("clientes", "nuevo")}
+          />
+        </div>
 
-        {/* ---------- Actividad y alertas ---------- */}
+        {/* ---------- Actividad y ranking ---------- */}
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <Panel
-            icon={<Receipt size={18} />}
             title="Actividad reciente"
             action={{ label: "Ver todo", onClick: () => onGo("historial") }}
           >
@@ -358,18 +417,18 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
             ) : (
               actividad.map((a, i) => (
                 <div key={i} className="flex items-center gap-3 py-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-pinkSoft text-ink">
+                  <span
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full"
+                    style={{ background: `${a.tono}1F`, color: a.tono }}
+                  >
                     {a.icon}
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13.5px] font-semibold text-ink">
-                      {a.titulo}
-                    </span>
-                    <span className="block truncate text-[12px] text-ink2">{a.detalle}</span>
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-ink">
+                    {a.titulo}
                   </span>
-                  <span className="shrink-0 text-right">
-                    <span className="block text-[13px] font-bold text-ink">{a.valor}</span>
-                    <span className="block text-[11.5px] text-faint">{a.cuando}</span>
+                  <span className="shrink-0 text-[13px] font-semibold text-ink2">{a.valor}</span>
+                  <span className="w-[86px] shrink-0 text-right text-[12.5px] text-faint">
+                    {a.cuando}
                   </span>
                 </div>
               ))
@@ -377,47 +436,45 @@ export function InicioScreen({ onGo }: { onGo: (s: InicioSection) => void }) {
           </Panel>
 
           <Panel
-            icon={<AlertTriangle size={18} />}
-            title="Alertas y notificaciones"
-            action={{ label: "Ver todas", onClick: () => onGo("catalogo") }}
+            title="Top productos"
+            action={{ label: "Ver todo", onClick: () => onGo("reportes") }}
           >
-            <Alerta
-              n={stockBajo}
-              tone={stockBajo > 0 ? "#E0324E" : "#2EA66B"}
-              title="Productos con stock crítico"
-              text={
-                stockBajo > 0
-                  ? "Revisa y repón inventario para evitar quiebres."
-                  : "No hay productos por reponer."
-              }
-              onClick={() => onGo("catalogo")}
-            />
-            <Alerta
-              n={pendientes}
-              tone={pendientes > 0 ? "#F5A800" : "#2EA66B"}
-              title="Pedidos pendientes"
-              text={
-                pendientes > 0
-                  ? "Tienes mercadería pedida por recibir."
-                  : "No hay pedidos pendientes por recibir."
-              }
-              onClick={() => onGo("proveedor")}
-            />
-            {/* El sistema todavía no lleva cuentas por cobrar, así que esta
-                fila informa que no hay nada por vencer y no inventa un número. */}
-            <Alerta
-              n={0}
-              tone="#F5A800"
-              title="Facturas por vencer"
-              text="No tienes facturas próximas a vencer."
-              onClick={() => onGo("historial")}
-            />
+            {ranking.length === 0 ? (
+              <Vacio
+                texto={loading ? "Cargando…" : "Sin ventas en el período: no hay ranking."}
+              />
+            ) : (
+              ranking.map((t, i) => (
+                <div key={t.name} className="flex items-start gap-3 py-2.5">
+                  <span
+                    className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full text-[13px] font-bold ${
+                      i === 0 ? "bg-pinkSoft text-ink" : "bg-surface2 text-ink2"
+                    }`}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-baseline gap-2">
+                      <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-ink">
+                        {t.name}
+                      </span>
+                      <span className="shrink-0 text-[13px] font-bold text-ink">{t.pct}%</span>
+                    </span>
+                    <span className="mt-0.5 block text-[12px] text-ink2">
+                      {t.qty} {t.qty === 1 ? "unidad" : "unidades"}
+                    </span>
+                    <span className="mt-2 block h-[5px] w-full overflow-hidden rounded-full bg-surface2">
+                      <span
+                        className="block h-full rounded-full bg-pink"
+                        style={{ width: `${t.barra}%` }}
+                      />
+                    </span>
+                  </span>
+                </div>
+              ))
+            )}
           </Panel>
         </div>
-
-        <p className="mt-6 flex items-center justify-center gap-2 text-[12.5px] text-faint">
-          <Info size={15} /> Los datos se actualizan en tiempo real.
-        </p>
       </div>
     </div>
   );
@@ -430,68 +487,88 @@ function KpiCard({
   tone,
   label,
   value,
-  chip,
+  nota,
   extra,
   onClick,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   /** Color del ícono y del acento de la tarjeta. */
   tone: string;
   label: string;
   value: string;
-  chip?: { text: string; tone: "up" | "down" | "neutral" };
-  extra?: React.ReactNode;
+  /** Renglón de abajo a la izquierda (la comparación o la unidad). */
+  nota: ReactNode;
+  /** Lo que va abajo a la derecha (la curvita o una chip). */
+  extra?: ReactNode;
   onClick?: () => void;
 }) {
-  const chipCls =
-    chip?.tone === "up"
-      ? "bg-success/[0.12] text-success"
-      : chip?.tone === "down"
-        ? "bg-error/[0.12] text-error"
-        : "bg-ink/[0.06] text-ink2";
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-4 rounded-[18px] border border-line bg-surface p-5 text-left shadow-card transition-transform hover:-translate-y-0.5"
-      style={{ borderTopColor: tone }}
+      className="flex flex-col rounded-[20px] border border-line bg-surface p-5 text-left shadow-card transition-transform hover:-translate-y-0.5"
     >
-      <IconTile icon={icon} tone={tone} size={60} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[14.5px] font-semibold text-ink2">{label}</span>
-        <span className="mt-1.5 block truncate text-[26px] font-extrabold leading-none text-ink">
-          {value}
+      <span className="flex items-start gap-3.5">
+        <IconTile icon={icon} tone={tone} size={56} />
+        <span className="min-w-0 flex-1 pt-1">
+          <span className="block truncate text-[14px] font-semibold text-ink2">{label}</span>
+          <span className="mt-2 block truncate text-[27px] font-extrabold leading-none text-ink">
+            {value}
+          </span>
         </span>
       </span>
-      {extra}
-      {chip && (
-        <span
-          className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold ${chipCls}`}
-        >
-          {chip.text}
-        </span>
-      )}
+      <span className="mt-4 flex min-h-[26px] items-center gap-2">
+        {nota}
+        <span className="flex-1" />
+        {extra}
+      </span>
     </button>
   );
 }
 
-/** Curvita de ventas del período. Sin ventas no dibuja nada (no una línea plana falsa). */
-function Sparkline({ data }: { data: number[] }) {
-  if (data.length === 0) return null;
+/** "0% vs ayer" — cuánto se movió el dato contra el período anterior. */
+function Comparacion({
+  tone,
+  v,
+  periodo,
+}: {
+  tone: string;
+  v: number | null;
+  periodo: Periodo;
+}) {
+  return (
+    <span className="flex min-w-0 items-center gap-2 text-[12.5px] text-ink2">
+      <span
+        className="h-[9px] w-[9px] shrink-0 rounded-full"
+        style={{ background: tone }}
+        aria-hidden
+      />
+      <span className="truncate">
+        {v === null ? "sin período previo" : `${v > 0 ? "+" : ""}${v}% ${CONTRA[periodo]}`}
+      </span>
+    </span>
+  );
+}
+
+/** Curvita del período. Sin movimiento no dibuja nada (no una línea plana falsa). */
+function Sparkline({ data, tone }: { data: number[]; tone: string }) {
+  if (data.length < 2 || data.every((v) => v === 0)) return null;
   const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const alto = max - min || 1;
   const puntos = data
-    .map((v, i) => `${(i / (data.length - 1)) * 100},${28 - (v / max) * 26}`)
+    .map((v, i) => `${(i / (data.length - 1)) * 100},${26 - ((v - min) / alto) * 24}`)
     .join(" ");
   return (
     <svg
-      viewBox="0 0 100 30"
+      viewBox="0 0 100 28"
       preserveAspectRatio="none"
-      className="hidden h-[34px] w-[92px] shrink-0 sm:block"
+      className="h-[26px] w-[74px] shrink-0"
       aria-hidden
     >
       <polyline
         points={puntos}
         fill="none"
-        stroke="#F5A800"
+        stroke={tone}
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -501,71 +578,70 @@ function Sparkline({ data }: { data: number[] }) {
   );
 }
 
-function Panel({
+/** Tarjeta ancha de acceso directo (registrar compra, nuevo cliente). */
+function Acceso({
   icon,
+  tone,
+  title,
+  subtitle,
+  onClick,
+}: {
+  icon: ReactNode;
+  tone: string;
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-4 rounded-[20px] border border-line bg-surface p-5 text-left shadow-card transition-transform hover:-translate-y-0.5"
+    >
+      <span
+        className="grid h-[54px] w-[54px] shrink-0 place-items-center rounded-full"
+        style={{ background: `${tone}1F`, color: tone }}
+      >
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[16px] font-bold text-ink">{title}</span>
+        <span className="mt-0.5 block truncate text-[13px] text-ink2">{subtitle}</span>
+      </span>
+      <ChevronRight size={22} className="shrink-0 text-faint" />
+    </button>
+  );
+}
+
+function Panel({
   title,
   action,
   children,
 }: {
-  icon: React.ReactNode;
   title: string;
   action?: { label: string; onClick: () => void };
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <div className="rounded-[18px] border border-line bg-surface p-5 shadow-card">
-      <div className="flex items-center gap-2.5">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-pinkSoft text-ink">
-          {icon}
-        </span>
-        <h2 className="min-w-0 flex-1 truncate text-[15px] font-bold text-ink">{title}</h2>
+    <div className="rounded-[20px] border border-line bg-surface p-5 shadow-card">
+      <div className="flex items-center gap-3">
+        <h2 className="min-w-0 flex-1 truncate text-[16px] font-bold text-ink">{title}</h2>
         {action && (
           <button
             onClick={action.onClick}
-            className="shrink-0 rounded-[10px] border border-line px-3.5 py-2 text-[12px] font-semibold text-ink2 hover:text-ink"
+            className="shrink-0 rounded-[10px] border border-line px-3 py-1.5 text-[12px] font-semibold text-ink2 transition-colors hover:text-ink"
           >
             {action.label}
           </button>
         )}
       </div>
-      <div className="mt-2 divide-y divide-line">{children}</div>
+      <div className="mt-3">{children}</div>
     </div>
-  );
-}
-
-function Alerta({
-  n,
-  tone,
-  title,
-  text,
-  onClick,
-}: {
-  n: number;
-  tone: string;
-  title: string;
-  text: string;
-  onClick: () => void;
-}) {
-  return (
-    <button onClick={onClick} className="flex w-full items-center gap-3 py-3 text-left">
-      <span
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[16px] font-extrabold"
-        style={{ background: `${tone}1F`, color: tone }}
-      >
-        {n}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13.5px] font-semibold text-ink">{title}</span>
-        <span className="block truncate text-[12px] text-ink2">{text}</span>
-      </span>
-      <ChevronRight size={18} className="shrink-0 text-faint" />
-    </button>
   );
 }
 
 function Vacio({ texto }: { texto: string }) {
   return (
-    <div className="flex flex-col items-center gap-2 py-8 text-center">
+    <div className="flex flex-col items-center gap-2 py-10 text-center">
       <Package size={26} className="text-faint" />
       <p className="text-[12.5px] text-ink2">{texto}</p>
     </div>

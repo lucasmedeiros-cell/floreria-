@@ -33,3 +33,25 @@ export function useClients(): { clients: Client[]; loading: boolean; reload: () 
 
   return { clients, loading, reload: () => setTick((t) => t + 1) };
 }
+
+/** Datos con los que se da de alta un cliente desde el CRM. */
+export interface ClientInput {
+  name: string;
+  phone?: string;
+  address?: string;
+  reference?: string;
+  notes?: string;
+}
+
+/** Alta de un cliente en la libreta. El nombre es lo único obligatorio. */
+export async function apiCreateClient(input: ClientInput): Promise<void> {
+  const r = await fetch(apiUrl("/api/clients"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => null);
+    throw new Error(body?.error ?? "No se pudo guardar el cliente.");
+  }
+}

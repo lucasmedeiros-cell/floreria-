@@ -1,15 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { MapPin, Plus, Search, Users } from "lucide-react";
+import { MapPin, Plus, Search, Users, X } from "lucide-react";
 import type { Client } from "@/lib/adminData";
-import { useClients } from "@/lib/clientsClient";
+import { apiCreateClient, useClients } from "@/lib/clientsClient";
 import { bs2 } from "@/lib/products";
 import { PrimaryButton } from "@/components/ui";
 
-export function ClientsPage({ onNew }: { onNew: () => void }) {
+/**
+ * Libreta de clientes del negocio. `nuevo` llega desde el acceso "Nuevo
+ * cliente" del Resumen: abre el alta apenas se entra a la pantalla.
+ */
+export function ClientsPage({ nuevo = false }: { nuevo?: boolean }) {
   const [q, setQ] = useState("");
-  const { clients, loading } = useClients();
+  const [showNew, setShowNew] = useState(nuevo);
+  const { clients, loading, reload } = useClients();
   const items = clients.filter(
     (c) =>
       c.name.toLowerCase().includes(q.toLowerCase()) || c.phone.includes(q)
@@ -24,7 +29,11 @@ export function ClientsPage({ onNew }: { onNew: () => void }) {
             {loading ? "Cargando…" : `${clients.length} clientes registrados`}
           </p>
         </div>
-        <PrimaryButton label="Nuevo pedido" icon={<Plus size={18} />} onClick={onNew} />
+        <PrimaryButton
+          label="Nuevo cliente"
+          icon={<Plus size={18} />}
+          onClick={() => setShowNew(true)}
+        />
       </div>
 
       <div className="mt-5 flex h-[46px] max-w-[420px] items-center gap-2.5 rounded-xl border border-line bg-surface px-4">
@@ -43,7 +52,7 @@ export function ClientsPage({ onNew }: { onNew: () => void }) {
           text={
             q
               ? "Prueba con otro nombre o teléfono."
-              : "Los clientes se registran solos al crear pedidos, o se cargan al vincular el negocio."
+              : "Cargá el primero con «Nuevo cliente»; los de los pedidos se suman solos."
           }
         />
       ) : (
@@ -53,7 +62,117 @@ export function ClientsPage({ onNew }: { onNew: () => void }) {
           ))}
         </div>
       )}
+
+      {showNew && (
+        <NuevoClienteModal
+          onClose={() => setShowNew(false)}
+          onCreated={() => {
+            setShowNew(false);
+            reload();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+/** Alta de un cliente. Solo el nombre es obligatorio: el resto se completa después. */
+function NuevoClienteModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async () => {
+    if (!name.trim()) return setError("El nombre es obligatorio.");
+    setSaving(true);
+    setError(null);
+    try {
+      await apiCreateClient({
+        name: name.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+        notes: notes.trim(),
+      });
+      onCreated();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo guardar el cliente.");
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] grid place-items-center bg-black/40 p-4">
+      <div className="w-full max-w-[460px] rounded-[20px] border border-line bg-surface p-6 shadow-card">
+        <div className="flex items-start gap-3">
+          <h2 className="flex-1 text-[20px] font-bold text-ink">Nuevo cliente</h2>
+          <button onClick={onClose} aria-label="Cerrar" className="text-faint hover:text-ink">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3">
+          <Campo label="Nombre" value={name} onChange={setName} autoFocus />
+          <Campo label="Teléfono" value={phone} onChange={setPhone} />
+          <Campo label="Dirección" value={address} onChange={setAddress} />
+          <Campo label="Notas" value={notes} onChange={setNotes} />
+        </div>
+
+        {error && (
+          <p className="mt-3 rounded-[12px] border border-error/30 bg-error/5 px-3 py-2 text-[12.5px] text-error">
+            {error}
+          </p>
+        )}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="rounded-[12px] border border-line px-4 py-2.5 text-[13px] font-semibold text-ink2 hover:text-ink"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={save}
+            disabled={saving}
+            className="rounded-[12px] bg-pink px-4 py-2.5 text-[13px] font-bold text-onAccent disabled:opacity-50"
+          >
+            {saving ? "Guardando…" : "Guardar cliente"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Campo({
+  label,
+  value,
+  onChange,
+  autoFocus,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  autoFocus?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[12px] font-semibold text-ink2">{label}</span>
+      <input
+        value={value}
+        autoFocus={autoFocus}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-[44px] w-full rounded-[12px] border border-line bg-surface px-3.5 text-[13.5px] text-ink outline-none focus:border-pink"
+      />
+    </label>
   );
 }
 

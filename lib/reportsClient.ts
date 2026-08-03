@@ -13,6 +13,8 @@ export interface ReportTop {
 export interface ReportMes {
   mes: string;
   total: number;
+  /** Costo de lo vendido en ese período (para la utilidad del período). */
+  costo: number;
 }
 
 export interface Reports {
@@ -21,7 +23,11 @@ export interface Reports {
   ticketPromedio: number;
   costoVendido: number;
   ganancia: number;
+  /** Unidades despachadas en el rango (suma de las cantidades vendidas). */
+  unidadesVendidas: number;
   stockBajo: number;
+  /** Productos que ya se quedaron en cero (subconjunto de `stockBajo`). */
+  sinStock: number;
   totalProductos: number;
   porMetodo: ReportMetodo[];
   topProductos: ReportTop[];

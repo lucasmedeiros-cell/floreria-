@@ -36,7 +36,7 @@ export const GET = handler(async (req: NextRequest) => {
   const fVentaSolo = `(created_at AT TIME ZONE 'America/La_Paz')::date BETWEEN $1::date AND $2::date`;
   const p = [desde, hasta];
 
-  const [resumen, porMetodo, topProductos, porMes, stock, costo] =
+  const [resumen, porMetodo, topProductos, porMes, stock, costo, unidades] =
     await Promise.all([
       query<{ total: string; n: string }>(
         `SELECT COALESCE(SUM(total),0)::numeric AS total, COUNT(*)::int AS n
@@ -58,20 +58,35 @@ export const GET = handler(async (req: NextRequest) => {
           GROUP BY i.name ORDER BY revenue DESC LIMIT 8`,
         p
       ),
-      // Serie por día si el rango es corto (≤ 62 días); por mes si es largo.
-      query<{ periodo: string; total: string }>(
+      // Serie por hora si el rango es un solo día (si no, "hoy" sería un único
+      // punto y no habría curva), por día si es corto (≤ 62 días) y por mes si
+      // es largo. Lleva también el costo del período para poder dibujar la
+      // utilidad sin repartir un total a ojo.
+      query<{ periodo: string; total: string; costo: string }>(
         `SELECT to_char(date_trunc(
-                  CASE WHEN $2::date - $1::date <= 62 THEN 'day' ELSE 'month' END,
+                  CASE WHEN $2::date - $1::date = 0 THEN 'hour'
+                       WHEN $2::date - $1::date <= 62 THEN 'day'
+                       ELSE 'month' END,
                   s.created_at AT TIME ZONE 'America/La_Paz'),
-                  CASE WHEN $2::date - $1::date <= 62 THEN 'YYYY-MM-DD' ELSE 'YYYY-MM' END) AS periodo,
-                COALESCE(SUM(total),0)::numeric AS total
+                  CASE WHEN $2::date - $1::date = 0 THEN 'YYYY-MM-DD HH24'
+                       WHEN $2::date - $1::date <= 62 THEN 'YYYY-MM-DD'
+                       ELSE 'YYYY-MM' END) AS periodo,
+                COALESCE(SUM(s.total),0)::numeric AS total,
+                COALESCE(SUM(c.costo),0)::numeric AS costo
            FROM sales s
-          WHERE kind = 'factura' AND NOT voided AND ${fVenta}
+           LEFT JOIN LATERAL (
+             SELECT SUM(i.qty * pr.cost) AS costo
+               FROM sale_items i
+               JOIN products pr ON pr.id = i.product_id
+              WHERE i.sale_id = s.id
+           ) c ON TRUE
+          WHERE s.kind = 'factura' AND NOT s.voided AND ${fVenta}
           GROUP BY 1 ORDER BY 1`,
         p
       ),
-      query<{ bajo: string; total: string }>(
+      query<{ bajo: string; agotados: string; total: string }>(
         `SELECT COUNT(*) FILTER (WHERE stock <= 5)::int AS bajo,
+                COUNT(*) FILTER (WHERE stock <= 0)::int AS agotados,
                 COUNT(*)::int AS total
            FROM products`
       ),
@@ -81,6 +96,15 @@ export const GET = handler(async (req: NextRequest) => {
            FROM sale_items i
            JOIN sales s ON s.id = i.sale_id
            JOIN products p ON p.id = i.product_id
+          WHERE s.kind = 'factura' AND NOT s.voided AND ${fVenta}`,
+        p
+      ),
+      // Unidades vendidas: cuenta TODOS los ítems, incluso los de un producto
+      // que después se borró del catálogo (por eso no se junta con el costo).
+      query<{ unidades: string }>(
+        `SELECT COALESCE(SUM(i.qty),0)::int AS unidades
+           FROM sale_items i
+           JOIN sales s ON s.id = i.sale_id
           WHERE s.kind = 'factura' AND NOT s.voided AND ${fVenta}`,
         p
       ),
@@ -100,7 +124,9 @@ export const GET = handler(async (req: NextRequest) => {
     // Ganancia = lo vendido menos lo que costó esa mercadería. El negocio no
     // carga sus egresos en el sistema, así que no hay nada más que restar.
     ganancia: total - costoVendido,
+    unidadesVendidas: Number(unidades[0]?.unidades ?? 0),
     stockBajo: Number(stock[0]?.bajo ?? 0),
+    sinStock: Number(stock[0]?.agotados ?? 0),
     totalProductos: Number(stock[0]?.total ?? 0),
     porMetodo: porMetodo.map((r) => ({
       metodo: r.metodo,
@@ -113,6 +139,10 @@ export const GET = handler(async (req: NextRequest) => {
       revenue: Number(r.revenue),
     })),
     // Se mantiene `porMes` por compatibilidad; ahora es "por período" (día o mes).
-    porMes: porMes.map((r) => ({ mes: r.periodo, total: Number(r.total) })),
+    porMes: porMes.map((r) => ({
+      mes: r.periodo,
+      total: Number(r.total),
+      costo: Number(r.costo),
+    })),
   });
 });
