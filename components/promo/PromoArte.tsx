@@ -38,17 +38,25 @@ export function PromoArte({ promo }: { promo: PromoConfig }) {
 
   return (
     <div
-      className="flex min-h-screen w-full flex-col items-center justify-center"
+      className="flex h-[100dvh] w-full flex-col items-center justify-center gap-4 overflow-hidden"
       style={{ background: t.backgroundColor, color: t.text }}
     >
-      <div className="relative w-full max-w-[1600px]">
-        {/* La imagen manda la altura del contenedor; por eso las zonas en % de
-            este mismo contenedor caen siempre sobre el botón dibujado. */}
+      {/*
+        El contenedor es `inline-block`, así que se encoge EXACTO al tamaño con
+        el que se dibujó la imagen. De eso depende todo lo demás: las zonas van
+        en % de este contenedor, o sea en % de la imagen, y siguen cayendo sobre
+        el botón dibujado sea cual sea el tamaño de la pantalla.
+
+        La pieza se limita a la altura de la ventana (y en el teléfono deja
+        lugar para la barra de botones), para que entre entera de un vistazo sin
+        tener que bajar.
+      */}
+      <div className="relative inline-block leading-none">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={t.background}
           alt={promo.title || promo.productName}
-          className="block h-auto w-full select-none"
+          className="block max-h-[58dvh] w-auto max-w-full select-none sm:max-h-[100dvh]"
         />
 
         <Zona
@@ -74,7 +82,7 @@ export function PromoArte({ promo }: { promo: PromoConfig }) {
       </div>
 
       {/* Botones de verdad para el teléfono, donde el dibujado queda diminuto. */}
-      <div className="flex w-full max-w-[560px] flex-col gap-3 px-5 py-6 sm:hidden">
+      <div className="flex w-full max-w-[560px] shrink-0 flex-col gap-3 px-5 sm:hidden">
         <button
           onClick={pedir}
           className="inline-flex items-center justify-center gap-3 rounded-full px-7 py-4 text-[17px] font-bold"
