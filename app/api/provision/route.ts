@@ -301,6 +301,103 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ business: neg });
     }
 
+    // --- Números de WhatsApp (Cloud API de Meta) ---------------------------
+    // Un negocio puede tener uno o dos. El `phoneNumberId` es el ID que da Meta
+    // al número (no el número en sí): es lo que llega en el webhook y lo que
+    // permite saber a qué negocio contestar (lib/whatsappCloud.ts).
+
+    if (action === "listWaNumeros") {
+      const slug = cleanSlug(body.slug);
+      const filas = await withPool(centralUrl(), (p) =>
+        p.query(
+          `SELECT w.phone_number_id AS "phoneNumberId", w.numero, w.etiqueta,
+                  w.activo, w.token IS NOT NULL AS "tokenPropio",
+                  w.fecha_alta AS "fechaAlta"
+             FROM wa_numero w
+             JOIN negocio n ON n.id = w.negocio_id
+            WHERE n.slug = $1
+            ORDER BY w.fecha_alta`,
+          [slug]
+        ).then((r) => r.rows)
+      );
+      return NextResponse.json({ numeros: filas });
+    }
+
+    if (action === "saveWaNumero") {
+      const slug = cleanSlug(body.slug);
+      const phoneNumberId = (body.phoneNumberId || "").toString().trim();
+      if (!phoneNumberId)
+        return NextResponse.json({ error: "Falta el ID del número de Meta." }, { status: 400 });
+
+      const neg = await withPool(centralUrl(), (p) =>
+        p.query(`SELECT id, nombre FROM negocio WHERE slug = $1`, [slug]).then((r) => r.rows[0])
+      );
+      if (!neg) return NextResponse.json({ error: "Negocio no encontrado." }, { status: 404 });
+
+      // Un número atiende a UN negocio: si ya está tomado por otro, se avisa en
+      // vez de robárselo (el ON CONFLICT lo movería sin que nadie se entere).
+      const duenio = await withPool(centralUrl(), (p) =>
+        p.query(
+          `SELECT n.slug, n.nombre FROM wa_numero w
+             JOIN negocio n ON n.id = w.negocio_id
+            WHERE w.phone_number_id = $1 AND w.negocio_id <> $2`,
+          [phoneNumberId, neg.id]
+        ).then((r) => r.rows[0])
+      );
+      if (duenio)
+        return NextResponse.json(
+          { error: `Ese número ya está asociado a ${duenio.nombre} (${duenio.slug}).` },
+          { status: 409 }
+        );
+
+      const numero = waNumber((body.numero ?? "").toString()) || null;
+      const etiqueta = (body.etiqueta ?? "").toString().trim() || null;
+      const activo = body.activo === undefined ? true : !!body.activo;
+      // Token propio: solo si el negocio trae su cuenta de Meta. Mandar "" lo
+      // borra y vuelve al token compartido del entorno.
+      const tokenRaw = body.token === undefined ? undefined : (body.token ?? "").toString().trim();
+
+      const fila = await withPool(centralUrl(), (p) =>
+        p.query(
+          `INSERT INTO wa_numero (phone_number_id, negocio_id, numero, etiqueta, token, activo)
+             VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (phone_number_id) DO UPDATE
+             SET numero   = EXCLUDED.numero,
+                 etiqueta = EXCLUDED.etiqueta,
+                 activo   = EXCLUDED.activo,
+                 token    = CASE WHEN $7 THEN EXCLUDED.token ELSE wa_numero.token END
+           RETURNING phone_number_id AS "phoneNumberId", numero, etiqueta, activo,
+                     token IS NOT NULL AS "tokenPropio"`,
+          [
+            phoneNumberId,
+            neg.id,
+            numero,
+            etiqueta,
+            tokenRaw ? tokenRaw : null,
+            activo,
+            tokenRaw !== undefined,
+          ]
+        ).then((r) => r.rows[0])
+      );
+      logActividad(who, "wa-numero", neg.id, { phoneNumberId, numero, activo });
+      // El webhook cachea la resolución 30 s (lib/tenant.ts): el número nuevo
+      // empieza a atender a lo sumo en ese lapso.
+      return NextResponse.json({ numero: fila });
+    }
+
+    if (action === "deleteWaNumero") {
+      const phoneNumberId = (body.phoneNumberId || "").toString().trim();
+      const fila = await withPool(centralUrl(), (p) =>
+        p.query(
+          `DELETE FROM wa_numero WHERE phone_number_id = $1 RETURNING negocio_id`,
+          [phoneNumberId]
+        ).then((r) => r.rows[0])
+      );
+      if (!fila) return NextResponse.json({ error: "Ese número no está registrado." }, { status: 404 });
+      logActividad(who, "wa-numero-baja", fila.negocio_id, { phoneNumberId });
+      return NextResponse.json({ ok: true });
+    }
+
     if (action === "createDevice") {
       const slug = cleanSlug(body.slug);
       const label = (body.label || "Dispositivo").toString().trim();

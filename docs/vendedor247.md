@@ -97,21 +97,43 @@ SELECT modelo, count(*), sum(costo_usd) FROM ia_uso GROUP BY modelo;
 > pasa solo a la API si hay `ANTHROPIC_API_KEY`; si no, cae a modo simulado —
 > que es visible para el cliente. Vale la pena dejar la API key cargada como red.
 
-## WhatsApp con Baileys (transporte actual)
+## WhatsApp con la Cloud API de Meta (transporte actual)
 
-Se vincula un número normal escaneando un QR (no requiere cuenta de Meta):
+Es el WhatsApp **oficial**: no hay QR que escanear ni teléfono que quede
+prendido, y funciona igual en bilbo que en serverless. Cada negocio tiene su
+número (uno o dos); todos comparten el mismo webhook.
 
-1. **Admin → Configuración → Vendedor 24/7 → Conectar WhatsApp** → *Generar QR*.
-2. En el teléfono: **WhatsApp → Dispositivos vinculados → Vincular un dispositivo**
-   y escanear.
-3. Conectado: el vendedor responde solo los mensajes entrantes.
+**Cómo sabe de quién es un mensaje.** Meta manda en cada evento
+`value.metadata.phone_number_id` — el ID de NUESTRO número, el que recibió. Con
+ese ID se busca el negocio en la central (tabla `wa_numero`) y el motor corre
+dentro de SU base (`runWithTenant`). Sin esa resolución, todos los negocios
+leerían el catálogo y escribirían las conversaciones en la base por defecto.
 
-La sesión se guarda en `./.wa-auth` (ignorado por git). Baileys necesita un
-proceso **persistente** (local con `npm run dev`, o bilbo con pm2); no funciona
-en serverless (Netlify) — para Netlify se usaría el transporte Cloud API (Meta).
+```
+POST /api/whatsapp/webhook
+   ↓ valida X-Hub-Signature-256 (META_WA_APP_SECRET)
+lib/whatsappCloud.ts → processWebhook
+   ↓ metadata.phone_number_id
+lib/tenant.ts → waNumeroByPhoneId  →  negocio  (central, caché de 30 s)
+   ↓ runWithTenant(negocio, …)
+lib/vendedorEngine.ts → handleIncoming   ← ya contra la base del negocio
+   ↓
+respuesta por el MISMO número que recibió (cloudSenderFor)
+```
 
-`next.config.mjs` marca `@whiskeysockets/baileys`, `pino` y `qrcode` como
-`serverComponentsExternalPackages` (si no, webpack rompe sus dependencias nativas).
+**Alta de un número.** Panel de easy pos → ficha del negocio → *WhatsApp del
+Vendedor 24/7*: se carga el `phone_number_id` que da Meta (no el número), el
+número visible y una etiqueta. Empieza a atender en ≤30 s (la caché). Desde ahí
+también se pausa o se quita.
+
+**Credenciales.** Normalmente una sola app de easy pos para todos: el token sale
+de `META_WA_TOKEN` y lo único que cambia por negocio es el `phone_number_id`. Un
+negocio que traiga su propia cuenta de Meta guarda su token en su fila de
+`wa_numero` y ese pisa al del entorno.
+
+**Baileys** (`lib/whatsappBaileys.ts`, `/api/whatsapp/baileys`) quedó fuera del
+panel y ya no se usa: era un número no oficial, con riesgo de baneo, que además
+exigía un proceso persistente y no arrancaba solo después de un reinicio.
 
 ## Probar en local (sin subir nada)
 
@@ -128,9 +150,34 @@ en serverless (Netlify) — para Netlify se usaría el transporte Cloud API (Met
    La respuesta trae el texto del bot y el historial. También se puede probar
    desde el panel: **Admin → Configuración → Vendedor 24/7 → Probar la conversación**.
 
-## Conectar WhatsApp real (después)
+### Probar el webhook sin Meta
 
-1. Cargar `CLAUDE_CODE_OAUTH_TOKEN` (y `ANTHROPIC_API_KEY` como respaldo) más
-   `META_WA_TOKEN` / `META_WA_PHONE_ID` / `META_WA_VERIFY_TOKEN`.
+El POST va firmado, así que hay que firmarlo a mano (con `META_WA_APP_SECRET`
+sin cargar, la firma no se valida y alcanza con mandar el JSON pelado):
+
+```bash
+BODY='{"entry":[{"changes":[{"value":{"metadata":{"phone_number_id":"PHONE_A"},
+  "contacts":[{"profile":{"name":"Cliente"}}],
+  "messages":[{"type":"text","from":"59171111111","text":{"body":"Hola"}}]}}]}]}'
+SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$META_WA_APP_SECRET" -hex | sed 's/^.*= //')
+curl -s localhost:3000/api/whatsapp/webhook -H 'Content-Type: application/json' \
+  -H "X-Hub-Signature-256: sha256=$SIG" -d "$BODY"
+```
+
+## Conectar WhatsApp real
+
+Del lado de Meta hace falta: Business Manager verificado, una app con el producto
+WhatsApp, el número **sin** estar registrado en WhatsApp normal ni en la app
+Business, y un token permanente de System User.
+
+1. Cargar en el `.env.local` del servidor: `CLAUDE_CODE_OAUTH_TOKEN` + `CLAUDE_BIN`
+   (la IA), y `META_WA_TOKEN`, `META_WA_VERIFY_TOKEN`, `META_WA_APP_SECRET`.
+   `META_WA_PHONE_ID` solo hace falta en modo de un solo negocio (sin central).
 2. En Meta, apuntar el webhook a `https://<dominio>/api/whatsapp/webhook` con el
-   mismo verify token.
+   mismo verify token, y suscribir el campo **messages**.
+3. Aplicar `db/central.sql` (trae la tabla `wa_numero`) y dar de alta el número
+   del negocio desde el panel.
+
+> **La ventana de 24 horas.** Si el cliente escribe, se le puede contestar libre
+> durante 24 h. Pasado ese lapso solo salen plantillas aprobadas por Meta: al bot
+> no lo afecta, pero los avisos de estado de pedido sí van a necesitar plantilla.

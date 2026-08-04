@@ -79,6 +79,30 @@ CREATE INDEX IF NOT EXISTS idx_dispositivo_negocio ON dispositivo (negocio_id);
 CREATE INDEX IF NOT EXISTS idx_dispositivo_paircode ON dispositivo (pair_code)
   WHERE pair_code IS NOT NULL;
 
+-- ---------- Números de WhatsApp (Cloud API de Meta) ----------
+-- Un negocio puede tener uno o dos números; cada número atiende a UN negocio.
+-- Vive en la central y no en la base del negocio porque el webhook de Meta llega
+-- sin saber de quién es: hay que resolver el negocio ANTES de abrir su base
+-- (lib/tenant.ts → waNumeroByPhoneId, lib/whatsappCloud.ts → processWebhook).
+--
+-- `phone_number_id` es el ID que da Meta a NUESTRO número (el que recibe), y es
+-- lo que viene en `value.metadata.phone_number_id` de cada evento del webhook.
+--
+-- `token` normalmente va NULL: todos los números cuelgan de la misma app de easy
+-- pos y usan META_WA_TOKEN del entorno. Se llena solo si un negocio trae su
+-- propia cuenta de Meta.
+CREATE TABLE IF NOT EXISTS wa_numero (
+  phone_number_id text PRIMARY KEY,
+  negocio_id      text NOT NULL REFERENCES negocio(id) ON DELETE CASCADE,
+  numero          text,                    -- +591..., solo para mostrarlo
+  etiqueta        text,                    -- 'Ventas', 'Pedidos', …
+  token           text,                    -- NULL = usa META_WA_TOKEN del entorno
+  activo          boolean NOT NULL DEFAULT true,
+  fecha_alta      timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_wa_numero_negocio ON wa_numero (negocio_id);
+
 -- ---------- Usuarios del panel ----------
 -- El equipo que administra easy pos (alta de negocios, suspensiones, pareo).
 -- NO confundir con `employees` de cada negocio: esto es la puerta del panel.

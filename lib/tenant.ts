@@ -56,6 +56,7 @@ const globalForTenant = globalThis as unknown as {
   centralPool?: Pool;
   tenantPools?: Map<string, Pool>;
   negocioCache?: Map<string, { at: number; negocio: Negocio | null }>;
+  waCache?: Map<string, { at: number; wa: WaNumero | null }>;
 };
 
 /** Hay central configurada → hay varios negocios. Si no, modo negocio único. */
@@ -329,6 +330,94 @@ export async function touchDevice(token: string, meta: DeviceMeta): Promise<void
     );
   } catch (err) {
     console.warn("[tenant] no se pudo actualizar el dispositivo:", err);
+  }
+}
+
+// --- Números de WhatsApp (Cloud API) -----------------------------------------
+
+/** Un número de WhatsApp de Meta y el negocio que atiende. */
+export interface WaNumero {
+  /** ID que Meta le da a NUESTRO número; llega en cada evento del webhook. */
+  phoneNumberId: string;
+  /** El número visible (+591…), solo informativo. */
+  numero: string | null;
+  etiqueta: string | null;
+  /** Token propio del negocio; null = usar META_WA_TOKEN del entorno. */
+  token: string | null;
+  /** Pausado desde el panel = no atiende, pero no se pierde el registro. */
+  activo: boolean;
+  negocio: Negocio;
+}
+
+interface WaNumeroRow extends NegocioRow {
+  phone_number_id: string;
+  numero: string | null;
+  etiqueta: string | null;
+  token: string | null;
+  activo: boolean;
+}
+
+const toWaNumero = (r: WaNumeroRow): WaNumero => ({
+  phoneNumberId: r.phone_number_id,
+  numero: r.numero,
+  etiqueta: r.etiqueta,
+  token: r.token,
+  activo: r.activo,
+  negocio: toNegocio(r),
+});
+
+/**
+ * Resuelve de quién es un mensaje entrante de WhatsApp, por el ID del número que
+ * lo recibió. Es el "portero" del webhook: sin esto el motor escribiría en la
+ * base por defecto y no en la del negocio dueño del número.
+ *
+ * Cachea igual que el resto (30 s) porque pega una vez por mensaje y el Postgres
+ * de bilbo anda justo de conexiones.
+ */
+export async function waNumeroByPhoneId(
+  phoneNumberId: string
+): Promise<WaNumero | null> {
+  if (!isMultiTenant() || !phoneNumberId) return null;
+  const cache = (globalForTenant.waCache ??= new Map());
+  const hit = cache.get(phoneNumberId);
+  if (hit && Date.now() - hit.at <= CACHE_MS) return hit.wa;
+
+  const { rows } = await centralPool().query<WaNumeroRow>(
+    `SELECT w.phone_number_id, w.numero, w.etiqueta, w.token, w.activo,
+            n.id, n.nombre, n.slug, n.db_name, n.estado, n.rubro, n.telefono
+       FROM wa_numero w
+       JOIN negocio n ON n.id = w.negocio_id
+      WHERE w.phone_number_id = $1 AND w.activo = true`,
+    [phoneNumberId]
+  );
+  const wa = rows[0] ? toWaNumero(rows[0]) : null;
+  cache.set(phoneNumberId, { at: Date.now(), wa });
+  return wa;
+}
+
+/**
+ * Los números de un negocio (para el panel y para el CRM del negocio).
+ *
+ * No tira si la tabla todavía no existe: alimenta un cartel de estado, y sin
+ * esta tolerancia un deploy que llegue antes de aplicar `db/central.sql` deja
+ * la pantalla del Vendedor 24/7 en error.
+ */
+export async function waNumerosDeNegocio(negocioId: string): Promise<WaNumero[]> {
+  if (!isMultiTenant() || !negocioId) return [];
+  try {
+    const { rows } = await centralPool().query<WaNumeroRow>(
+      `SELECT w.phone_number_id, w.numero, w.etiqueta, w.token, w.activo,
+              n.id, n.nombre, n.slug, n.db_name, n.estado, n.rubro, n.telefono
+         FROM wa_numero w
+         JOIN negocio n ON n.id = w.negocio_id
+        WHERE w.negocio_id = $1
+        ORDER BY w.fecha_alta`,
+      [negocioId]
+    );
+    return rows.map(toWaNumero);
+  } catch (err) {
+    console.warn("[tenant] no se pudieron leer los números de WhatsApp:", err);
+    return [];
   }
 }
 

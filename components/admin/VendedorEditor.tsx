@@ -1,8 +1,8 @@
 "use client";
 
 import { apiUrl } from "@/lib/apiBase";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Bot, Loader2, QrCode, Save, Send, Smartphone } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bot, Loader2, Save, Send, Smartphone } from "lucide-react";
 import { useToast } from "@/context/StoreProvider";
 import { PrimaryButton } from "@/components/ui";
 
@@ -19,15 +19,10 @@ interface VendedorConfig {
 interface Status {
   aiConfigured: boolean;
   authMode: "plan" | "api-key" | "cuenta" | "simulado";
+  /** Hay al menos un número de Meta atendiendo a este negocio. */
   cloudConnected: boolean;
-}
-
-interface BaileysStatus {
-  status: "idle" | "connecting" | "qr" | "open" | "closed" | "unavailable";
-  connected: boolean;
-  available?: boolean;
-  qr: string | null;
-  error?: string | null;
+  /** Los números que le asignó el panel de easy pos (solo para mostrarlos). */
+  numeros: { numero: string | null; etiqueta: string | null; activo: boolean }[];
 }
 
 /** Con qué credencial está respondiendo la IA (lo dice /api/whatsapp/config). */
@@ -56,14 +51,10 @@ export function VendedorEditor() {
     aiConfigured: false,
     authMode: "simulado",
     cloudConnected: false,
+    numeros: [],
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  // WhatsApp por Baileys (QR)
-  const [wa, setWa] = useState<BaileysStatus | null>(null);
-  const [waBusy, setWaBusy] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Probador local
   const [testMsg, setTestMsg] = useState("Hola, ¿qué me pueden ofrecer?");
@@ -77,7 +68,7 @@ export function VendedorEditor() {
       .then((data: { config: VendedorConfig; status: Status }) => {
         if (!alive) return;
         setCfg({ ...fallback, ...data.config });
-        setStatus(data.status);
+        setStatus({ ...data.status, numeros: data.status.numeros ?? [] });
       })
       .catch(() => showToast("No se pudo cargar la configuración del vendedor"))
       .finally(() => alive && setLoading(false));
@@ -85,58 +76,6 @@ export function VendedorEditor() {
       alive = false;
     };
   }, [showToast]);
-
-  // Estado de Baileys (polling mientras esté abierto el panel).
-  const refreshWa = useCallback(async () => {
-    try {
-      const r = await fetch(apiUrl("/api/whatsapp/baileys"));
-      if (!r.ok) return;
-      setWa(await r.json());
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshWa();
-    pollRef.current = setInterval(refreshWa, 3000);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [refreshWa]);
-
-  const connectWa = async () => {
-    setWaBusy(true);
-    try {
-      const r = await fetch(apiUrl("/api/whatsapp/baileys"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "start" }),
-      });
-      if (!r.ok) throw new Error();
-      setWa(await r.json());
-      showToast("Generando QR… escanéalo desde WhatsApp");
-    } catch {
-      showToast("No se pudo iniciar la conexión de WhatsApp");
-    } finally {
-      setWaBusy(false);
-    }
-  };
-
-  const disconnectWa = async () => {
-    setWaBusy(true);
-    try {
-      await fetch(apiUrl("/api/whatsapp/baileys"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "logout" }),
-      });
-      await refreshWa();
-      showToast("WhatsApp desconectado");
-    } finally {
-      setWaBusy(false);
-    }
-  };
 
   const set = <K extends keyof VendedorConfig>(key: K, value: VendedorConfig[K]) =>
     setCfg((c) => ({ ...c, [key]: value }));
@@ -152,7 +91,7 @@ export function VendedorEditor() {
       if (!res.ok) throw new Error();
       const data = (await res.json()) as { config: VendedorConfig; status: Status };
       setCfg({ ...fallback, ...data.config });
-      setStatus(data.status);
+      setStatus({ ...data.status, numeros: data.status.numeros ?? [] });
       showToast("Vendedor 24/7 guardado");
     } catch {
       showToast("No se pudo guardar. Revisa tu sesión.");
@@ -210,7 +149,11 @@ export function VendedorEditor() {
           on={MODO_IA[status.authMode] ?? "IA conectada (Claude)"}
           off="IA en modo simulado"
         />
-        <Badge ok={!!wa?.connected} on="WhatsApp vinculado (Baileys)" off="WhatsApp sin vincular" />
+        <Badge
+          ok={status.cloudConnected}
+          on="WhatsApp conectado (oficial de Meta)"
+          off="WhatsApp sin número asignado"
+        />
       </div>
 
       <div className="mt-4 flex flex-col gap-3">
@@ -225,9 +168,9 @@ export function VendedorEditor() {
           <Field label="Modelo de IA" value={cfg.aiModel} onChange={(v) => set("aiModel", v)} placeholder="claude-haiku-4-5" />
         </div>
 
+        {/* El vendedor atiende 24/7 (de ahí el nombre): no hay horario que
+            configurar, así que tampoco hay mensaje de fuera de horario. */}
         <Field label="Formas de pago que ofrece" value={cfg.paymentOptions} onChange={(v) => set("paymentOptions", v)} rows={2} />
-        <Field label="Mensaje fuera de horario (opcional)" value={cfg.offHoursMessage} onChange={(v) => set("offHoursMessage", v)} rows={2}
-          placeholder="Vacío = no responde fuera de horario" />
 
         <PrimaryButton
           label={saving ? "Guardando…" : "Guardar vendedor"}
@@ -237,59 +180,44 @@ export function VendedorEditor() {
         />
       </div>
 
-      {/* Conectar WhatsApp por QR (Baileys) */}
+      {/* Número de WhatsApp (Cloud API oficial de Meta) */}
       <div className="mt-5 rounded-2xl border border-line bg-surface2 p-4">
         <h4 className="flex items-center gap-2 text-[13px] font-semibold text-ink">
-          <Smartphone size={15} className="text-ink" /> Conectar WhatsApp (Baileys)
+          <Smartphone size={15} className="text-ink" /> Tu número de WhatsApp
         </h4>
-        <p className="mt-0.5 text-[11.5px] text-ink2">
-          Vincula tu número escaneando un QR (WhatsApp → Dispositivos vinculados). Una vez
-          conectado, el vendedor responde solo los mensajes que te llegan.
-        </p>
 
-        {wa?.available === false ? (
-          <div className="mt-3 rounded-xl bg-amber-50 px-3.5 py-3 text-[12px] text-amber-800">
-            {wa.error ??
-              "La vinculación por QR no está disponible en este despliegue (serverless). Ejecutá el vendedor en local o en el servidor bilbo."}
-          </div>
-        ) : wa?.connected ? (
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <span className="rounded-full bg-green-100 px-2.5 py-1 text-[11.5px] font-semibold text-green-700">
-              ✓ Número vinculado y activo
-            </span>
-            <button
-              onClick={disconnectWa}
-              disabled={waBusy}
-              className="text-[12.5px] font-semibold text-ink2 hover:text-ink disabled:opacity-60"
-            >
-              Desconectar
-            </button>
-          </div>
-        ) : wa?.qr ? (
-          <div className="mt-3 flex flex-col items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={wa.qr} alt="QR de WhatsApp" className="h-56 w-56 rounded-xl bg-white p-2" />
-            <p className="text-[11.5px] text-ink2">
-              Abre WhatsApp → Dispositivos vinculados → Vincular un dispositivo y escanea.
+        {status.numeros.length > 0 ? (
+          <>
+            <p className="mt-0.5 text-[11.5px] text-ink2">
+              El vendedor atiende los mensajes que llegan a este número.
             </p>
-          </div>
+            <ul className="mt-3 flex flex-col gap-2">
+              {status.numeros.map((n, i) => (
+                <li key={i} className="flex flex-wrap items-center gap-2">
+                  <span className="text-[13.5px] font-semibold text-ink">{n.numero || "Número asignado"}</span>
+                  {n.etiqueta && <span className="text-[11.5px] text-ink2">{n.etiqueta}</span>}
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[11.5px] font-semibold ${
+                      n.activo ? "bg-green-100 text-green-700" : "bg-amber-50 text-amber-800"
+                    }`}
+                  >
+                    {n.activo ? "✓ Atendiendo" : "Pausado"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
         ) : (
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <button
-              onClick={connectWa}
-              disabled={waBusy || wa?.status === "connecting"}
-              className="inline-flex items-center gap-2 rounded-xl bg-pink px-4 py-2.5 text-[13px] font-semibold text-onAccent disabled:opacity-60"
-            >
-              {waBusy || wa?.status === "connecting" ? (
-                <Loader2 size={15} className="animate-spin" />
-              ) : (
-                <QrCode size={15} />
-              )}
-              {wa?.status === "connecting" ? "Generando QR…" : "Generar QR y conectar"}
-            </button>
-            {wa?.error && <span className="text-[11.5px] text-red-600">{wa.error}</span>}
-          </div>
+          <p className="mt-2 text-[12px] text-ink2">
+            Todavía no tienes un número asignado, así que el vendedor no recibe mensajes. Pasale tu
+            número de WhatsApp al equipo de easy pos y lo damos de alta en Meta.
+          </p>
         )}
+
+        <p className="mt-3 text-[11.5px] text-faint">
+          Es WhatsApp oficial (Cloud API de Meta): no hay QR que escanear ni un teléfono que tenga
+          que quedar prendido.
+        </p>
       </div>
 
       {/* Probador local */}

@@ -55,6 +55,16 @@ interface DeviceRow {
   slug?: string;
 }
 
+// Un número de WhatsApp (Cloud API de Meta) atendiendo a este negocio.
+interface WaNumeroRow {
+  phoneNumberId: string;
+  numero: string | null;
+  etiqueta: string | null;
+  activo: boolean;
+  tokenPropio: boolean;
+  fechaAlta?: string;
+}
+
 interface EmployeeRow {
   id: string;
   name: string;
@@ -617,20 +627,24 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
   const [nuevoEmp, setNuevoEmp] = useState({ name: "", email: "", pass: "", role: "Vendedora" });
   const [edit, setEdit] = useState<Partial<NegocioRow>>({});
   const [busy, setBusy] = useState("");
+  const [waNums, setWaNums] = useState<WaNumeroRow[]>([]);
+  const [nuevoWa, setNuevoWa] = useState({ phoneNumberId: "", numero: "", etiqueta: "" });
 
   const cargar = useCallback(async () => {
     try {
-      const [n, d, e, a] = await Promise.all([
+      const [n, d, e, a, w] = await Promise.all([
         api<{ business: NegocioRow }>("getNegocio", { slug }),
         api<{ devices: DeviceRow[] }>("listDevices", { slug }),
         api<{ employees: EmployeeRow[] }>("listEmployees", { slug }),
         api<{ actividad: ActividadRow[] }>("listActividad", { slug }),
+        api<{ numeros: WaNumeroRow[] }>("listWaNumeros", { slug }),
       ]);
       setNeg(n.business);
       setEdit(n.business);
       setDevices(d.devices);
       setEmps(e.employees);
       setActs(a.actividad);
+      setWaNums(w.numeros);
       setErr("");
     } catch (e) {
       setErr((e as Error).message);
@@ -851,6 +865,135 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
         </div>
         <p className="mt-3 text-xs text-faint">
           La comisión se calcula sobre lo recaudado por QR. Base de la liquidación en Cobros QR / Comisiones.
+        </p>
+      </section>
+
+      {/* WhatsApp del Vendedor 24/7 (Cloud API de Meta) */}
+      <section className={card}>
+        <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-faint">
+          WhatsApp del Vendedor 24/7
+        </h3>
+        <div className="mb-4 grid items-end gap-3 sm:grid-cols-4">
+          <Field label="ID del número (Meta)">
+            <input
+              className={input}
+              placeholder="123456789012345"
+              value={nuevoWa.phoneNumberId}
+              onChange={(e) => setNuevoWa({ ...nuevoWa, phoneNumberId: e.target.value })}
+            />
+          </Field>
+          <Field label="Número visible">
+            <input
+              className={input}
+              placeholder="+591 79874920"
+              value={nuevoWa.numero}
+              onChange={(e) => setNuevoWa({ ...nuevoWa, numero: e.target.value })}
+            />
+          </Field>
+          <Field label="Etiqueta">
+            <input
+              className={input}
+              placeholder="Ventas, Pedidos…"
+              value={nuevoWa.etiqueta}
+              onChange={(e) => setNuevoWa({ ...nuevoWa, etiqueta: e.target.value })}
+            />
+          </Field>
+          <button
+            className={btnPrimary}
+            disabled={!!busy || !nuevoWa.phoneNumberId.trim()}
+            onClick={() =>
+              accion(
+                "wa",
+                async () => {
+                  await api("saveWaNumero", { slug, ...nuevoWa });
+                  setNuevoWa({ phoneNumberId: "", numero: "", etiqueta: "" });
+                },
+                "Número asociado. Empieza a atender en ≤30 s."
+              )
+            }
+          >
+            Asociar número
+          </button>
+        </div>
+
+        {waNums.length === 0 ? (
+          <p className="text-sm text-ink2">
+            Sin número todavía: el Vendedor 24/7 de este negocio no recibe mensajes.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-line text-xs uppercase tracking-wide text-faint">
+                  <th className="py-2 pr-3">Número</th>
+                  <th className="py-2 pr-3">Etiqueta</th>
+                  <th className="py-2 pr-3">ID de Meta</th>
+                  <th className="py-2 pr-3">Estado</th>
+                  <th className="py-2">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {waNums.map((w) => (
+                  <tr key={w.phoneNumberId} className="border-b border-line/60">
+                    <td className="py-2.5 pr-3 font-semibold text-ink">{w.numero || "—"}</td>
+                    <td className="py-2.5 pr-3 text-ink2">{w.etiqueta || "—"}</td>
+                    <td className="py-2.5 pr-3 text-ink2">
+                      <code className="text-xs">{w.phoneNumberId}</code>
+                      {w.tokenPropio && (
+                        <span className="ml-2 text-xs text-faint">token propio</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 pr-3">
+                      <span className={`text-xs font-bold ${w.activo ? "text-success" : "text-error"}`}>
+                        {w.activo ? "Atendiendo" : "Pausado"}
+                      </span>
+                    </td>
+                    <td className="py-2.5">
+                      <div className="flex items-center gap-3">
+                        <button
+                          className="text-xs font-semibold text-ink2 hover:text-ink hover:underline"
+                          disabled={!!busy}
+                          onClick={() =>
+                            accion(
+                              "wa",
+                              () =>
+                                api("saveWaNumero", {
+                                  slug,
+                                  phoneNumberId: w.phoneNumberId,
+                                  numero: w.numero ?? "",
+                                  etiqueta: w.etiqueta ?? "",
+                                  activo: !w.activo,
+                                }),
+                              w.activo ? "Número pausado." : "Número atendiendo."
+                            )
+                          }
+                        >
+                          {w.activo ? "Pausar" : "Reactivar"}
+                        </button>
+                        <ConfirmBtn
+                          label="Quitar"
+                          confirm="¿Quitar el número? Deja de atender este WhatsApp."
+                          className="text-xs font-semibold text-error hover:underline"
+                          onDo={() =>
+                            accion(
+                              "wa",
+                              () => api("deleteWaNumero", { phoneNumberId: w.phoneNumberId }),
+                              "Número quitado."
+                            )
+                          }
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="mt-3 text-xs text-faint">
+          El <b>ID del número</b> sale del panel de Meta (WhatsApp → Configuración de la API), y no es
+          el número: es el <code>phone_number_id</code>. Es lo que llega en cada mensaje y lo que
+          permite saber a qué negocio contestar. Un negocio puede tener uno o dos.
         </p>
       </section>
 
