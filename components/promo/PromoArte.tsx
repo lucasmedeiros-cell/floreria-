@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import type { PromoConfig, PromoZona } from "@/lib/promo";
 import { useLink } from "@/lib/negocioLink";
@@ -27,6 +28,21 @@ import { WhatsAppIcon } from "../WhatsAppIcon";
 export function PromoArte({ promo }: { promo: PromoConfig }) {
   const link = useLink();
   const waNumber = useBusinessWhatsapp(promo.whatsappTarget);
+  // Proporción real de la pieza, para poder ocupar la pantalla entera sin
+  // deformarla. Se sabe recién al cargar la imagen: hasta entonces se dibuja
+  // ajustada, que es el mismo encuadre pero sin llenar los bordes.
+  const [ratio, setRatio] = useState<number | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // `onLoad` no dispara si la imagen ya estaba en caché cuando React la montó
+  // (o sea, casi siempre al volver a la página), y sin proporción la pieza se
+  // quedaba sin llenar la pantalla. Por eso se mira también al montar.
+  useEffect(() => {
+    const el = imgRef.current;
+    if (el?.complete && el.naturalHeight > 0) {
+      setRatio(el.naturalWidth / el.naturalHeight);
+    }
+  }, []);
 
   const t = promo.theme;
   const onGold = onAccent(t.accent);
@@ -51,12 +67,32 @@ export function PromoArte({ promo }: { promo: PromoConfig }) {
         lugar para la barra de botones), para que entre entera de un vistazo sin
         tener que bajar.
       */}
-      <div className="relative inline-block leading-none">
+      <div
+        className="relative leading-none [--maxh:58dvh] sm:[--maxh:100dvh]"
+        style={
+          ratio
+            ? {
+                aspectRatio: String(ratio),
+                width: `min(100%, calc(var(--maxh) * ${ratio}))`,
+              }
+            : undefined
+        }
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
+          ref={imgRef}
           src={t.background}
           alt={promo.title || promo.productName}
-          className="block max-h-[58dvh] w-auto max-w-full select-none sm:max-h-[100dvh]"
+          onLoad={(e) =>
+            setRatio(
+              e.currentTarget.naturalWidth / e.currentTarget.naturalHeight
+            )
+          }
+          className={
+            ratio
+              ? "block h-full w-full select-none"
+              : "block max-h-[58dvh] w-auto max-w-full select-none sm:max-h-[100dvh]"
+          }
         />
 
         <Zona
@@ -65,20 +101,23 @@ export function PromoArte({ promo }: { promo: PromoConfig }) {
           onClick={pedir}
         />
 
-        {catalogExternal ? (
-          <ZonaEnlace
-            zona={promo.artZonaCatalogo}
-            label={promo.catalogLabel}
-            href={promo.catalogUrl}
-            externa
-          />
-        ) : (
-          <ZonaEnlace
-            zona={promo.artZonaCatalogo}
-            label={promo.catalogLabel}
-            href={catalogHref}
-          />
-        )}
+        {/* Solo si la pieza trae ese botón dibujado: si no, sería una zona
+            clicable invisible en medio del arte. Se apaga borrando su texto. */}
+        {promo.catalogLabel &&
+          (catalogExternal ? (
+            <ZonaEnlace
+              zona={promo.artZonaCatalogo}
+              label={promo.catalogLabel}
+              href={promo.catalogUrl}
+              externa
+            />
+          ) : (
+            <ZonaEnlace
+              zona={promo.artZonaCatalogo}
+              label={promo.catalogLabel}
+              href={catalogHref}
+            />
+          ))}
       </div>
 
       {/* Botones de verdad para el teléfono, donde el dibujado queda diminuto. */}
