@@ -6,12 +6,13 @@ import {
   AlertTriangle,
   ExternalLink,
   Loader2,
+  Palette,
   Plus,
   Save,
   Sparkles,
   Trash2,
 } from "lucide-react";
-import type { PromoHighlight, PromoPage, PromoStat } from "@/lib/promo";
+import type { PromoHighlight, PromoPage, PromoStat, PromoTheme } from "@/lib/promo";
 import { promoSlugify } from "@/lib/promo";
 import { useProducts, useToast } from "@/context/StoreProvider";
 import { PrimaryButton } from "@/components/ui";
@@ -123,6 +124,9 @@ export function PromoPageForm({
       cfg.highlights.map((h, k) => (k === i ? { ...h, ...patch } : h))
     );
 
+  const setTheme = (patch: Partial<PromoTheme>) =>
+    setCfg((c) => ({ ...c, theme: { ...c.theme, ...patch } }));
+
   // Lo que se verá en la URL al guardar (el servidor numera si ya está tomado).
   const slugPreview = promoSlugify(cfg.slug) || promoSlugify(cfg.name) || "landing";
 
@@ -199,6 +203,151 @@ export function PromoPageForm({
           checked={cfg.enabled}
           onChange={() => set("enabled", !cfg.enabled)}
         />
+      </Card>
+
+      {/* ---- Diseño: qué maqueta usa la landing ---- */}
+      <Card icon={<Palette size={18} />} title="Diseño de la landing">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(
+            [
+              {
+                id: "ficha" as const,
+                titulo: "Ficha",
+                texto: "Galería, precio y tarjeta de compra. Sirve para vender del catálogo.",
+              },
+              {
+                id: "vitrina" as const,
+                titulo: "Vitrina",
+                texto: "Una pantalla con tu fondo, el producto en grande y dos botones.",
+              },
+            ]
+          ).map((op) => (
+            <button
+              key={op.id}
+              onClick={() => set("layout", op.id)}
+              className={`rounded-xl border p-4 text-left transition-colors ${
+                cfg.layout === op.id
+                  ? "border-pink bg-pink/5"
+                  : "border-line bg-surface2 hover:border-ink2"
+              }`}
+            >
+              <span className="block text-[13.5px] font-semibold text-ink">{op.titulo}</span>
+              <span className="mt-1 block text-[11.5px] text-ink2">{op.texto}</span>
+            </button>
+          ))}
+        </div>
+
+        {cfg.layout === "vitrina" && (
+          <>
+            <div className="my-1 h-px bg-line" />
+
+            <ImageUploadField
+              label="Imagen de fondo"
+              value={cfg.theme.background}
+              onChange={(v) => setTheme({ background: v })}
+              hint="Se ve a pantalla completa detrás de todo. Sin imagen queda el color de fondo."
+            />
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <ColorField
+                label="Color de fondo"
+                value={cfg.theme.backgroundColor}
+                onChange={(v) => setTheme({ backgroundColor: v })}
+              />
+              <label className="block">
+                <span className="text-[12px] font-semibold text-ink2">
+                  Oscurecer el fondo ({cfg.theme.overlay}%)
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={cfg.theme.overlay}
+                  onChange={(e) => setTheme({ overlay: Number(e.target.value) })}
+                  className="mt-3 w-full accent-pink"
+                />
+                <span className="mt-1 block text-[11.5px] text-faint">
+                  Subilo si el texto no se lee sobre tu imagen.
+                </span>
+              </label>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <ColorField
+                label="Color principal (dorado)"
+                value={cfg.theme.accent}
+                onChange={(v) => setTheme({ accent: v })}
+              />
+              <ColorField
+                label="Sombra del principal"
+                value={cfg.theme.accentDeep}
+                onChange={(v) => setTheme({ accentDeep: v })}
+              />
+              <ColorField
+                label="Color del texto"
+                value={cfg.theme.text}
+                onChange={(v) => setTheme({ text: v })}
+              />
+              <ColorField
+                label="Color del texto secundario"
+                value={cfg.theme.textSoft}
+                onChange={(v) => setTheme({ textSoft: v })}
+              />
+            </div>
+
+            <Toggle
+              label="Marco en las esquinas"
+              hint="Las cuatro escuadras decorativas del borde."
+              checked={cfg.theme.frame}
+              onChange={() => setTheme({ frame: !cfg.theme.frame })}
+            />
+
+            <div className="my-1 h-px bg-line" />
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field
+                label="Marca (cabecera)"
+                value={cfg.brandTitle}
+                onChange={(v) => set("brandTitle", v)}
+                placeholder="Vacío = el nombre de tu negocio"
+              />
+              <Field
+                label="Segunda línea de la marca"
+                value={cfg.brandSubtitle}
+                onChange={(v) => set("brandSubtitle", v)}
+                placeholder="Vacío = la bajada de tu rubro"
+              />
+              <Field
+                label="Píldora bajo el título"
+                value={cfg.presentation}
+                onChange={(v) => set("presentation", v)}
+                placeholder="PRESENTACIÓN 30 ML"
+              />
+              <Field
+                label="Nota al lado del botón"
+                value={cfg.secureNote}
+                onChange={(v) => set("secureNote", v)}
+                placeholder="Compra segura"
+              />
+              <Field
+                label="Botón de arriba a la derecha"
+                value={cfg.catalogLabel}
+                onChange={(v) => set("catalogLabel", v)}
+                placeholder="Ver catálogo"
+              />
+              <Field
+                label="Adónde lleva ese botón"
+                value={cfg.catalogUrl}
+                onChange={(v) => set("catalogUrl", v)}
+                placeholder="Vacío = a tu catálogo"
+              />
+            </div>
+            <p className="-mt-1 text-[11.5px] text-faint">
+              La fila de abajo de la vitrina son los tres primeros{" "}
+              <span className="font-semibold text-ink2">Beneficios</span>, con su icono.
+            </p>
+          </>
+        )}
       </Card>
 
       <Card icon={<Sparkles size={18} />} title="Producto y textos">
@@ -344,6 +493,26 @@ export function PromoPageForm({
           onChange={(v) => set("whatsappMessage", v)}
           rows={2}
         />
+
+        <label className="block">
+          <span className="text-[12px] font-semibold text-ink2">
+            ¿A qué WhatsApp entra el pedido?
+          </span>
+          <select
+            value={cfg.whatsappTarget}
+            onChange={(e) =>
+              set("whatsappTarget", e.target.value === "vendedor" ? "vendedor" : "negocio")
+            }
+            className="mt-1.5 w-full rounded-xl border border-line bg-surface2 px-3.5 py-3 text-[14px] text-ink outline-none focus:border-pink"
+          >
+            <option value="negocio">Al WhatsApp del negocio (contesta una persona)</option>
+            <option value="vendedor">Al Vendedor 24/7 (contesta el bot con IA)</option>
+          </select>
+          <span className="mt-1 block text-[11.5px] text-faint">
+            Con “Vendedor 24/7” hace falta tener el número dado de alta; si no, el botón cae
+            al WhatsApp del negocio.
+          </span>
+        </label>
       </Card>
 
       {/* Barra de guardado: pegada abajo, porque el formulario es largo y los
@@ -449,6 +618,37 @@ function Field({
       ) : (
         <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={cls} />
       )}
+    </label>
+  );
+}
+
+/** Color del tema: la muestra clicable y el hex escribible al lado. */
+function ColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-[12px] font-semibold text-ink2">{label}</span>
+      <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-line bg-surface2 px-2 py-2 focus-within:border-pink">
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 w-12 shrink-0 cursor-pointer rounded-lg border border-line bg-transparent"
+        />
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          spellCheck={false}
+          className="w-full bg-transparent px-1 py-1 font-mono text-[13px] uppercase text-ink outline-none"
+        />
+      </div>
     </label>
   );
 }

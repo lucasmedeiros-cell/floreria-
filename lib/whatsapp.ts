@@ -56,13 +56,15 @@ function openUrl(url: string) {
  * navegador no lo bloquee. Sin ningún número, se devuelve vacío y el enlace
  * abre WhatsApp sin destinatario en vez de escribirle a un desconocido.
  */
-export function useBusinessWhatsapp(): string {
+export function useBusinessWhatsapp(prefer: "negocio" | "vendedor" = "negocio"): string {
   const business = useBusiness();
   const propio = waNumber(business.whatsapp);
-  const [phone, setPhone] = useState(propio);
+  const [phone, setPhone] = useState(prefer === "vendedor" ? "" : propio);
 
   useEffect(() => {
-    if (propio) return; // el número del negocio manda: no hace falta preguntar
+    // Con `vendedor` se pregunta siempre: quien lo eligió quiere que el pedido
+    // caiga en el WhatsApp que atiende el bot, aunque el negocio tenga otro.
+    if (prefer !== "vendedor" && propio) return;
     let alive = true;
     fetch(apiUrl("/api/whatsapp/number"))
       .then((r) => r.json())
@@ -70,12 +72,12 @@ export function useBusinessWhatsapp(): string {
         if (alive && d?.phone) setPhone(waNumber(d.phone));
       })
       .catch(() => {
-        /* sin conexión del vendedor: se queda sin número */
+        /* sin número del vendedor: queda el del negocio */
       });
     return () => {
       alive = false;
     };
-  }, [propio]);
+  }, [propio, prefer]);
 
   return phone || propio;
 }

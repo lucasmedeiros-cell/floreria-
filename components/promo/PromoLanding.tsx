@@ -12,6 +12,7 @@ import { openWhatsapp, useBusinessWhatsapp } from "@/lib/whatsapp";
 import { useBusiness, useProducts } from "@/context/StoreProvider";
 import { Icon } from "../Icon";
 import { WhatsAppIcon } from "../WhatsAppIcon";
+import { PromoVitrina } from "./PromoVitrina";
 
 /**
  * Landing promocional (/promo) — ficha de UN producto a pantalla completa, al
@@ -27,9 +28,18 @@ import { WhatsAppIcon } from "../WhatsAppIcon";
  * config del negocio (Configuración → Rubro del negocio + Landing).
  */
 export function PromoLanding({ promo }: { promo: PromoConfig }) {
+  // La landing tiene dos maquetas y se elige desde el CRM. `vitrina` es la
+  // pantalla de escaparate; el resto de este archivo es la ficha de siempre.
+  if (promo.enabled && promo.layout === "vitrina") {
+    return <PromoVitrina promo={promo} />;
+  }
+  return <PromoFicha promo={promo} />;
+}
+
+function PromoFicha({ promo }: { promo: PromoConfig }) {
   const link = useLink();
   const business = useBusiness();
-  const waNumber = useBusinessWhatsapp();
+  const waNumber = useBusinessWhatsapp(promo.whatsappTarget);
   const { products } = useProducts();
 
   const { colors, rubro, noun } = business;

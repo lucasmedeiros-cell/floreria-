@@ -17,6 +17,49 @@ export interface PromoHighlight {
   text?: string;
 }
 
+/**
+ * Cómo se maqueta la landing.
+ *
+ *  - `ficha`   — la de siempre: galería, datos y tarjeta de compra en claro.
+ *  - `vitrina` — una sola pantalla de escaparate: fondo propio, producto grande
+ *                y dos botones. Pensada para campañas de un solo producto.
+ */
+export type PromoLayout = "ficha" | "vitrina";
+
+/**
+ * Aspecto de la landing `vitrina`. Todo lo que se ve en pantalla sale de acá,
+ * así que un negocio puede armar la suya sin tocar código.
+ */
+export interface PromoTheme {
+  /** Imagen de fondo a pantalla completa. Vacío = solo `backgroundColor`. */
+  background: string;
+  /** Color debajo de la imagen (y de fondo si no hay imagen). */
+  backgroundColor: string;
+  /** Oscurecido sobre la imagen, 0–100. Sin esto el texto no se lee. */
+  overlay: number;
+  /** Color principal: títulos, botones, bordes y adornos. */
+  accent: string;
+  /** Segundo color del degradado del dorado. */
+  accentDeep: string;
+  /** Color del texto sobre el fondo. */
+  text: string;
+  /** Color del texto secundario. */
+  textSoft: string;
+  /** Marco ornamental en las cuatro esquinas. */
+  frame: boolean;
+}
+
+export const defaultPromoTheme: PromoTheme = {
+  background: "",
+  backgroundColor: "#0B0705",
+  overlay: 45,
+  accent: "#F5C445",
+  accentDeep: "#9A6B12",
+  text: "#FFFFFF",
+  textSoft: "#C9BCA4",
+  frame: true,
+};
+
 export interface Promo {
   /** SKU del producto de referencia (opcional, solo informativo). */
   productId?: string;
@@ -45,6 +88,29 @@ export interface Promo {
   ctaLabel: string;
   /** Mensaje con el que se abre WhatsApp al pulsar el CTA. */
   whatsappMessage: string;
+
+  // ----- Maqueta y aspecto (los usa el diseño `vitrina`) -----
+
+  layout: PromoLayout;
+  theme: PromoTheme;
+  /**
+   * A qué WhatsApp entra el pedido:
+   *  - `negocio`  — el teléfono que cargó el negocio (contesta una persona).
+   *  - `vendedor` — el número del Vendedor 24/7, o sea el bot con IA.
+   */
+  whatsappTarget: "negocio" | "vendedor";
+  /** Píldora bajo el título ("PRESENTACIÓN 30 ML"). Vacío = no se muestra. */
+  presentation: string;
+  /** Nota chica al lado del botón de WhatsApp ("Compra segura"). */
+  secureNote: string;
+  /** Botón de arriba a la derecha. */
+  catalogLabel: string;
+  /** Adónde va ese botón. Vacío = al catálogo de la tienda del negocio. */
+  catalogUrl: string;
+  /** Marca de la cabecera. Vacío = el nombre del negocio. */
+  brandTitle: string;
+  /** Segunda línea de la marca. Vacío = la bajada del negocio. */
+  brandSubtitle: string;
 }
 
 /** Config editable de la landing (promo + interruptor de visibilidad). */
@@ -136,6 +202,17 @@ export function promoFromRubro(
     highlights: p.highlights,
     ctaLabel: p.ctaLabel,
     whatsappMessage: `¡Hola ${name}! ${r.emoji} Quiero pedir la promoción de *${p.productName}*.`,
+    // El diseño de siempre: las landings que ya existen no cambian de aspecto
+    // al agregarse `vitrina`. Se elige desde el CRM.
+    layout: "ficha",
+    theme: defaultPromoTheme,
+    whatsappTarget: "negocio",
+    presentation: "",
+    secureNote: "Compra segura",
+    catalogLabel: "Ver catálogo",
+    catalogUrl: "",
+    brandTitle: "",
+    brandSubtitle: "",
   };
 }
 
@@ -158,6 +235,36 @@ const optMoney = (v: unknown): number | null => {
   const n = money(v);
   return n > 0 ? n : null;
 };
+
+/**
+ * Color de un `<input type="color">`. Cualquier cosa que no sea un hex válido
+ * cae al del tema por defecto: un color roto dejaría texto invisible sobre el
+ * fondo, y desde la landing pública no hay forma de arreglarlo.
+ */
+const color = (v: unknown, fallback: string): string => {
+  const s = typeof v === "string" ? v.trim() : "";
+  return /^#[0-9a-fA-F]{6}$/.test(s) ? s : fallback;
+};
+
+const clamp = (v: unknown, fallback: number, min = 0, max = 100): number => {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : fallback;
+};
+
+/** Aspecto de la vitrina, con todo dentro de rangos que sepamos dibujar. */
+function sanitizeTheme(input: unknown, base: PromoTheme): PromoTheme {
+  const t = (input ?? {}) as Partial<PromoTheme>;
+  return {
+    background: text(t.background, base.background),
+    backgroundColor: color(t.backgroundColor, base.backgroundColor),
+    overlay: clamp(t.overlay, base.overlay),
+    accent: color(t.accent, base.accent),
+    accentDeep: color(t.accentDeep, base.accentDeep),
+    text: color(t.text, base.text),
+    textSoft: color(t.textSoft, base.textSoft),
+    frame: typeof t.frame === "boolean" ? t.frame : base.frame,
+  };
+}
 
 /** Fecha del `datetime-local` del CRM. Si no es una fecha real, null. */
 const optDate = (v: unknown): string | null => {
@@ -215,6 +322,17 @@ export function sanitizePromo(
     ctaLabel: text(input.ctaLabel, base.ctaLabel) || base.ctaLabel,
     whatsappMessage:
       text(input.whatsappMessage, base.whatsappMessage) || base.whatsappMessage,
+    layout: input.layout === "vitrina" ? "vitrina" : "ficha",
+    theme: sanitizeTheme(input.theme, base.theme ?? defaultPromoTheme),
+    whatsappTarget: input.whatsappTarget === "vendedor" ? "vendedor" : "negocio",
+    // Estos van vacíos a propósito cuando el negocio los borra: cada uno tiene
+    // su propio respaldo en la landing (el nombre del negocio, o no mostrarse).
+    presentation: text(input.presentation, ""),
+    secureNote: text(input.secureNote, ""),
+    catalogLabel: text(input.catalogLabel, base.catalogLabel) || base.catalogLabel,
+    catalogUrl: text(input.catalogUrl, ""),
+    brandTitle: text(input.brandTitle, ""),
+    brandSubtitle: text(input.brandSubtitle, ""),
   };
 }
 

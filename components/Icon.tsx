@@ -1,11 +1,16 @@
 "use client";
 
 import {
+  Award,
   BadgeCheck,
   Brush,
   Car,
+  Clock,
   Cpu,
+  Droplet,
+  Flame,
   Flower2,
+  Gift,
   Heart,
   Laptop,
   Leaf,
@@ -19,10 +24,12 @@ import {
   ShoppingCart,
   Shirt,
   Sparkles,
+  Star,
   Store,
   Truck,
   UtensilsCrossed,
   Wrench,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import { WhatsAppIcon } from "./WhatsAppIcon";
@@ -32,11 +39,16 @@ import { WhatsAppIcon } from "./WhatsAppIcon";
  * como string, así que la config es serializable y editable desde el panel.
  */
 const ICONS: Record<string, LucideIcon> = {
+  Award,
   BadgeCheck,
   Brush,
   Car,
+  Clock,
   Cpu,
+  Droplet,
+  Flame,
   Flower2,
+  Gift,
   Heart,
   Laptop,
   Leaf,
@@ -50,10 +62,12 @@ const ICONS: Record<string, LucideIcon> = {
   ShoppingCart,
   Shirt,
   Sparkles,
+  Star,
   Store,
   Truck,
   UtensilsCrossed,
   Wrench,
+  Zap,
 };
 
 /**
