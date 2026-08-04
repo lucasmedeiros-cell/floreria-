@@ -12,25 +12,33 @@ export function BrandMark({ size = 40 }: { size?: number }) {
   const b = useBusiness();
 
   if (b.logoUrl) {
+    // Sin recuadro ni color detrás: el logo manda. Y el alto es el que fija la
+    // medida (el ancho sale solo), para que un logo apaisado no quede diminuto
+    // dentro de una caja casi cuadrada.
     return (
       <Image
         src={b.logoUrl}
         alt={b.name}
-        width={Math.round(size * 0.94)}
+        width={size * 3}
         height={size}
         loading="eager"
-        className="shrink-0 object-contain"
+        className="shrink-0 bg-transparent object-contain object-left"
+        style={{ height: size, width: "auto", maxWidth: size * 3 }}
       />
     );
   }
 
+  // El negocio sin logo cae al icono del rubro. Se le pone tope: la medida
+  // grande es para que luzca un logo de verdad, no para agrandar el recuadro
+  // de relleno, que a lo ancho de la cabecera queda pesado.
+  const badge = Math.min(size, 46);
   return (
     <span
       aria-label={b.name}
       className="grid shrink-0 place-items-center rounded-[12px] bg-pinkSoft text-ink"
-      style={{ width: size, height: size }}
+      style={{ width: badge, height: badge }}
     >
-      <Icon name={b.rubro.icon} size={Math.round(size * 0.58)} />
+      <Icon name={b.rubro.icon} size={Math.round(badge * 0.58)} />
     </span>
   );
 }

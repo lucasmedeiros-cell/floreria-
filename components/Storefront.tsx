@@ -95,8 +95,8 @@ export function Storefront() {
       <header className="sticky top-0 z-40 bg-white">
         <div className="mx-auto w-[92%] max-w-[1760px] px-6 pt-[22px]">
           <div className="flex items-center gap-6">
-            <button onClick={goTop} className="flex items-center gap-2.5">
-              <BrandMark size={42} />
+            <button onClick={goTop} className="flex items-center gap-3">
+              <BrandMark size={68} />
               <Wordmark />
             </button>
 
@@ -293,8 +293,8 @@ export function Storefront() {
         <div className="mx-auto w-[92%] max-w-[1760px] px-6 pb-7 pt-12">
           <div className="flex flex-wrap gap-x-10 gap-y-8">
             <div className="w-full md:w-[290px]">
-              <div className="flex items-center gap-2.5">
-                <BrandMark size={40} />
+              <div className="flex items-center gap-3">
+                <BrandMark size={54} />
                 <Wordmark light />
               </div>
               <p className="mt-4 text-[.82rem] leading-relaxed text-white/60">
