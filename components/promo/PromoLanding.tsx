@@ -13,6 +13,7 @@ import { useBusiness, useProducts } from "@/context/StoreProvider";
 import { Icon } from "../Icon";
 import { WhatsAppIcon } from "../WhatsAppIcon";
 import { PromoVitrina } from "./PromoVitrina";
+import { PromoArte } from "./PromoArte";
 
 /**
  * Landing promocional (/promo) — ficha de UN producto a pantalla completa, al
@@ -28,10 +29,16 @@ import { PromoVitrina } from "./PromoVitrina";
  * config del negocio (Configuración → Rubro del negocio + Landing).
  */
 export function PromoLanding({ promo }: { promo: PromoConfig }) {
-  // La landing tiene dos maquetas y se elige desde el CRM. `vitrina` es la
-  // pantalla de escaparate; el resto de este archivo es la ficha de siempre.
-  if (promo.enabled && promo.layout === "vitrina") {
-    return <PromoVitrina promo={promo} />;
+  // La landing tiene tres maquetas y se elige desde el CRM: `vitrina` es la
+  // pantalla de escaparate, `arte` publica una pieza ya diseñada, y el resto de
+  // este archivo es la ficha de siempre.
+  if (promo.enabled) {
+    if (promo.layout === "vitrina") return <PromoVitrina promo={promo} />;
+    // Sin imagen no hay nada que publicar: cae a la ficha en vez de mostrar
+    // una pantalla vacía con dos botones invisibles.
+    if (promo.layout === "arte" && promo.theme.background) {
+      return <PromoArte promo={promo} />;
+    }
   }
   return <PromoFicha promo={promo} />;
 }

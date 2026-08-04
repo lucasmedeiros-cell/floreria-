@@ -12,7 +12,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import type { PromoHighlight, PromoPage, PromoStat, PromoTheme } from "@/lib/promo";
+import type { PromoHighlight, PromoPage, PromoStat, PromoTheme, PromoZona } from "@/lib/promo";
 import { promoSlugify } from "@/lib/promo";
 import { useProducts, useToast } from "@/context/StoreProvider";
 import { PrimaryButton } from "@/components/ui";
@@ -220,12 +220,17 @@ export function PromoPageForm({
                 titulo: "Vitrina",
                 texto: "Una pantalla con tu fondo, el producto en grande y dos botones.",
               },
+              {
+                id: "arte" as const,
+                titulo: "Arte",
+                texto: "Publica tu pieza de diseño tal cual, con los botones clicables encima.",
+              },
             ]
           ).map((op) => (
             <button
               key={op.id}
               onClick={() => set("layout", op.id)}
-              className={`rounded-xl border p-4 text-left transition-colors ${
+              className={`rounded-xl border p-4 text-left transition-colors sm:col-span-1 ${
                 cfg.layout === op.id
                   ? "border-pink bg-pink/5"
                   : "border-line bg-surface2 hover:border-ink2"
@@ -236,6 +241,48 @@ export function PromoPageForm({
             </button>
           ))}
         </div>
+
+        {cfg.layout === "arte" && (
+          <>
+            <div className="my-1 h-px bg-line" />
+
+            <ImageUploadField
+              label="La pieza de diseño"
+              value={cfg.theme.background}
+              onChange={(v) => setTheme({ background: v })}
+              hint="Se publica entera, tal cual. Si pesa varios MB, súbela antes como WebP: se descarga completa en cada visita."
+            />
+
+            <ColorField
+              label="Color alrededor de la pieza"
+              value={cfg.theme.backgroundColor}
+              onChange={(v) => setTheme({ backgroundColor: v })}
+            />
+
+            <p className="text-[12.5px] text-ink2">
+              Las zonas clicables van encima de los botones que ya están
+              dibujados en la pieza, en porcentaje sobre la imagen (así caen bien
+              en cualquier pantalla). Los valores de fábrica sirven para las
+              piezas con el botón arriba a la derecha y el de WhatsApp a la
+              izquierda.
+            </p>
+
+            <ZonaFields
+              titulo="Zona del botón de WhatsApp"
+              zona={cfg.artZonaWhatsapp}
+              onChange={(z) => set("artZonaWhatsapp", z)}
+            />
+            <ZonaFields
+              titulo="Zona del botón de catálogo"
+              zona={cfg.artZonaCatalogo}
+              onChange={(z) => set("artZonaCatalogo", z)}
+            />
+            <p className="-mt-1 text-[11.5px] text-faint">
+              En el teléfono, además, aparecen abajo los dos botones a tamaño
+              usable: el dibujado queda de pocos milímetros.
+            </p>
+          </>
+        )}
 
         {cfg.layout === "vitrina" && (
           <>
@@ -619,6 +666,45 @@ function Field({
         <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={cls} />
       )}
     </label>
+  );
+}
+
+/** Las cuatro medidas de una zona clicable, en % sobre la imagen. */
+function ZonaFields({
+  titulo,
+  zona,
+  onChange,
+}: {
+  titulo: string;
+  zona: PromoZona;
+  onChange: (z: PromoZona) => void;
+}) {
+  const campos: { k: keyof PromoZona; label: string }[] = [
+    { k: "x", label: "Izquierda %" },
+    { k: "y", label: "Arriba %" },
+    { k: "w", label: "Ancho %" },
+    { k: "h", label: "Alto %" },
+  ];
+  return (
+    <div className="rounded-xl border border-line bg-surface2/40 p-3">
+      <span className="text-[12px] font-semibold text-ink2">{titulo}</span>
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {campos.map(({ k, label }) => (
+          <label key={k} className="block">
+            <span className="text-[11px] text-faint">{label}</span>
+            <input
+              type="number"
+              step="0.1"
+              min={0}
+              max={100}
+              value={zona[k]}
+              onChange={(e) => onChange({ ...zona, [k]: Number(e.target.value) })}
+              className="mt-1 w-full rounded-lg border border-line bg-surface px-2.5 py-2 text-[13px] text-ink outline-none focus:border-pink"
+            />
+          </label>
+        ))}
+      </div>
+    </div>
   );
 }
 

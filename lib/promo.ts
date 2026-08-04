@@ -24,7 +24,20 @@ export interface PromoHighlight {
  *  - `vitrina` — una sola pantalla de escaparate: fondo propio, producto grande
  *                y dos botones. Pensada para campañas de un solo producto.
  */
-export type PromoLayout = "ficha" | "vitrina";
+export type PromoLayout = "ficha" | "vitrina" | "arte";
+
+/**
+ * Zona clicable sobre el arte, en PORCENTAJES del ancho y alto de la imagen.
+ * Van en porcentaje y no en píxeles para que sigan cayendo sobre el botón
+ * dibujado en cualquier pantalla, que es de lo que depende que el arte se pueda
+ * usar tal cual sin volver a maquetarlo.
+ */
+export interface PromoZona {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
 /**
  * Aspecto de la landing `vitrina`. Todo lo que se ve en pantalla sale de acá,
@@ -111,6 +124,14 @@ export interface Promo {
   brandTitle: string;
   /** Segunda línea de la marca. Vacío = la bajada del negocio. */
   brandSubtitle: string;
+
+  /**
+   * Diseño `arte`: dónde caen los botones dibujados dentro de la imagen, para
+   * ponerles encima los de verdad. Por defecto, donde los tienen las piezas de
+   * Long Chang (botón arriba a la derecha y CTA a la izquierda).
+   */
+  artZonaCatalogo: PromoZona;
+  artZonaWhatsapp: PromoZona;
 }
 
 /** Config editable de la landing (promo + interruptor de visibilidad). */
@@ -213,6 +234,8 @@ export function promoFromRubro(
     catalogUrl: "",
     brandTitle: "",
     brandSubtitle: "",
+    artZonaCatalogo: { x: 79.5, y: 6.6, w: 16.6, h: 6 },
+    artZonaWhatsapp: { x: 15.7, y: 68.8, w: 22.2, h: 7.9 },
   };
 }
 
@@ -263,6 +286,19 @@ function sanitizeTheme(input: unknown, base: PromoTheme): PromoTheme {
     text: color(t.text, base.text),
     textSoft: color(t.textSoft, base.textSoft),
     frame: typeof t.frame === "boolean" ? t.frame : base.frame,
+  };
+}
+
+/** Zona clicable: porcentajes dentro de 0–100, con caída al valor base. */
+function sanitizeZona(input: unknown, base: PromoZona): PromoZona {
+  const z = (input ?? {}) as Partial<PromoZona>;
+  return {
+    x: clamp(z.x, base.x),
+    y: clamp(z.y, base.y),
+    // Ancho y alto nunca 0: una zona sin superficie es un botón que no se puede
+    // tocar, y desde la landing no hay forma de darse cuenta.
+    w: clamp(z.w, base.w, 1),
+    h: clamp(z.h, base.h, 1),
   };
 }
 
@@ -322,7 +358,10 @@ export function sanitizePromo(
     ctaLabel: text(input.ctaLabel, base.ctaLabel) || base.ctaLabel,
     whatsappMessage:
       text(input.whatsappMessage, base.whatsappMessage) || base.whatsappMessage,
-    layout: input.layout === "vitrina" ? "vitrina" : "ficha",
+    layout:
+      input.layout === "vitrina" || input.layout === "arte"
+        ? input.layout
+        : "ficha",
     theme: sanitizeTheme(input.theme, base.theme ?? defaultPromoTheme),
     whatsappTarget: input.whatsappTarget === "vendedor" ? "vendedor" : "negocio",
     // Estos van vacíos a propósito cuando el negocio los borra: cada uno tiene
@@ -333,6 +372,8 @@ export function sanitizePromo(
     catalogUrl: text(input.catalogUrl, ""),
     brandTitle: text(input.brandTitle, ""),
     brandSubtitle: text(input.brandSubtitle, ""),
+    artZonaCatalogo: sanitizeZona(input.artZonaCatalogo, base.artZonaCatalogo),
+    artZonaWhatsapp: sanitizeZona(input.artZonaWhatsapp, base.artZonaWhatsapp),
   };
 }
 
