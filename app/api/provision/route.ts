@@ -398,6 +398,55 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // --- Vendedor 24/7: config del bot y vínculo por QR ---------------------
+    // El bot se administra desde acá y no desde el CRM del negocio (su editor
+    // se sacó de Configuración). La config vive en la base del negocio, en
+    // `settings.vendedor247`, que es la que lee lib/vendedor247.ts.
+
+    if (action === "getVendedor" || action === "setVendedor") {
+      const slug = cleanSlug(body.slug);
+      const neg = await withPool(centralUrl(), (p) =>
+        p.query(`SELECT id, db_name FROM negocio WHERE slug = $1`, [slug]).then((r) => r.rows[0])
+      );
+      if (!neg) return NextResponse.json({ error: "Negocio no encontrado." }, { status: 404 });
+
+      if (action === "setVendedor") {
+        const cfg: Record<string, unknown> = {};
+        if ("botEnabled" in body) cfg.botEnabled = !!body.botEnabled;
+        if ("botPersona" in body) cfg.botPersona = (body.botPersona ?? "").toString().trim();
+        if ("aiModel" in body) cfg.aiModel = (body.aiModel ?? "").toString().trim() || "claude-haiku-4-5";
+        if ("paymentOptions" in body) cfg.paymentOptions = (body.paymentOptions ?? "").toString().trim();
+        if (!Object.keys(cfg).length)
+          return NextResponse.json({ error: "Nada para actualizar." }, { status: 400 });
+        await withPool(urlForDb(neg.db_name), (p) =>
+          p.query(
+            `INSERT INTO settings (key, value, updated_at) VALUES ('vendedor247', $1::jsonb, now())
+             ON CONFLICT (key) DO UPDATE SET value = settings.value || $1::jsonb, updated_at = now()`,
+            [JSON.stringify(cfg)]
+          )
+        );
+        logActividad(who, "vendedor-config", neg.id, cfg);
+      }
+
+      const fila = await withPool(urlForDb(neg.db_name), (p) =>
+        p.query(`SELECT value FROM settings WHERE key = 'vendedor247'`).then((r) => r.rows[0])
+      );
+      return NextResponse.json({ vendedor: fila?.value ?? null });
+    }
+
+    if (action === "baileysEstado" || action === "baileysStart" || action === "baileysLogout") {
+      // Import perezoso: Baileys abre sockets y carga binarios nativos, no hay
+      // que tocarlo salvo que el panel lo pida expresamente.
+      const { baileys } = await import("@/lib/whatsappBaileys");
+      const wa = baileys();
+      if (action === "baileysStart") await wa.start();
+      if (action === "baileysLogout") {
+        await wa.logout();
+        logActividad(who, "vendedor-qr-desvincular", null, {});
+      }
+      return NextResponse.json({ ...wa.getStatus(), qr: wa.getQr() });
+    }
+
     if (action === "createDevice") {
       const slug = cleanSlug(body.slug);
       const label = (body.label || "Dispositivo").toString().trim();

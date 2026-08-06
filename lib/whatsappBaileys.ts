@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { handleIncoming, type Sender } from "./vendedorEngine";
+import { estaActivo, isMultiTenant, negocioBySlug, runWithTenant } from "./tenant";
 
 /**
  * Transporte WhatsApp por BAILEYS (número normal, se vincula por QR).
@@ -221,15 +222,54 @@ class BaileysManager {
         await this.sock.sendPresenceUpdate("composing", jid);
       } catch {}
 
-      await handleIncoming(phone, name, text, campaign, this.sender).catch((e) =>
-        console.warn(`[wa:baileys] handle: ${e}`)
-      );
+      await atenderComoNegocio(() =>
+        handleIncoming(phone, name, text, campaign, this.sender).then(() => undefined)
+      ).catch((e) => console.warn(`[wa:baileys] handle: ${e}`));
 
       try {
         await this.sock.sendPresenceUpdate("paused", jid);
       } catch {}
     }
   }
+}
+
+/**
+ * Corre el motor dentro de la base del negocio dueño de este WhatsApp.
+ *
+ * A diferencia del webhook de Meta, acá el mensaje NO llega por una request: lo
+ * dispara el socket, fuera de todo contexto. Sin esto, `query()` cae al pool por
+ * defecto y el bot leería el catálogo —y guardaría las conversaciones— en la
+ * base equivocada, sin que nadie se entere.
+ *
+ * Baileys es un socket por proceso, así que el dueño se declara en el entorno:
+ * `WA_BAILEYS_NEGOCIO=<slug>`. En una instalación de un solo negocio no hace
+ * falta (no hay central y la base por defecto ES la del negocio).
+ *
+ * Si hay varios negocios y el dueño no está declarado o no resuelve, **no se
+ * contesta**: es preferible el silencio a contestarle a un cliente con los
+ * precios de otro negocio.
+ */
+async function atenderComoNegocio(fn: () => Promise<void>): Promise<void> {
+  if (!isMultiTenant()) return fn();
+
+  const slug = (process.env.WA_BAILEYS_NEGOCIO ?? "").trim();
+  if (!slug) {
+    console.warn(
+      "[wa:baileys] hay varios negocios y WA_BAILEYS_NEGOCIO no está definida: mensaje ignorado"
+    );
+    return;
+  }
+
+  const negocio = await negocioBySlug(slug);
+  if (!negocio) {
+    console.warn(`[wa:baileys] el negocio "${slug}" no existe en la central: mensaje ignorado`);
+    return;
+  }
+  if (!estaActivo(negocio)) {
+    console.warn(`[wa:baileys] negocio ${negocio.slug} ${negocio.estado}: no atiende`);
+    return;
+  }
+  return runWithTenant(negocio, fn);
 }
 
 export function baileys(): BaileysManager {

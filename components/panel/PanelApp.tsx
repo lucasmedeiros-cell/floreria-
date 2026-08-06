@@ -55,6 +55,22 @@ interface DeviceRow {
   slug?: string;
 }
 
+/** Estado del vínculo por QR (Baileys). Es uno por instalación, no por negocio. */
+interface BaileysRow {
+  status: string;
+  connected: boolean;
+  available?: boolean;
+  qr: string | null;
+  number?: string | null;
+  error?: string | null;
+}
+
+/** Lo que el panel edita del bot; el resto sale de los valores por defecto. */
+interface VendedorRow {
+  botEnabled: boolean;
+  botPersona: string;
+}
+
 // Un número de WhatsApp (Cloud API de Meta) atendiendo a este negocio.
 interface WaNumeroRow {
   phoneNumberId: string;
@@ -629,16 +645,25 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
   const [busy, setBusy] = useState("");
   const [waNums, setWaNums] = useState<WaNumeroRow[]>([]);
   const [nuevoWa, setNuevoWa] = useState({ phoneNumberId: "", numero: "", etiqueta: "" });
+  const [bl, setBl] = useState<BaileysRow | null>(null);
+  const [vend, setVend] = useState<VendedorRow>({ botEnabled: false, botPersona: "" });
 
   const cargar = useCallback(async () => {
     try {
-      const [n, d, e, a, w] = await Promise.all([
+      const [n, d, e, a, w, v] = await Promise.all([
         api<{ business: NegocioRow }>("getNegocio", { slug }),
         api<{ devices: DeviceRow[] }>("listDevices", { slug }),
         api<{ employees: EmployeeRow[] }>("listEmployees", { slug }),
         api<{ actividad: ActividadRow[] }>("listActividad", { slug }),
         api<{ numeros: WaNumeroRow[] }>("listWaNumeros", { slug }),
+        api<{ vendedor: Partial<VendedorRow> | null }>("getVendedor", { slug }),
       ]);
+      setVend({
+        botEnabled: !!v.vendedor?.botEnabled,
+        botPersona: v.vendedor?.botPersona ?? "",
+      });
+      // El estado del QR se pide aparte: que falle no debe romper la ficha.
+      api<BaileysRow>("baileysEstado", {}).then(setBl).catch(() => {});
       setNeg(n.business);
       setEdit(n.business);
       setDevices(d.devices);
@@ -995,6 +1020,113 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
           el número: es el <code>phone_number_id</code>. Es lo que llega en cada mensaje y lo que
           permite saber a qué negocio contestar. Un negocio puede tener uno o dos.
         </p>
+
+        {/* Puente por QR: sirve mientras no haya alta oficial en Meta. */}
+        {waNums.filter((w) => w.activo).length === 0 && (
+          <div className="mt-5 rounded-xl border border-dashed border-line p-4">
+            <h4 className="text-[13px] font-bold text-ink">
+              Mientras tanto: vincular un WhatsApp por QR
+            </h4>
+            <p className="mt-1 text-xs text-ink2">
+              Se vincula un número normal, como un dispositivo más de WhatsApp. Anda hoy mismo, sin
+              esperar a Meta, pero <b>no es el canal oficial</b>: usá una línea dedicada al bot,
+              porque existe riesgo de que la bloqueen.
+            </p>
+
+            {bl?.available === false ? (
+              <p className="mt-3 text-xs text-error">{bl.error}</p>
+            ) : bl?.connected ? (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <span className="text-sm font-semibold text-success">
+                  ✓ Vinculado{bl.number ? ` · +${bl.number}` : ""}
+                </span>
+                <ConfirmBtn
+                  label="Desvincular"
+                  confirm="¿Desvincular? El bot deja de recibir por ese número."
+                  onDo={() =>
+                    accion(
+                      "wa",
+                      async () => setBl(await api<BaileysRow>("baileysLogout", {})),
+                      "WhatsApp desvinculado."
+                    )
+                  }
+                />
+              </div>
+            ) : bl?.qr ? (
+              <div className="mt-3 flex flex-col items-center gap-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={bl.qr} alt="QR para vincular WhatsApp" className="h-56 w-56 rounded-xl bg-white p-2" />
+                <p className="text-xs text-ink2">
+                  En el teléfono: WhatsApp → Dispositivos vinculados → Vincular un dispositivo.
+                </p>
+                <button className={btnGhost} onClick={() => api<BaileysRow>("baileysEstado", {}).then(setBl)}>
+                  Ya lo escaneé
+                </button>
+              </div>
+            ) : (
+              <button
+                className={`${btnPrimary} mt-3`}
+                disabled={!!busy}
+                onClick={() =>
+                  accion("wa", async () => setBl(await api<BaileysRow>("baileysStart", {})))
+                }
+              >
+                Generar QR
+              </button>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* El bot: encendido y personalidad */}
+      <section className={card}>
+        <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-faint">El bot</h3>
+        <label className="flex cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            checked={vend.botEnabled}
+            onChange={() => setVend({ ...vend, botEnabled: !vend.botEnabled })}
+            className="h-5 w-5 accent-[#FEBB03]"
+          />
+          <span className="text-sm text-ink">
+            Vendedor 24/7 encendido
+            <span className="ml-2 text-xs text-faint">
+              (apagado no contesta, aunque el WhatsApp esté vinculado)
+            </span>
+          </span>
+        </label>
+
+        <div className="mt-4">
+          <Field label="Personalidad y reglas del vendedor">
+            <textarea
+              rows={6}
+              className={input}
+              value={vend.botPersona}
+              onChange={(e) => setVend({ ...vend, botPersona: e.target.value })}
+              placeholder="Vacío = usa la personalidad del rubro. Escribí cómo tiene que hablar, qué vende y qué NO puede prometer."
+            />
+          </Field>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            className={btnPrimary}
+            disabled={!!busy}
+            onClick={() =>
+              accion(
+                "vend",
+                () => api("setVendedor", { slug, ...vend }),
+                "Configuración del bot guardada."
+              )
+            }
+          >
+            Guardar el bot
+          </button>
+          <span className="text-xs text-faint">
+            La personalidad le gana a la del rubro. Para productos de salud, dejá escrito que no dé
+            consejos médicos ni prometa resultados.
+          </span>
+        </div>
       </section>
 
       {/* Dispositivos */}

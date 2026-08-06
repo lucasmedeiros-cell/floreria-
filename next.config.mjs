@@ -15,6 +15,9 @@ const nextConfig = {
       "pino",
       "qrcode",
     ],
+    // Habilita instrumentation.ts, que reconecta el WhatsApp del vendedor al
+    // levantar el proceso (si no, queda mudo después de cada deploy).
+    instrumentationHook: true,
   },
   // CORS para imágenes estáticas: el renderer CanvasKit de Flutter web
   // necesita el header para poder pintar imágenes de otro origen (8090 -> 3005).
