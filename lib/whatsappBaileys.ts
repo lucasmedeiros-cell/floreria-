@@ -109,8 +109,11 @@ class BaileysManager {
       await this.sendText(phone, body);
     },
     sendImageBase64: async (phone, base64, caption) => {
-      if (!this.sock || this.status !== "open") return;
-      const jid = this.jid(phone);
+      if (!this.sock || this.status !== "open") {
+        console.warn(`[wa:baileys][${this.slug}] sin conexión: NO se envió la imagen a ${phone}`);
+        return;
+      }
+      const jid = await this.destino(phone);
       try {
         await this.sock.sendMessage(jid, { image: Buffer.from(base64, "base64"), caption });
       } catch (e) {
@@ -119,14 +122,54 @@ class BaileysManager {
     },
   };
 
+  /**
+   * Teléfono que mostramos → JID exacto al que hay que contestar.
+   *
+   * WhatsApp ya no siempre direcciona por número: manda un LID
+   * (`1234567890123@lid`). Contestarle a `<lid>@s.whatsapp.net` no falla, pero
+   * el mensaje no llega a nadie. Así que se recuerda el JID original.
+   */
+  private destinos = new Map<string, string>();
+
+  private recordarDestino(phone: string, jid: string) {
+    this.destinos.set(phone, jid);
+  }
+
+  /**
+   * A dónde se manda: lo recordado en memoria, lo guardado en la charla, y como
+   * último recurso el número armado a mano (que es lo correcto cuando el cliente
+   * sí vino identificado por teléfono).
+   */
+  private async destino(phone: string): Promise<string> {
+    const enMemoria = this.destinos.get(phone);
+    if (enMemoria) return enMemoria;
+    try {
+      const { queryOne } = await import("./db");
+      const fila = await queryOne<{ jid: string | null }>(
+        `SELECT jid FROM wa_conversations WHERE phone = $1`,
+        [phone]
+      );
+      if (fila?.jid) {
+        this.destinos.set(phone, fila.jid);
+        return fila.jid;
+      }
+    } catch {
+      /* sin contexto de negocio o sin la columna: se usa el número */
+    }
+    return this.jid(phone);
+  }
+
   private jid(phone: string) {
     return `${phone.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
   }
 
   async sendText(phone: string, text: string): Promise<boolean> {
-    if (!this.sock || this.status !== "open") return false;
+    if (!this.sock || this.status !== "open") {
+      console.warn(`[wa:baileys][${this.slug}] sin conexión: NO se envió a ${phone}`);
+      return false;
+    }
     try {
-      await this.sock.sendMessage(this.jid(phone), { text });
+      await this.sock.sendMessage(await this.destino(phone), { text });
       return true;
     } catch (e) {
       console.warn(`[wa:baileys] send text: ${e}`);
@@ -248,8 +291,19 @@ class BaileysManager {
         msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
       if (!text.trim()) continue;
 
-      const phone = "+" + jid.split("@")[0];
+      // Con LID, WhatsApp manda aparte el número real (`senderPn`). Se prefiere
+      // ese para mostrar y guardar; el LID solo sirve para contestar.
+      const pn: string =
+        msg.key?.senderPn || msg.key?.remoteJidAlt || msg.key?.participantPn || "";
+      const idParaMostrar = (pn || jid).split("@")[0].split(":")[0];
+      const phone = "+" + idParaMostrar;
       const name = msg.pushName || phone;
+      this.recordarDestino(phone, jid);
+      if (jid.endsWith("@lid") && !pn) {
+        console.warn(
+          `[wa:baileys][${this.slug}] el cliente vino como LID y sin número: se guarda ${phone}`
+        );
+      }
 
       // Anuncio click-to-WhatsApp de Meta (referral en el mensaje).
       const adRef =
@@ -265,9 +319,14 @@ class BaileysManager {
         await this.sock.sendPresenceUpdate("composing", jid);
       } catch {}
 
-      await atenderComoNegocio(this.slug, () =>
-        handleIncoming(phone, name, text, campaign, this.sender).then(() => undefined)
-      ).catch((e) => console.warn(`[wa:baileys][${this.slug}] handle: ${e}`));
+      await atenderComoNegocio(this.slug, async () => {
+        await handleIncoming(phone, name, text, campaign, this.sender);
+        // El JID se guarda DESPUÉS: la fila de la charla la crea el motor.
+        const { query } = await import("./db");
+        await query(`UPDATE wa_conversations SET jid = $2 WHERE phone = $1`, [phone, jid]).catch(
+          () => {}
+        );
+      }).catch((e) => console.warn(`[wa:baileys][${this.slug}] handle: ${e}`));
 
       try {
         await this.sock.sendPresenceUpdate("paused", jid);
