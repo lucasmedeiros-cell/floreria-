@@ -202,6 +202,57 @@ export async function pedidoParaLiquidar(code: string): Promise<PendienteRow | n
   );
 }
 
+/**
+ * El pedido abierto de este teléfono: el último de WhatsApp sin pagar.
+ *
+ * Hace falta porque el QR no siempre se manda en el mismo mensaje en que se toma
+ * el pedido: el cliente puede pedirlo después. Sin esto, el QR salía SIN quedar
+ * ligado a ningún pedido y el confirmador no tenía qué consultarle al banco —
+ * el cobro no se cerraba nunca.
+ */
+export async function pedidoAbiertoDelTelefono(
+  phone: string
+): Promise<{ code: string; total: number } | null> {
+  const fila = await queryOne<{ code: string; total: string | null }>(
+    `SELECT o.code,
+            (SELECT sum(qty * unit_price)::text FROM order_items i WHERE i.order_id = o.id) AS total
+       FROM orders o
+      WHERE o.phone = $1 AND o.channel = 'whatsapp'
+        AND o.paid_at IS NULL AND o.status <> 'cancelado'
+      ORDER BY o.created_at DESC
+      LIMIT 1`,
+    [phone]
+  );
+  return fila ? { code: fila.code, total: Number(fila.total ?? 0) } : null;
+}
+
+/**
+ * Resumen del cobro para que el BOT no invente. Sin esto, el cliente escribía
+ * "ya pagué" y el bot le contestaba "pago confirmado" sin que el banco hubiera
+ * acreditado nada.
+ */
+export async function contextoDeCobro(phone: string): Promise<string> {
+  const fila = await queryOne<{ code: string; pagado: boolean; conQr: boolean; total: string | null }>(
+    `SELECT code, (paid_at IS NOT NULL) AS pagado, (qr_correlativo IS NOT NULL) AS "conQr",
+            (SELECT sum(qty * unit_price)::text FROM order_items i WHERE i.order_id = o.id) AS total
+       FROM orders o
+      WHERE o.phone = $1 AND o.channel = 'whatsapp' AND o.status <> 'cancelado'
+      ORDER BY o.created_at DESC LIMIT 1`,
+    [phone]
+  );
+  if (!fila) return "";
+  if (fila.pagado) {
+    return `Estado del cobro: el pedido ${fila.code} está PAGADO y verificado por el banco. Podés confirmar la entrega.`;
+  }
+  return [
+    `Estado del cobro: el pedido ${fila.code} por Bs ${Number(fila.total ?? 0)} está PENDIENTE DE PAGO`,
+    fila.conQr ? "(ya se le mandó el QR)" : "(todavía no se le mandó el QR)",
+    "— el banco NO lo acreditó.",
+    "Si el cliente dice que ya pagó, NO se lo confirmes: decile que estás verificando y que en cuanto se acredite le avisás.",
+    "El sistema le manda la confirmación solo cuando el banco la acredita.",
+  ].join(" ");
+}
+
 /** ¿Este pedido ya está cobrado? Lo usa la bandeja para mostrarlo. */
 export async function estadoCobro(orderCode: string) {
   return queryOne<{ code: string; paid_at: Date | null; sale_id: string | null }>(

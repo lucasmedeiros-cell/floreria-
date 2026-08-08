@@ -5,7 +5,11 @@ import {
   limpiarMarcadorPedido,
   type PedidoCreado,
 } from "./vendedorPedido";
-import { registrarCobro } from "./vendedorCobro";
+import {
+  contextoDeCobro,
+  pedidoAbiertoDelTelefono,
+  registrarCobro,
+} from "./vendedorCobro";
 import {
   generateReply,
   readVendedorConfig,
@@ -176,7 +180,9 @@ export async function handleIncoming(
   }
 
   const history = await loadHistory(phone);
-  const { text: raw } = await generateReply(cfg, conv.name || name, history);
+  // Estado real del cobro: lo que evita que el bot dé por pagado lo que no está.
+  const contexto = await contextoDeCobro(phone).catch(() => "");
+  const { text: raw } = await generateReply(cfg, conv.name || name, history, contexto);
 
   // Marcador [PEDIDO:...]: el cliente confirmó, así que el pedido entra al POS.
   // Va ANTES de enviar para poder incluirle el código al cliente.
@@ -212,17 +218,18 @@ export async function handleIncoming(
     // Con pedido creado manda el total del catálogo y no el que escribió el
     // modelo: si se equivocó sumando, el cliente pagaría de más o de menos.
     const delModelo = Number(qrMatch[1]);
-    const amount = pedido ? pedido.total : delModelo;
-    if (pedido && Math.abs(delModelo - pedido.total) >= 1) {
+    const abierto = pedido ?? (await pedidoAbiertoDelTelefono(phone));
+    const amount = abierto ? abierto.total : delModelo;
+    if (abierto && Math.abs(delModelo - abierto.total) >= 1) {
       console.warn(
-        `[vendedor] el QR del modelo decía Bs ${delModelo} y el pedido ${pedido.code} suma Bs ${pedido.total}; cobro el del pedido`
+        `[vendedor] el QR del modelo decía Bs ${delModelo} y el pedido ${abierto.code} suma Bs ${abierto.total}; cobro el del pedido`
       );
     }
     if (amount > 0) {
       try {
         // La referencia va al extracto del banco: con el código del pedido se
         // puede conciliar el pago sin adivinar.
-        const referencia = pedido ? pedido.code : `Pedido ${conv.name || name}`;
+        const referencia = abierto ? abierto.code : `Pedido ${conv.name || name}`;
         const qr = await generarQR(amount, referencia);
         if (qr.ok && qr.qrImage) {
           const caption = `QR de pago · Bs ${amount}. Escanéalo desde la app de tu banco.${qr.expiration ? ` Vence: ${qr.expiration}.` : ""}`;
@@ -230,10 +237,14 @@ export async function handleIncoming(
           await saveOutgoing(phone, caption);
           // Queda anotado en el pedido: es con esto que después se le pregunta
           // al banco si pagaron, y sin esto el cobro no se puede cerrar solo.
-          if (pedido) {
-            await registrarCobro(pedido.code, qr.correlativo, qr.id, amount).catch((e) =>
-              console.warn(`[vendedor] no pude anotar el QR en ${pedido!.code}: ${e}`)
+          // Se anota en el pedido de este mensaje o, si ya existía, en el que
+          // está abierto: sin eso el QR sale y el cobro no se cierra nunca.
+          if (abierto) {
+            await registrarCobro(abierto.code, qr.correlativo, qr.id, amount).catch((e) =>
+              console.warn(`[vendedor] no pude anotar el QR en ${abierto.code}: ${e}`)
             );
+          } else {
+            console.warn(`[vendedor] mandé un QR a ${phone} sin pedido al que ligarlo`);
           }
         } else {
           const msg = "No pude generar el QR en este momento; un asesor te lo enviará enseguida.";

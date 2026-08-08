@@ -136,7 +136,8 @@ function systemPrompt(
   /** Persona y reglas del rubro activo (se usan si el panel no las personalizó). */
   persona: string,
   rubroGuidance: string,
-  noun: { one: string; many: string }
+  noun: { one: string; many: string },
+  contexto = ""
 ): string {
   // El SKU va en el catálogo porque es lo que el bot tiene que devolver en el
   // marcador [PEDIDO:...]: con el código, el pedido entra al POS con el producto
@@ -177,6 +178,7 @@ function systemPrompt(
     catalog || "(sin productos cargados)",
     "",
     `Estás conversando con ${contactName} por WhatsApp.`,
+    ...(contexto ? ["", contexto] : []),
   ].join("\n");
 }
 
@@ -293,7 +295,12 @@ function buildClient(): { client: Anthropic; headers?: Record<string, string> } 
 export async function generateReply(
   cfg: VendedorConfig,
   contactName: string,
-  history: { direction: string; body: string }[]
+  history: { direction: string; body: string }[],
+  /**
+   * Hechos del momento que el bot NO puede inventar (estado del cobro). Van al
+   * final del system prompt, que es donde más pesan.
+   */
+  contexto = ""
 ): Promise<{ text: string; simulated: boolean }> {
   const products = await loadCatalog();
   const business = await readBusinessConfig();
