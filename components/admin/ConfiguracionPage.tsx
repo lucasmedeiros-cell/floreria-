@@ -2,6 +2,7 @@
 
 import { NegocioEditor } from "./NegocioEditor";
 import { PromoEditor } from "./PromoEditor";
+import { EducarVendedorEditor } from "./EducarVendedorEditor";
 
 /**
  * Configuración — lo único que un negocio necesita tocar para que su tienda web
@@ -28,6 +29,12 @@ export function ConfiguracionPage() {
         {/* Rubro + datos del negocio: nombre, logo, categorías, contacto y pagos.
             El logo que se carga acá es el que sale en la tienda web y en la landing. */}
         <NegocioEditor />
+
+        {/* Educar al Vendedor 24/7: las indicaciones del negocio para el bot.
+            El encendido y el WhatsApp se administran desde el panel de easy pos;
+            lo que el bot tiene que SABER lo escribe el negocio, que es el que
+            conoce sus envíos, sus promos y sus límites. */}
+        <EducarVendedorEditor />
 
         {/* Landings promocionales (una o varias páginas públicas de oferta) */}
         <PromoEditor />

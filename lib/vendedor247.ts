@@ -31,6 +31,12 @@ export interface VendedorConfig {
   /** Persona / rol del asistente (primera línea del system prompt). */
   botPersona: string;
   /**
+   * Indicaciones del negocio para el bot: reglas, datos y límites que no salen
+   * del catálogo (envíos, promos vigentes, qué NO puede prometer). Es lo que se
+   * edita en Configuración → Educar al vendedor.
+   */
+  botInstructions: string;
+  /**
    * Palabra clave de activación. Vacío = responde siempre. Si se define, el bot
    * solo entra cuando el mensaje la contiene (o si la charla sigue "caliente").
    */
@@ -57,6 +63,7 @@ export const defaultVendedorConfig: VendedorConfig = {
   // Vacío = se usa la persona del rubro activo (ver botPersonaFor). El panel
   // permite escribir una propia y esa gana.
   botPersona: "",
+  botInstructions: "",
   activationKeyword: "",
   aiModel: "claude-haiku-4-5",
   paymentOptions: "QR / transferencia (BCP), tarjeta o efectivo contra entrega",
@@ -157,6 +164,12 @@ function systemPrompt(
     `- ${rubroGuidance}`,
     "- Si el cliente saluda o escribe algo corto o ambiguo, preséntate breve y pregunta en qué lo puedes ayudar. NUNCA te despidas ni uses frases como \"cuando quieras\", \"aquí estaré\" o \"si cambias de idea\", salvo que el cliente diga EXPLÍCITAMENTE que no quiere nada.",
     "- Haz avanzar la conversación pidiendo solo el dato que falta. No repitas el mismo mensaje.",
+    // Las indicaciones del negocio van DESPUÉS de las reglas del sistema y
+    // antes del catálogo: pesan más que las genéricas, pero no pueden pisar los
+    // marcadores del pedido y del cobro, que son los que hacen funcionar todo.
+    ...(cfg.botInstructions.trim()
+      ? ["", "Indicaciones del negocio (respetalas siempre):", cfg.botInstructions.trim()]
+      : []),
     "",
     "Catálogo disponible:",
     catalog || "(sin productos cargados)",

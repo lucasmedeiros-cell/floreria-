@@ -5,6 +5,7 @@ import {
   limpiarMarcadorPedido,
   type PedidoCreado,
 } from "./vendedorPedido";
+import { registrarCobro } from "./vendedorCobro";
 import {
   generateReply,
   readVendedorConfig,
@@ -223,6 +224,13 @@ export async function handleIncoming(
           const caption = `QR de pago · Bs ${amount}. Escanéalo desde la app de tu banco.${qr.expiration ? ` Vence: ${qr.expiration}.` : ""}`;
           await sender.sendImageBase64(phone, qr.qrImage, caption);
           await saveOutgoing(phone, caption);
+          // Queda anotado en el pedido: es con esto que después se le pregunta
+          // al banco si pagaron, y sin esto el cobro no se puede cerrar solo.
+          if (pedido) {
+            await registrarCobro(pedido.code, qr.correlativo, qr.id, amount).catch((e) =>
+              console.warn(`[vendedor] no pude anotar el QR en ${pedido!.code}: ${e}`)
+            );
+          }
         } else {
           const msg = "No pude generar el QR en este momento; un asesor te lo enviará enseguida.";
           await sender.sendText(phone, msg);

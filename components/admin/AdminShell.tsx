@@ -11,6 +11,7 @@ import {
   Menu,
   Moon,
   Package,
+  MessagesSquare,
   Receipt,
   Settings,
   ShoppingBag,
@@ -28,6 +29,7 @@ import { InicioScreen } from "./InicioScreen";
 import { VentasScreen } from "./VentasScreen";
 import { ClientsPage } from "./ClientsPage";
 import { HistorialPage } from "./HistorialPage";
+import { BandejaPage } from "./BandejaPage";
 import { ProveedorPage } from "./ProveedorPage";
 import { ProductsPage } from "./ProductsPage";
 import { ReportesPage } from "./ReportesPage";
@@ -51,6 +53,7 @@ export type Section =
   | "catalogo"
   | "proveedor"
   | "historial"
+  | "conversaciones"
   | "reportes"
   | "usuarios"
   | "configuracion";
@@ -73,6 +76,7 @@ const NAV: NavDef[] = [
   { s: "catalogo", icon: <Package size={19} />, label: "Inventario" },
   { s: "proveedor", icon: <ShoppingBag size={19} />, label: "Compras" },
   { s: "historial", icon: <Receipt size={19} />, label: "Historial" },
+  { s: "conversaciones", icon: <MessagesSquare size={19} />, label: "Conversaciones" },
   { s: "reportes", icon: <BarChart3 size={19} />, label: "Reportes" },
   { s: "usuarios", icon: <UsersRound size={19} />, label: "Usuarios", soloAdmin: true },
   { s: "configuracion", icon: <Settings size={19} />, label: "Configuración" },
@@ -145,6 +149,8 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
         return <ProveedorPage nuevo={nuevo} />;
       case "historial":
         return <HistorialPage />;
+      case "conversaciones":
+        return <BandejaPage />;
       case "reportes":
         return <ReportesPage />;
       case "usuarios":

@@ -52,6 +52,9 @@ export const POST = handler(async (req: NextRequest) => {
   const cfg: Partial<VendedorConfig> = {
     botEnabled: b.botEnabled ?? defaultVendedorConfig.botEnabled,
     botPersona: (b.botPersona ?? defaultVendedorConfig.botPersona).trim(),
+    // Las indicaciones se recortan: es el campo donde el negocio escribe libre y
+    // todo esto viaja en cada llamada al modelo.
+    botInstructions: (b.botInstructions ?? "").slice(0, 4000).trim(),
     activationKeyword: (b.activationKeyword ?? "").trim(),
     aiModel: (b.aiModel ?? defaultVendedorConfig.aiModel).trim() || defaultVendedorConfig.aiModel,
     paymentOptions: (b.paymentOptions ?? defaultVendedorConfig.paymentOptions).trim(),
