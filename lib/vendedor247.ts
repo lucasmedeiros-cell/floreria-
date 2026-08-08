@@ -347,11 +347,20 @@ export async function generateReply(
   }
 }
 
-/** Respuesta de ejemplo cuando no hay API key (modo demo). */
+/**
+ * Respuesta de ejemplo cuando la IA no está disponible.
+ *
+ * El aviso de "respuesta simulada" SOLO se agrega si no hay credenciales
+ * cargadas, o sea en desarrollo. Si hay credenciales y la llamada falló, el
+ * cliente no tiene por qué leer un mensaje para programadores: recibe un saludo
+ * normal y el error queda en el log y en la bandeja, para que una persona
+ * conteste.
+ */
 function mockReply(name: string, products: Product[], businessName = "la tienda"): string {
   const p = products[0];
-  const suffix =
-    " (respuesta simulada — configura ANTHROPIC_API_KEY para IA real)";
+  const suffix = aiConfigured()
+    ? ""
+    : " (respuesta simulada — configura las credenciales de IA)";
   if (p) {
     return `Hola ${name}, gracias por escribir a ${businessName}. Tenemos, por ejemplo, ${p.name} a Bs ${p.price}. ¿En qué te puedo ayudar?${suffix}`;
   }

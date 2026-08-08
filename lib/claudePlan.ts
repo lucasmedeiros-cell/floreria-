@@ -129,7 +129,10 @@ export async function runClaudePlan(
     "--output-format",
     "json",
     "--no-session-persistence",
-    "--exclude-dynamic-system-prompt-sections",
+    // OJO: no agregar flags nuevos sin verificarlos contra el CLI instalado en
+    // el servidor. `--exclude-dynamic-system-prompt-sections` no existe en la
+    // 2.1.87 de bilbo: el CLI salía con error, TODA respuesta fallaba y el bot
+    // caía a modo simulado — el cliente recibía el texto de desarrollo.
     "--model",
     planModelAlias(model),
     "--disallowedTools",
