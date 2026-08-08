@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { rm } from "node:fs/promises";
+import { rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { handleIncoming, type Sender } from "./vendedorEngine";
 import { estaActivo, isMultiTenant, negocioBySlug, runWithTenant } from "./tenant";
@@ -145,6 +145,24 @@ class BaileysManager {
     await rm(this.authDir(), { recursive: true, force: true }).catch(() => {});
   }
 
+  /**
+   * Mueve la sesión a un lado con la fecha, en vez de borrarla.
+   *
+   * OJO: nunca mover ni copiar la carpeta de sesión con el socket CONECTADO. El
+   * proceso vivo sigue escribiendo claves ahí, el siguiente arranca con
+   * credenciales a medias y WhatsApp revoca el dispositivo — hay que reescanear.
+   */
+  private async archivarSesion(): Promise<void> {
+    const dir = this.authDir();
+    const destino = `${dir}.revocada-${Date.now()}`;
+    try {
+      await rename(dir, destino);
+      console.warn(`[wa:baileys][${this.slug}] sesión archivada en ${destino}`);
+    } catch {
+      await rm(dir, { recursive: true, force: true }).catch(() => {});
+    }
+  }
+
   async start() {
     if (serverlessReadOnly()) {
       // Netlify/Lambda: FS de solo lectura, no se puede vincular WhatsApp aquí.
@@ -190,13 +208,19 @@ class BaileysManager {
           this.starting = false;
           const code = (lastDisconnect?.error as any)?.output?.statusCode;
           if (code === DisconnectReason?.loggedOut) {
-            console.warn("[wa:baileys] sesión cerrada; limpio credenciales, hace falta reescanear.");
+            console.warn(
+              `[wa:baileys][${this.slug}] WhatsApp revocó la sesión (401): hace falta reescanear el QR.`
+            );
             this.reconnectAttempts = 0;
-            await rm(this.authDir(), { recursive: true, force: true }).catch(() => {});
+            // Se ARCHIVA en vez de borrarse: si el 401 fue un accidente (dos
+            // procesos con las mismas credenciales, o mover la carpeta con el
+            // socket vivo) queda el rastro para entender qué pasó, y no se
+            // pierde en silencio.
+            await this.archivarSesion();
           } else {
             this.reconnectAttempts += 1;
             const delay = Math.min(60000, 3000 * 2 ** Math.min(this.reconnectAttempts - 1, 5));
-            console.warn(`[wa:baileys] conexión cerrada (code ${code ?? "n/a"}), reintento #${this.reconnectAttempts} en ${Math.round(delay / 1000)}s`);
+            console.warn(`[wa:baileys][${this.slug}] conexión cerrada (code ${code ?? "n/a"}), reintento #${this.reconnectAttempts} en ${Math.round(delay / 1000)}s`);
             setTimeout(() => this.start().catch(() => {}), delay);
           }
         }
@@ -299,7 +323,8 @@ export function sesionesGuardadas(): string[] {
   if (serverlessReadOnly()) return [];
   try {
     return readdirSync(AUTH_ROOT, { withFileTypes: true })
-      .filter((d) => d.isDirectory() && existsSync(join(AUTH_ROOT, d.name, "creds.json")))
+      .filter((d) => d.isDirectory() && !d.name.includes(".revocada-"))
+      .filter((d) => existsSync(join(AUTH_ROOT, d.name, "creds.json")))
       .map((d) => d.name);
   } catch {
     return [];
