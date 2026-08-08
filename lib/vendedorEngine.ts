@@ -199,7 +199,11 @@ export async function handleIncoming(
   // El código del pedido, para que el cliente tenga con qué reclamar y el
   // negocio con qué buscarlo en el CRM.
   if (pedido) {
-    const aviso = `Tu pedido quedó registrado con el código ${pedido.code} por Bs ${pedido.total}. Cualquier cosa, mencioná ese código.`;
+    // Con QR en camino el pedido está RESERVADO, no pagado: decirle "registrado"
+    // a secas hacía creer que ya estaba cerrado sin haber pagado nada.
+    const aviso = qrMatch
+      ? `Tu pedido ${pedido.code} quedó reservado por Bs ${pedido.total}. Te paso el QR para pagarlo y en cuanto se acredite te confirmo.`
+      : `Tu pedido quedó registrado con el código ${pedido.code} por Bs ${pedido.total}. Cualquier cosa, mencioná ese código.`;
     await sender.sendText(phone, aviso);
     await saveOutgoing(phone, aviso);
   }

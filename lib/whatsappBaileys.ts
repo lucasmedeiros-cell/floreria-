@@ -287,8 +287,7 @@ class BaileysManager {
       if (!msg.message || msg.key?.fromMe) continue;
       const jid: string = msg.key?.remoteJid ?? "";
       if (!jid || jid.endsWith("@g.us") || jid.includes("broadcast")) continue;
-      const text: string =
-        msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
+      const text = textoDelMensaje(msg.message);
       if (!text.trim()) continue;
 
       // Con LID, WhatsApp manda aparte el número real (`senderPn`). Se prefiere
@@ -333,6 +332,44 @@ class BaileysManager {
       } catch {}
     }
   }
+}
+
+/**
+ * Qué texto se le pasa al bot según el tipo de mensaje.
+ *
+ * Antes solo se leían los de texto y el resto se descartaba ENTERO: el cliente
+ * mandaba su ubicación por el clip, el bot no veía nada y le volvía a pedir la
+ * dirección. Las fotos con epígrafe pasaban lo mismo.
+ *
+ * Lo que el bot no puede leer (audio, sticker) se convierte en un aviso, así al
+ * menos contesta algo en vez de quedarse callado.
+ */
+function textoDelMensaje(m: any): string {
+  if (!m) return "";
+
+  const directo = m.conversation || m.extendedTextMessage?.text;
+  if (directo) return String(directo);
+
+  // Ubicación: se le pasa el enlace del mapa, que es lo que sirve para entregar.
+  const loc = m.locationMessage || m.liveLocationMessage;
+  if (loc?.degreesLatitude != null && loc?.degreesLongitude != null) {
+    const lat = Number(loc.degreesLatitude).toFixed(6);
+    const lng = Number(loc.degreesLongitude).toFixed(6);
+    const detalle = [loc.name, loc.address].filter(Boolean).join(", ");
+    return `Mi ubicación: https://maps.google.com/?q=${lat},${lng}${detalle ? ` (${detalle})` : ""}`;
+  }
+
+  // Foto o video con epígrafe: el epígrafe suele traer el pedido.
+  const conEpigrafe = m.imageMessage?.caption || m.videoMessage?.caption || m.documentMessage?.caption;
+  if (conEpigrafe) return String(conEpigrafe);
+
+  // Contacto compartido.
+  if (m.contactMessage?.displayName) return `Contacto: ${m.contactMessage.displayName}`;
+
+  if (m.audioMessage || m.pttMessage) return "[el cliente mandó un audio]";
+  if (m.stickerMessage) return "[el cliente mandó un sticker]";
+  if (m.imageMessage || m.videoMessage || m.documentMessage) return "[el cliente mandó un archivo]";
+  return "";
 }
 
 /**
