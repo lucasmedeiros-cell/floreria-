@@ -53,28 +53,39 @@ const norm = (s: string) =>
  * escribió el bot para que el PRECIO sea siempre el del catálogo: si el modelo
  * se equivoca en un número, el pedido igual entra bien.
  */
-async function resolverProducto(
-  referencia: string
-): Promise<{ id: string; name: string; price: number } | null> {
+type ProductoResuelto = { id: string; name: string; price: number; stock: number };
+
+async function resolverProducto(referencia: string): Promise<ProductoResuelto | null> {
   const ref = referencia.trim();
   if (!ref) return null;
 
-  const exacto = await queryOne<{ id: string; name: string; price: number }>(
-    `SELECT id, name, price FROM products
+  const exacto = await queryOne<ProductoResuelto>(
+    `SELECT id, name, price, coalesce(stock, 0) AS stock FROM products
       WHERE lower(id) = lower($1) OR lower(name) = lower($1)
       LIMIT 1`,
     [ref]
   );
   if (exacto) return exacto;
 
-  const parecido = await queryOne<{ id: string; name: string; price: number }>(
-    `SELECT id, name, price FROM products
+  const parecido = await queryOne<ProductoResuelto>(
+    `SELECT id, name, price, coalesce(stock, 0) AS stock FROM products
       WHERE COALESCE(status, 'activo') = 'activo' AND name ILIKE '%' || $1 || '%'
       ORDER BY length(name) ASC
       LIMIT 1`,
     [ref]
   );
   return parecido ?? null;
+}
+
+/**
+ * ¿El negocio lleva inventario? Si NINGÚN producto tiene stock, no lo lleva, y
+ * entonces no se puede usar el stock para limitar el pedido: se rechazaría todo.
+ */
+async function llevaStock(): Promise<boolean> {
+  const fila = await queryOne<{ n: string }>(
+    `SELECT count(*)::text AS n FROM products WHERE coalesce(stock, 0) > 0`
+  );
+  return Number(fila?.n ?? 0) > 0;
 }
 
 /** "2xHHG-30" | "2 x HHG-30" | "HHG-30 x2" → { ref, qty } */
@@ -110,6 +121,7 @@ export async function crearPedidoDesdeMarcador(
   const direccion = partes[1] ?? "";
   const nombre = (partes[2] || nombreContacto || "").trim() || "Cliente de WhatsApp";
 
+  const conStock = await llevaStock();
   const items: ItemPedido[] = [];
   for (const crudo of itemsCrudos) {
     const partido = partirItem(crudo);
@@ -119,16 +131,38 @@ export async function crearPedidoDesdeMarcador(
       console.warn(`[vendedor] pedido: no encontré "${partido.ref}" en el catálogo, lo salteo`);
       continue;
     }
-    // Si el bot repite el mismo producto, se suman las cantidades.
+
+    let qty = Math.max(1, partido.qty);
+
+    // El pedido no puede llevarse más de lo que hay: si no, la venta deja el
+    // inventario en negativo y se prometió algo que no se puede entregar.
+    // Solo aplica si el negocio lleva stock (si no, todo estaría en cero).
+    if (conStock) {
+      if (prod.stock <= 0) {
+        console.warn(`[vendedor] pedido: ${prod.id} sin stock, no lo cargo`);
+        continue;
+      }
+      if (qty > prod.stock) {
+        console.warn(
+          `[vendedor] pedido: pidieron ${qty} de ${prod.id} y hay ${prod.stock}; cargo ${prod.stock}`
+        );
+        qty = prod.stock;
+      }
+    }
+
+    // Si el bot repite el mismo producto, se suman las cantidades (sin pasarse
+    // del stock disponible).
     const ya = items.find((i) => i.productId === prod.id);
-    if (ya) ya.qty += Math.max(1, partido.qty);
-    else
+    if (ya) {
+      ya.qty = conStock ? Math.min(prod.stock, ya.qty + qty) : ya.qty + qty;
+    } else {
       items.push({
         productId: prod.id,
         name: prod.name,
-        qty: Math.max(1, partido.qty),
+        qty,
         unitPrice: Number(prod.price) || 0,
       });
+    }
   }
 
   if (!items.length) {

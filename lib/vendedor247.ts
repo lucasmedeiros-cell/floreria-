@@ -139,12 +139,23 @@ function systemPrompt(
   noun: { one: string; many: string },
   contexto = ""
 ): string {
+  // ¿El negocio lleva inventario? Si TODOS los productos están en cero, no lo
+  // lleva (Long Chang, por ejemplo, vende sin cargar stock). En ese caso filtrar
+  // por stock le dejaría el catálogo vacío y el bot no podría vender nada.
+  const llevaStock = products.some((p) => (p.stock ?? 0) > 0);
+  const disponibles = llevaStock ? products.filter((p) => (p.stock ?? 0) > 0) : products;
+
   // El SKU va en el catálogo porque es lo que el bot tiene que devolver en el
   // marcador [PEDIDO:...]: con el código, el pedido entra al POS con el producto
   // y el precio correctos, sin depender de cómo escribió el nombre.
-  const catalog = products
+  // Lo que no tiene stock NO se lista: si no está acá, el bot no lo ofrece.
+  const catalog = disponibles
     .slice(0, 20)
-    .map((p) => `- [${p.id}] ${p.name} (${p.category}): Bs ${p.price}`)
+    .map(
+      (p) =>
+        `- [${p.id}] ${p.name} (${p.category}): Bs ${p.price}` +
+        (llevaStock ? ` · quedan ${p.stock}` : "")
+    )
     .join("\n");
 
   return [
@@ -163,6 +174,11 @@ function systemPrompt(
     "- Después de mandar el QR, decile que el pedido queda reservado y que en cuanto se acredite el pago se lo confirmás. NO afirmes que el pago ya entró: eso lo confirma el sistema solo.",
     "- Revisa lo que el cliente YA te dijo (dirección, fecha, dedicatoria, teléfono, forma de pago) y NO se lo vuelvas a preguntar. Pregunta solo lo que falta.",
     "- No inventes productos ni precios fuera del catálogo.",
+    ...(llevaStock
+      ? [
+          "- STOCK: el catálogo dice cuántas unidades quedan de cada producto. NO ofrezcas ni aceptes más unidades de las que quedan, y si el cliente pide más, decile cuántas hay y ofrecele esa cantidad. Lo que NO aparece en el catálogo es porque no hay stock: no lo ofrezcas ni prometas conseguirlo.",
+        ]
+      : []),
     "- SIEMPRE responde a lo que el cliente escribe, sugiriendo opciones del catálogo con su precio.",
     `- ${rubroGuidance}`,
     "- Si el cliente saluda o escribe algo corto o ambiguo, preséntate breve y pregunta en qué lo puedes ayudar. NUNCA te despidas ni uses frases como \"cuando quieras\", \"aquí estaré\" o \"si cambias de idea\", salvo que el cliente diga EXPLÍCITAMENTE que no quiere nada.",
