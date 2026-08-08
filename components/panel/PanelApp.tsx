@@ -646,6 +646,10 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
   const [waNums, setWaNums] = useState<WaNumeroRow[]>([]);
   const [nuevoWa, setNuevoWa] = useState({ phoneNumberId: "", numero: "", etiqueta: "" });
   const [bl, setBl] = useState<BaileysRow | null>(null);
+  // El formulario de Meta arranca oculto mientras no haya alta oficial: si va
+  // primero, parece que el phone_number_id es obligatorio para empezar, y no lo
+  // es — con el QR el bot atiende hoy.
+  const [mostrarMeta, setMostrarMeta] = useState(false);
   const [vend, setVend] = useState<VendedorRow>({ botEnabled: false, botPersona: "" });
 
   const cargar = useCallback(async () => {
@@ -680,6 +684,18 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
     cargar();
   }, [cargar]);
 
+  // El QR llega unos segundos DESPUÉS de pedirlo y además rota cada ~20 s. Sin
+  // este refresco, el panel se quedaba en "generando" o mostraba un QR vencido
+  // que el teléfono ya no acepta.
+  const esperandoQr = !!bl && !bl.connected && bl.available !== false;
+  useEffect(() => {
+    if (!esperandoQr) return;
+    const t = setInterval(() => {
+      api<BaileysRow>("baileysEstado", {}).then(setBl).catch(() => {});
+    }, 3000);
+    return () => clearInterval(t);
+  }, [esperandoQr]);
+
   const accion = async (nombre: string, fn: () => Promise<unknown>, exito?: string) => {
     setBusy(nombre);
     setErr("");
@@ -705,6 +721,7 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
     );
 
   const crm = `/n/${neg.slug}`;
+  const sinMeta = waNums.filter((w) => w.activo).length === 0;
 
   return (
     <div className="space-y-5">
@@ -898,7 +915,83 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
         <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-faint">
           WhatsApp del Vendedor 24/7
         </h3>
-        <div className="mb-4 grid items-end gap-3 sm:grid-cols-4">
+
+        {/* El QR va PRIMERO: es el camino que sirve hoy. Con el formulario de
+            Meta arriba parecía que el phone_number_id era obligatorio para
+            arrancar, y no lo es. */}
+        {sinMeta && (
+          <div className="rounded-xl border border-line bg-surface2/40 p-4">
+            <h4 className="text-[13px] font-bold text-ink">
+              Vincular el WhatsApp por QR
+            </h4>
+            <p className="mt-1 text-xs text-ink2">
+              Se vincula un número normal, como un dispositivo más de WhatsApp. Anda hoy mismo, sin
+              esperar a Meta, pero <b>no es el canal oficial</b>: usá una línea dedicada al bot,
+              porque existe riesgo de que la bloqueen.
+            </p>
+
+            {bl?.available === false ? (
+              <p className="mt-3 text-xs text-error">{bl.error}</p>
+            ) : bl?.connected ? (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <span className="text-sm font-semibold text-success">
+                  ✓ Vinculado{bl.number ? ` · +${bl.number}` : ""}
+                </span>
+                <ConfirmBtn
+                  label="Desvincular"
+                  confirm="¿Desvincular? El bot deja de recibir por ese número."
+                  onDo={() =>
+                    accion(
+                      "wa",
+                      async () => setBl(await api<BaileysRow>("baileysLogout", {})),
+                      "WhatsApp desvinculado."
+                    )
+                  }
+                />
+              </div>
+            ) : bl?.qr ? (
+              <div className="mt-3 flex flex-col items-center gap-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={bl.qr} alt="QR para vincular WhatsApp" className="h-56 w-56 rounded-xl bg-white p-2" />
+                <p className="text-xs text-ink2">
+                  En el teléfono: WhatsApp → Dispositivos vinculados → Vincular un dispositivo.
+                </p>
+                <button className={btnGhost} onClick={() => api<BaileysRow>("baileysEstado", {}).then(setBl)}>
+                  Ya lo escaneé
+                </button>
+              </div>
+            ) : (
+              <>
+              {bl?.status === "connecting" && (
+                <p className="mt-3 text-xs text-ink2">Generando el QR…</p>
+              )}
+              <button
+                className={`${btnPrimary} mt-3`}
+                disabled={!!busy}
+                onClick={() =>
+                  accion("wa", async () => {
+                    setBl(await api<BaileysRow>("baileysStart", {}));
+                  }, "Generando el QR… aparece en unos segundos.")
+                }
+              >
+                {bl?.status === "connecting" ? "Generando…" : "Generar QR"}
+              </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {sinMeta && !mostrarMeta && (
+          <button
+            className="mt-4 text-xs font-semibold text-ink2 underline hover:text-ink"
+            onClick={() => setMostrarMeta(true)}
+          >
+            Ya tengo el alta oficial de Meta →
+          </button>
+        )}
+
+        {(!sinMeta || mostrarMeta) && (
+        <div className="mb-4 mt-4 grid items-end gap-3 sm:grid-cols-4">
           <Field label="ID del número (Meta)">
             <input
               className={input}
@@ -940,12 +1033,9 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
             Asociar número
           </button>
         </div>
+        )}
 
-        {waNums.length === 0 ? (
-          <p className="text-sm text-ink2">
-            Sin número todavía: el Vendedor 24/7 de este negocio no recibe mensajes.
-          </p>
-        ) : (
+        {waNums.length === 0 ? null : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead>
@@ -1015,67 +1105,14 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
             </table>
           </div>
         )}
-        <p className="mt-3 text-xs text-faint">
-          El <b>ID del número</b> sale del panel de Meta (WhatsApp → Configuración de la API), y no es
-          el número: es el <code>phone_number_id</code>. Es lo que llega en cada mensaje y lo que
-          permite saber a qué negocio contestar. Un negocio puede tener uno o dos.
-        </p>
-
-        {/* Puente por QR: sirve mientras no haya alta oficial en Meta. */}
-        {waNums.filter((w) => w.activo).length === 0 && (
-          <div className="mt-5 rounded-xl border border-dashed border-line p-4">
-            <h4 className="text-[13px] font-bold text-ink">
-              Mientras tanto: vincular un WhatsApp por QR
-            </h4>
-            <p className="mt-1 text-xs text-ink2">
-              Se vincula un número normal, como un dispositivo más de WhatsApp. Anda hoy mismo, sin
-              esperar a Meta, pero <b>no es el canal oficial</b>: usá una línea dedicada al bot,
-              porque existe riesgo de que la bloqueen.
-            </p>
-
-            {bl?.available === false ? (
-              <p className="mt-3 text-xs text-error">{bl.error}</p>
-            ) : bl?.connected ? (
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <span className="text-sm font-semibold text-success">
-                  ✓ Vinculado{bl.number ? ` · +${bl.number}` : ""}
-                </span>
-                <ConfirmBtn
-                  label="Desvincular"
-                  confirm="¿Desvincular? El bot deja de recibir por ese número."
-                  onDo={() =>
-                    accion(
-                      "wa",
-                      async () => setBl(await api<BaileysRow>("baileysLogout", {})),
-                      "WhatsApp desvinculado."
-                    )
-                  }
-                />
-              </div>
-            ) : bl?.qr ? (
-              <div className="mt-3 flex flex-col items-center gap-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={bl.qr} alt="QR para vincular WhatsApp" className="h-56 w-56 rounded-xl bg-white p-2" />
-                <p className="text-xs text-ink2">
-                  En el teléfono: WhatsApp → Dispositivos vinculados → Vincular un dispositivo.
-                </p>
-                <button className={btnGhost} onClick={() => api<BaileysRow>("baileysEstado", {}).then(setBl)}>
-                  Ya lo escaneé
-                </button>
-              </div>
-            ) : (
-              <button
-                className={`${btnPrimary} mt-3`}
-                disabled={!!busy}
-                onClick={() =>
-                  accion("wa", async () => setBl(await api<BaileysRow>("baileysStart", {})))
-                }
-              >
-                Generar QR
-              </button>
-            )}
-          </div>
+        {(!sinMeta || mostrarMeta) && (
+          <p className="mt-3 text-xs text-faint">
+            El <b>ID del número</b> sale del panel de Meta (WhatsApp → Configuración de la API), y
+            no es el número: es el <code>phone_number_id</code>. Es lo que llega en cada mensaje y lo
+            que permite saber a qué negocio contestar. Un negocio puede tener uno o dos.
+          </p>
         )}
+
       </section>
 
       {/* El bot: encendido y personalidad */}
