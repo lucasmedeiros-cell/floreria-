@@ -1,6 +1,11 @@
 import { query, queryOne } from "./db";
 import { generarQR } from "./baas";
 import {
+  crearPedidoDesdeMarcador,
+  limpiarMarcadorPedido,
+  type PedidoCreado,
+} from "./vendedorPedido";
+import {
   generateReply,
   readVendedorConfig,
   type VendedorConfig,
@@ -172,18 +177,48 @@ export async function handleIncoming(
   const history = await loadHistory(phone);
   const { text: raw } = await generateReply(cfg, conv.name || name, history);
 
+  // Marcador [PEDIDO:...]: el cliente confirmó, así que el pedido entra al POS.
+  // Va ANTES de enviar para poder incluirle el código al cliente.
+  let pedido: PedidoCreado | null = null;
+  try {
+    pedido = await crearPedidoDesdeMarcador(raw, phone, conv.name || name);
+  } catch (e) {
+    // Que falle el alta no puede dejar al cliente sin respuesta.
+    console.warn(`[vendedor] no pude crear el pedido: ${e}`);
+  }
+
   // Marcador [QR:monto]: cobra por QR. Se limpia del texto visible.
   const qrMatch = raw.match(/\[QR:\s*([\d.]+)\]/i);
-  const body = raw.replace(/\[QR:[^\]]*\]/gi, "").trim() || "Perfecto.";
+  const body =
+    limpiarMarcadorPedido(raw.replace(/\[QR:[^\]]*\]/gi, "")).trim() || "Perfecto.";
 
   await sender.sendText(phone, body);
   await saveOutgoing(phone, body);
 
+  // El código del pedido, para que el cliente tenga con qué reclamar y el
+  // negocio con qué buscarlo en el CRM.
+  if (pedido) {
+    const aviso = `Tu pedido quedó registrado con el código ${pedido.code} por Bs ${pedido.total}. Cualquier cosa, mencioná ese código.`;
+    await sender.sendText(phone, aviso);
+    await saveOutgoing(phone, aviso);
+  }
+
   if (qrMatch) {
-    const amount = Number(qrMatch[1]);
+    // Con pedido creado manda el total del catálogo y no el que escribió el
+    // modelo: si se equivocó sumando, el cliente pagaría de más o de menos.
+    const delModelo = Number(qrMatch[1]);
+    const amount = pedido ? pedido.total : delModelo;
+    if (pedido && Math.abs(delModelo - pedido.total) >= 1) {
+      console.warn(
+        `[vendedor] el QR del modelo decía Bs ${delModelo} y el pedido ${pedido.code} suma Bs ${pedido.total}; cobro el del pedido`
+      );
+    }
     if (amount > 0) {
       try {
-        const qr = await generarQR(amount, `Pedido ${conv.name || name}`);
+        // La referencia va al extracto del banco: con el código del pedido se
+        // puede conciliar el pago sin adivinar.
+        const referencia = pedido ? pedido.code : `Pedido ${conv.name || name}`;
+        const qr = await generarQR(amount, referencia);
         if (qr.ok && qr.qrImage) {
           const caption = `QR de pago · Bs ${amount}. Escanéalo desde la app de tu banco.${qr.expiration ? ` Vence: ${qr.expiration}.` : ""}`;
           await sender.sendImageBase64(phone, qr.qrImage, caption);

@@ -131,9 +131,12 @@ function systemPrompt(
   rubroGuidance: string,
   noun: { one: string; many: string }
 ): string {
+  // El SKU va en el catálogo porque es lo que el bot tiene que devolver en el
+  // marcador [PEDIDO:...]: con el código, el pedido entra al POS con el producto
+  // y el precio correctos, sin depender de cómo escribió el nombre.
   const catalog = products
     .slice(0, 20)
-    .map((p) => `- ${p.name} (${p.category}): Bs ${p.price}`)
+    .map((p) => `- [${p.id}] ${p.name} (${p.category}): Bs ${p.price}`)
     .join("\n");
 
   return [
@@ -146,6 +149,7 @@ function systemPrompt(
     `- Orienta a cerrar la venta: sugiere un ${noun.one} del catálogo y ofrece tomar el pedido.`,
     "- Para concretar la entrega pide solo lo que falte: a quién va dirigido, dirección de entrega, fecha y hora, y teléfono de contacto.",
     `- Formas de pago disponibles: ${cfg.paymentOptions}. Si el cliente pregunta cómo pagar, ofrécelas.`,
+    "- TOMAR EL PEDIDO: cuando el cliente CONFIRME qué quiere llevar, termina tu mensaje con el marcador EXACTO [PEDIDO: cantidadxSKU, cantidadxSKU | dirección | nombre del cliente], usando los SKU entre corchetes del catálogo. Ejemplo: [PEDIDO: 2xR208, 1xR115 | Av. Cristo Redentor 123 | Juan Pérez]. Si todavía no sabés la dirección o el nombre, dejá esa parte vacía pero mantené las barras. No expliques ni menciones el marcador: el sistema registra el pedido solo. Úsalo UNA sola vez por pedido, recién cuando el cliente ya confirmó.",
     "- COBRO POR QR: cuando el cliente confirme el pedido y quiera pagar por QR o transferencia, termina tu mensaje con el marcador EXACTO [QR:MONTO] usando el total en número, por ejemplo [QR:600]. No expliques ni menciones el marcador: el sistema genera y ENVÍA el QR real del banco automáticamente. Úsalo UNA sola vez por pedido.",
     "- Revisa lo que el cliente YA te dijo (dirección, fecha, dedicatoria, teléfono, forma de pago) y NO se lo vuelvas a preguntar. Pregunta solo lo que falta.",
     "- No inventes productos ni precios fuera del catálogo.",
