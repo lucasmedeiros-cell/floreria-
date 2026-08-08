@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { handleIncoming, type Sender } from "./vendedorEngine";
@@ -6,6 +6,11 @@ import { estaActivo, isMultiTenant, negocioBySlug, runWithTenant } from "./tenan
 
 /**
  * Transporte WhatsApp por BAILEYS (número normal, se vincula por QR).
+ *
+ * Hay UNA SESIÓN POR NEGOCIO: cada negocio vincula su propio número desde su
+ * ficha, y los mensajes de ese número se atienden contra LA BASE DE ESE NEGOCIO.
+ * La sesión de cada uno vive en su propia carpeta (`.wa-auth/<slug>`), así que
+ * dos negocios pueden tener el bot andando a la vez sin pisarse.
  *
  * Corre como un proceso persistente (ideal en local con `npm run dev` o en
  * bilbo con pm2). NO sirve para serverless (Netlify). Riesgo de baneo de Meta:
@@ -17,8 +22,11 @@ import { estaActivo, isMultiTenant, negocioBySlug, runWithTenant } from "./tenan
 
 type Status = "idle" | "connecting" | "qr" | "open" | "closed" | "unavailable";
 
-// Carpeta de la sesión de WhatsApp. Configurable con WA_AUTH_DIR.
-const AUTH_DIR = join(process.env.WA_AUTH_DIR || process.cwd(), ".wa-auth");
+// Raíz de las sesiones. Cada negocio guarda la suya en `<raíz>/<slug>`.
+const AUTH_ROOT = join(process.env.WA_AUTH_DIR || process.cwd(), ".wa-auth");
+
+/** Instalación de un solo negocio (sin central): la sesión va en `default`. */
+const SLUG_UNICO = "default";
 
 /**
  * ¿Estamos en un entorno serverless con filesystem de solo lectura (Netlify /
@@ -34,16 +42,27 @@ function serverlessReadOnly(): boolean {
   );
 }
 
-// Singleton entre recargas de módulo (HMR de Next.js en dev).
-const g = globalThis as unknown as { __waBaileys?: BaileysManager };
+// Un manager por negocio, conservado entre recargas de módulo (HMR de Next).
+const g = globalThis as unknown as { __waBaileysPorNegocio?: Map<string, BaileysManager> };
 
 class BaileysManager {
+  /** Slug del negocio dueño de esta sesión. */
+  readonly slug: string;
   private sock: any = null;
   private qrDataUrl: string | null = null;
   private status: Status = "idle";
   private starting = false;
   private reconnectAttempts = 0;
   private lastError: string | null = null;
+
+  constructor(slug: string) {
+    this.slug = slug || SLUG_UNICO;
+  }
+
+  /** Carpeta de credenciales de ESTE negocio. */
+  private authDir(): string {
+    return join(AUTH_ROOT, this.slug);
+  }
 
   getStatus() {
     const available = !serverlessReadOnly();
@@ -77,7 +96,7 @@ class BaileysManager {
     if (live) return live;
     if (serverlessReadOnly()) return null;
     try {
-      const creds = JSON.parse(readFileSync(join(AUTH_DIR, "creds.json"), "utf8"));
+      const creds = JSON.parse(readFileSync(join(this.authDir(), "creds.json"), "utf8"));
       return parse(creds?.me?.id);
     } catch {
       return null;
@@ -123,7 +142,7 @@ class BaileysManager {
     this.sock = null;
     this.status = "idle";
     this.qrDataUrl = null;
-    await rm(AUTH_DIR, { recursive: true, force: true }).catch(() => {});
+    await rm(this.authDir(), { recursive: true, force: true }).catch(() => {});
   }
 
   async start() {
@@ -143,7 +162,7 @@ class BaileysManager {
       const QRCode = (await import("qrcode")).default ?? (await import("qrcode"));
       const pino = (await import("pino")).default ?? (await import("pino"));
 
-      const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+      const { state, saveCreds } = await useMultiFileAuthState(this.authDir());
       this.status = "connecting";
       this.sock = makeWASocket({
         auth: state,
@@ -158,13 +177,13 @@ class BaileysManager {
         if (qr) {
           this.qrDataUrl = await (QRCode as any).toDataURL(qr);
           this.status = "qr";
-          console.log("[wa:baileys] QR generado — escanéalo desde WhatsApp");
+          console.log(`[wa:baileys][${this.slug}] QR generado — escanéalo desde WhatsApp`);
         }
         if (connection === "open") {
           this.status = "open";
           this.qrDataUrl = null;
           this.reconnectAttempts = 0;
-          console.log("[wa:baileys] ✅ WhatsApp conectado");
+          console.log(`[wa:baileys][${this.slug}] ✅ WhatsApp conectado`);
         }
         if (connection === "close") {
           this.status = "closed";
@@ -173,7 +192,7 @@ class BaileysManager {
           if (code === DisconnectReason?.loggedOut) {
             console.warn("[wa:baileys] sesión cerrada; limpio credenciales, hace falta reescanear.");
             this.reconnectAttempts = 0;
-            await rm(AUTH_DIR, { recursive: true, force: true }).catch(() => {});
+            await rm(this.authDir(), { recursive: true, force: true }).catch(() => {});
           } else {
             this.reconnectAttempts += 1;
             const delay = Math.min(60000, 3000 * 2 ** Math.min(this.reconnectAttempts - 1, 5));
@@ -222,9 +241,9 @@ class BaileysManager {
         await this.sock.sendPresenceUpdate("composing", jid);
       } catch {}
 
-      await atenderComoNegocio(() =>
+      await atenderComoNegocio(this.slug, () =>
         handleIncoming(phone, name, text, campaign, this.sender).then(() => undefined)
-      ).catch((e) => console.warn(`[wa:baileys] handle: ${e}`));
+      ).catch((e) => console.warn(`[wa:baileys][${this.slug}] handle: ${e}`));
 
       try {
         await this.sock.sendPresenceUpdate("paused", jid);
@@ -234,45 +253,55 @@ class BaileysManager {
 }
 
 /**
- * Corre el motor dentro de la base del negocio dueño de este WhatsApp.
+ * Corre el motor dentro de la base del negocio dueño de ESTA sesión.
  *
- * A diferencia del webhook de Meta, acá el mensaje NO llega por una request: lo
+ * A diferencia del webhook de Meta, el mensaje no llega por una request: lo
  * dispara el socket, fuera de todo contexto. Sin esto, `query()` cae al pool por
  * defecto y el bot leería el catálogo —y guardaría las conversaciones— en la
  * base equivocada, sin que nadie se entere.
  *
- * Baileys es un socket por proceso, así que el dueño se declara en el entorno:
- * `WA_BAILEYS_NEGOCIO=<slug>`. En una instalación de un solo negocio no hace
- * falta (no hay central y la base por defecto ES la del negocio).
- *
- * Si hay varios negocios y el dueño no está declarado o no resuelve, **no se
- * contesta**: es preferible el silencio a contestarle a un cliente con los
- * precios de otro negocio.
+ * El dueño es el negocio desde cuya ficha se vinculó el número: va en el slug de
+ * la sesión. Si ese negocio no existe o está suspendido, NO se contesta: es
+ * preferible el silencio a contestarle a un cliente con los precios de otro.
  */
-async function atenderComoNegocio(fn: () => Promise<void>): Promise<void> {
-  if (!isMultiTenant()) return fn();
-
-  const slug = (process.env.WA_BAILEYS_NEGOCIO ?? "").trim();
-  if (!slug) {
-    console.warn(
-      "[wa:baileys] hay varios negocios y WA_BAILEYS_NEGOCIO no está definida: mensaje ignorado"
-    );
-    return;
-  }
+async function atenderComoNegocio(slug: string, fn: () => Promise<void>): Promise<void> {
+  if (!isMultiTenant() || slug === SLUG_UNICO) return fn();
 
   const negocio = await negocioBySlug(slug);
   if (!negocio) {
-    console.warn(`[wa:baileys] el negocio "${slug}" no existe en la central: mensaje ignorado`);
+    console.warn(`[wa:baileys][${slug}] ese negocio no existe en la central: mensaje ignorado`);
     return;
   }
   if (!estaActivo(negocio)) {
-    console.warn(`[wa:baileys] negocio ${negocio.slug} ${negocio.estado}: no atiende`);
+    console.warn(`[wa:baileys][${slug}] negocio ${negocio.estado}: no atiende`);
     return;
   }
   return runWithTenant(negocio, fn);
 }
 
-export function baileys(): BaileysManager {
-  if (!g.__waBaileys) g.__waBaileys = new BaileysManager();
-  return g.__waBaileys;
+/** El manager del negocio (uno por slug). Sin slug, la instalación única. */
+export function baileys(slug?: string | null): BaileysManager {
+  const clave = (slug ?? "").trim() || SLUG_UNICO;
+  const mapa = (g.__waBaileysPorNegocio ??= new Map<string, BaileysManager>());
+  let m = mapa.get(clave);
+  if (!m) {
+    m = new BaileysManager(clave);
+    mapa.set(clave, m);
+  }
+  return m;
+}
+
+/**
+ * Slugs con sesión guardada en disco. Lo usa el arranque para reconectar TODAS
+ * las que había, sin tener que anotarlas en ningún lado.
+ */
+export function sesionesGuardadas(): string[] {
+  if (serverlessReadOnly()) return [];
+  try {
+    return readdirSync(AUTH_ROOT, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && existsSync(join(AUTH_ROOT, d.name, "creds.json")))
+      .map((d) => d.name);
+  } catch {
+    return [];
+  }
 }

@@ -1,6 +1,6 @@
 import type { Sender } from "./vendedorEngine";
 import { cloudSenderFor } from "./whatsappCloud";
-import { currentTenant, isMultiTenant, waNumerosDeNegocio } from "./tenant";
+import { currentTenant, waNumerosDeNegocio } from "./tenant";
 
 /**
  * Por dónde le escribe el sistema a un cliente cuando NO es una respuesta del
@@ -24,15 +24,9 @@ export async function senderDelNegocio(): Promise<Sender | null> {
     }
   }
 
-  // 2. El puente por QR. Solo si es el WhatsApp de ESTE negocio: con varios
-  //    negocios en la misma instalación, el socket es de uno solo y mandar por
-  //    ahí el aviso de otro sería escribirle al cliente desde el número
-  //    equivocado.
-  const slug = (process.env.WA_BAILEYS_NEGOCIO ?? "").trim();
-  const esSuyo = !isMultiTenant() || (!!negocio && slug === negocio.slug);
-  if (!esSuyo) return null;
-
+  // 2. El puente por QR: la sesión de ESTE negocio. Cada uno tiene la suya, así
+  //    que nunca se le escribe a un cliente desde el número de otro.
   const { baileys } = await import("./whatsappBaileys");
-  const wa = baileys();
+  const wa = baileys(negocio?.slug);
   return wa.getStatus().connected ? wa.sender : null;
 }

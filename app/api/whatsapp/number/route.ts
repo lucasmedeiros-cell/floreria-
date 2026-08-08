@@ -26,6 +26,7 @@ export const GET = handler(async () => {
     if (atendiendo) return ok({ phone: atendiendo.numero, connected: true });
   }
 
-  const wa = baileys();
+  // La sesión por QR es la del negocio de esta request, no una global.
+  const wa = baileys(negocio?.slug);
   return ok({ phone: wa.getNumber(), connected: wa.getStatus().connected });
 });

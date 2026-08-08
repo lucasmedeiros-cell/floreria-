@@ -438,7 +438,8 @@ export async function POST(req: NextRequest) {
       // Import perezoso: Baileys abre sockets y carga binarios nativos, no hay
       // que tocarlo salvo que el panel lo pida expresamente.
       const { baileys } = await import("@/lib/whatsappBaileys");
-      const wa = baileys();
+      // La sesión es del negocio de esta ficha: cada uno vincula su número.
+      const wa = baileys(cleanSlug(body.slug));
       if (action === "baileysStart") await wa.start();
       if (action === "baileysLogout") {
         await wa.logout();

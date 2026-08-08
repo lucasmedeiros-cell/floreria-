@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { bad, handler, ok, unauthorized } from "@/lib/api";
 import { getSession } from "@/lib/auth";
 import { baileys } from "@/lib/whatsappBaileys";
+import { currentTenant } from "@/lib/tenant";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ export const dynamic = "force-dynamic";
 // GET /api/whatsapp/baileys
 export const GET = handler(async () => {
   if (!getSession("employee")) return unauthorized();
-  const wa = baileys();
+  const wa = baileys(currentTenant()?.negocio.slug);
   return ok({ ...wa.getStatus(), qr: wa.getQr() });
 });
 
@@ -26,7 +27,7 @@ export const GET = handler(async () => {
 export const POST = handler(async (req: NextRequest) => {
   if (!getSession("employee")) return unauthorized();
   const { action } = (await req.json().catch(() => ({}))) as { action?: string };
-  const wa = baileys();
+  const wa = baileys(currentTenant()?.negocio.slug);
 
   if (action === "start") {
     await wa.start();

@@ -667,7 +667,7 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
         botPersona: v.vendedor?.botPersona ?? "",
       });
       // El estado del QR se pide aparte: que falle no debe romper la ficha.
-      api<BaileysRow>("baileysEstado", {}).then(setBl).catch(() => {});
+      api<BaileysRow>("baileysEstado", { slug }).then(setBl).catch(() => {});
       setNeg(n.business);
       setEdit(n.business);
       setDevices(d.devices);
@@ -691,7 +691,7 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
   useEffect(() => {
     if (!esperandoQr) return;
     const t = setInterval(() => {
-      api<BaileysRow>("baileysEstado", {}).then(setBl).catch(() => {});
+      api<BaileysRow>("baileysEstado", { slug }).then(setBl).catch(() => {});
     }, 3000);
     return () => clearInterval(t);
   }, [esperandoQr]);
@@ -943,7 +943,7 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
                   onDo={() =>
                     accion(
                       "wa",
-                      async () => setBl(await api<BaileysRow>("baileysLogout", {})),
+                      async () => setBl(await api<BaileysRow>("baileysLogout", { slug })),
                       "WhatsApp desvinculado."
                     )
                   }
@@ -956,7 +956,7 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
                 <p className="text-xs text-ink2">
                   En el teléfono: WhatsApp → Dispositivos vinculados → Vincular un dispositivo.
                 </p>
-                <button className={btnGhost} onClick={() => api<BaileysRow>("baileysEstado", {}).then(setBl)}>
+                <button className={btnGhost} onClick={() => api<BaileysRow>("baileysEstado", { slug }).then(setBl)}>
                   Ya lo escaneé
                 </button>
               </div>
@@ -970,7 +970,7 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
                 disabled={!!busy}
                 onClick={() =>
                   accion("wa", async () => {
-                    setBl(await api<BaileysRow>("baileysStart", {}));
+                    setBl(await api<BaileysRow>("baileysStart", { slug }));
                   }, "Generando el QR… aparece en unos segundos.")
                 }
               >
