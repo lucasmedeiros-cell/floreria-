@@ -74,12 +74,13 @@ export function DebugReporter({ surface = "web" }: { surface?: "web" | "crm" }) 
       <button
         onClick={() => setOpen(true)}
         aria-label="Reportar un bug"
-        // Abajo a la DERECHA. Estuvo a la izquierda un tiempo porque acá tapaba
-        // el botón de cobrar del punto de venta; ahora el propio Ventas lo
-        // esconde (ver AdminShell), así que la esquina queda libre.
-        className="fixed bottom-5 right-5 z-[85] inline-flex items-center gap-2 rounded-full bg-[#1f2937] px-4 py-3 text-[13px] font-semibold text-white shadow-[0_6px_20px_rgba(0,0,0,0.28)] transition-transform hover:scale-[1.04] active:scale-95"
+        title="Reportar un bug"
+        // Redondo y solo con el icono: tapa mucho menos de la pantalla que la
+        // pastilla con texto. Abajo a la DERECHA; en Ventas no se muestra, que
+        // es donde está el botón de cobrar (ver AdminShell).
+        className="fixed bottom-5 right-5 z-[85] grid h-[52px] w-[52px] place-items-center rounded-full bg-[#1f2937] text-white shadow-[0_6px_20px_rgba(0,0,0,0.28)] transition-transform hover:scale-[1.06] active:scale-95"
       >
-        <Bug size={17} /> Debug
+        <Bug size={22} />
       </button>
 
       {!open ? null : (
