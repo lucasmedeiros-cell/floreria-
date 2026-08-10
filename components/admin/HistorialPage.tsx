@@ -19,7 +19,7 @@ import {
 import { bs2 } from "@/lib/products";
 import { useBusiness, useToast } from "@/context/StoreProvider";
 import { exportComprobante } from "@/lib/comprobante";
-import { IconTile } from "./kit";
+import { IconTile, LINEA_TARJETA, TONO_TARJETA } from "./kit";
 import {
   apiGetSale,
   apiListSales,
@@ -152,9 +152,9 @@ export function HistorialPage() {
 
         {/* Cuántos comprobantes hay de cada tipo. */}
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <ConteoCard icon={<FileText size={24} />} tone="#F5A800" label="Facturas" n={nFacturas} />
-          <ConteoCard icon={<FileText size={24} />} tone="#3B6FD4" label="Proformas" n={nProformas} />
-          <ConteoCard icon={<XCircle size={24} />} tone="#E0324E" label="Anuladas" n={nAnuladas} />
+          <ConteoCard icon={<FileText size={30} />} tone={TONO_TARJETA} label="Facturas" n={nFacturas} />
+          <ConteoCard icon={<FileText size={30} />} tone={TONO_TARJETA} label="Proformas" n={nProformas} />
+          <ConteoCard icon={<XCircle size={30} />} tone={TONO_TARJETA} label="Anuladas" n={nAnuladas} />
         </div>
 
       {err && (
@@ -359,7 +359,10 @@ function ConteoCard({
   n: number;
 }) {
   return (
-    <div className="relative flex items-center gap-4 overflow-hidden rounded-[18px] border border-line bg-surface p-5 shadow-card">
+    <div
+      className="relative flex items-center gap-4 overflow-hidden rounded-[18px] border border-line bg-surface p-5 shadow-card"
+      style={{ borderTopColor: LINEA_TARJETA }}
+    >
       <span
         aria-hidden
         className="pointer-events-none absolute right-4 top-5 h-[42px] w-[72px]"
@@ -370,7 +373,7 @@ function ConteoCard({
         }}
       />
       <span className="relative block">
-        <IconTile icon={icon} tone={tone} size={54} />
+        <IconTile icon={icon} tone={tone} size={62} />
       </span>
       <span className="relative">
         <span className="block text-[12.5px] text-ink2">{label}</span>

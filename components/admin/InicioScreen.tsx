@@ -23,7 +23,7 @@ import { apiReports, type ReportTop } from "@/lib/reportsClient";
 import { apiListPurchaseOrders, type PurchaseOrder } from "@/lib/purchaseClient";
 import { apiListSales, type SaleRow } from "@/lib/salesClient";
 import { bs2 } from "@/lib/products";
-import { IconTile } from "./kit";
+import { IconTile, LINEA_TARJETA, TONO_TARJETA } from "./kit";
 
 /**
  * Secciones a las que el Resumen puede mandar. Es un subconjunto del `Section`
@@ -341,38 +341,38 @@ export function InicioScreen({
         {/* ---------- Vistazo ---------- */}
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
-            icon={<TrendingUp size={26} />}
-            tone={TONO.ventas}
+            icon={<TrendingUp size={30} />}
+            tone={TONO_TARJETA}
             label={`Ventas ${SUFIJO[periodo]}`}
             value={dato(bs2(ventas))}
-            nota={<Comparacion tone={TONO.ventas} v={variacion(ventas, ventasPrev)} periodo={periodo} />}
-            extra={<Sparkline data={serie.map((s) => s.total)} tone={TONO.ventas} />}
+            nota={<Comparacion tone={TONO_TARJETA} v={variacion(ventas, ventasPrev)} periodo={periodo} />}
+            extra={<Sparkline data={serie.map((s) => s.total)} tone={TONO_TARJETA} />}
             onClick={() => onGo("historial")}
           />
           <KpiCard
-            icon={<Wallet size={26} />}
-            tone={TONO.utilidad}
+            icon={<Wallet size={30} />}
+            tone={TONO_TARJETA}
             label={`Utilidad ${SUFIJO[periodo]}`}
             value={dato(bs2(utilidad))}
             nota={
-              <Comparacion tone={TONO.utilidad} v={variacion(utilidad, utilidadPrev)} periodo={periodo} />
+              <Comparacion tone={TONO_TARJETA} v={variacion(utilidad, utilidadPrev)} periodo={periodo} />
             }
-            extra={<Sparkline data={serie.map((s) => s.utilidad)} tone={TONO.utilidad} />}
+            extra={<Sparkline data={serie.map((s) => s.utilidad)} tone={TONO_TARJETA} />}
             onClick={() => onGo("reportes")}
           />
           <KpiCard
-            icon={<ShoppingBag size={26} />}
-            tone={TONO.unidades}
+            icon={<ShoppingBag size={30} />}
+            tone={TONO_TARJETA}
             label="Productos vendidos"
             value={dato(`${unidades}`)}
             nota={
-              <Comparacion tone={TONO.unidades} v={variacion(unidades, unidadesPrev)} periodo={periodo} />
+              <Comparacion tone={TONO_TARJETA} v={variacion(unidades, unidadesPrev)} periodo={periodo} />
             }
             onClick={() => onGo("reportes")}
           />
           <KpiCard
-            icon={<AlertTriangle size={26} />}
-            tone={TONO.stock}
+            icon={<AlertTriangle size={30} />}
+            tone={TONO_TARJETA}
             label="Stock crítico"
             value={dato(`${stockBajo}`)}
             nota={<span className="text-[12.5px] text-ink2">productos</span>}
@@ -394,14 +394,14 @@ export function InicioScreen({
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <Acceso
             icon={<ShoppingBag size={24} />}
-            tone={TONO.ventas}
+            tone={TONO_TARJETA}
             title="Registrar compra"
             subtitle="Ingresar mercadería de un proveedor"
             onClick={() => onGo("proveedor", "nuevo")}
           />
           <Acceso
             icon={<UserRoundPlus size={24} />}
-            tone={TONO.ventas}
+            tone={TONO_TARJETA}
             title="Nuevo cliente"
             subtitle="Agregar un cliente a la libreta"
             onClick={() => onGo("clientes", "nuevo")}
@@ -508,9 +508,10 @@ function KpiCard({
     <button
       onClick={onClick}
       className="flex flex-col rounded-[20px] border border-line bg-surface p-5 text-left shadow-card transition-transform hover:-translate-y-0.5"
+      style={{ borderTopColor: LINEA_TARJETA }}
     >
       <span className="flex items-start gap-3.5">
-        <IconTile icon={icon} tone={tone} size={56} />
+        <IconTile icon={icon} tone={tone} size={62} />
         <span className="min-w-0 flex-1 pt-1">
           <span className="block truncate text-[14px] font-semibold text-ink2">{label}</span>
           <span className="mt-2 block truncate text-[27px] font-extrabold leading-none text-ink">

@@ -32,7 +32,7 @@ import { apiAdjustStock } from "@/lib/stockClient";
 import { ProductImage } from "@/components/ProductImage";
 import { OutlineButton, PrimaryButton } from "@/components/ui";
 import { ImageGalleryField } from "./ImageGalleryField";
-import { IconTile } from "./kit";
+import { IconTile, LINEA_TARJETA, TONO_TARJETA } from "./kit";
 
 /** Igual que el umbral del reporte (`app/api/reports`): 5 o menos es alerta. */
 const STOCK_BAJO = 5;
@@ -149,21 +149,21 @@ export function ProductsPage({ onGo }: { onGo?: (s: "proveedor") => void }) {
         {/* ---------- Vistazo del inventario ---------- */}
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           <InvCard
-            icon={<Bell size={26} />}
-            tone="#F5A800"
+            icon={<Bell size={30} />}
+            tone={TONO_TARJETA}
             label="Alerta de stock"
             value={alertaStock}
           />
           <InvCard
-            icon={<ArrowLeftRight size={26} />}
-            tone="#17A2B8"
+            icon={<ArrowLeftRight size={30} />}
+            tone={TONO_TARJETA}
             label="Solicitudes de stock"
             value={solicitudes}
             onClick={() => onGo?.("proveedor")}
           />
           <InvCard
-            icon={<TrendingUp size={26} />}
-            tone="#2EA66B"
+            icon={<TrendingUp size={30} />}
+            tone={TONO_TARJETA}
             label="Productos activos"
             value={activos}
           />
@@ -386,14 +386,16 @@ function InvCard({
     <button
       onClick={onClick}
       className="flex items-center gap-4 rounded-[18px] border border-line bg-surface p-5 text-left shadow-card"
-      style={{ borderTopColor: tone }}
+      style={{ borderTopColor: LINEA_TARJETA }}
     >
-      <IconTile icon={icon} tone={tone} size={58} />
+      <IconTile icon={icon} tone={tone} size={62} />
       <span className="min-w-0">
         <span className="block text-[11.5px] font-bold uppercase tracking-[0.8px] text-ink2">
           {label}
         </span>
-        <span className="mt-1 block text-[28px] font-extrabold leading-none" style={{ color: tone }}>
+        {/* El número va en tinta, como en el resto de las tarjetas de métrica:
+            con el color del icono quedaba amarillo y desentonaba con las demás. */}
+        <span className="mt-1 block text-[28px] font-extrabold leading-none text-ink">
           {value ?? "—"}
         </span>
       </span>

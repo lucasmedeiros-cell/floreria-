@@ -101,6 +101,17 @@ export function CurvedHeader({
  * como una pastilla pegada encima. Todas las pantallas usan este mismo bloque,
  * que es lo que hace que el panel se vea de una sola familia.
  */
+/**
+ * Tono único de los iconos de las tarjetas de métrica (Resumen, Reportes,
+ * Inventario, Historial). Antes cada pantalla elegía su color —verde, azul,
+ * rojo— y las tarjetas no parecían de la misma familia. El amarillo es el de la
+ * marca; los colores semánticos se siguen usando donde significan algo (una
+ * venta anulada, un stock en cero).
+ */
+export const TONO_TARJETA = "#E2A500";
+/** La línea de arriba de esas tarjetas. */
+export const LINEA_TARJETA = "#FEBB03";
+
 export function IconTile({
   icon,
   tone,
