@@ -112,26 +112,30 @@ export const TONO_TARJETA = "#E2A500";
 /** La línea de arriba de esas tarjetas. */
 export const LINEA_TARJETA = "#FEBB03";
 
+/**
+ * Icono de una tarjeta de métrica: SIN recuadro detrás.
+ *
+ * Tenía un cuadrado amarillo de fondo y se leía como una pieza pegada sobre la
+ * tarjeta. Ahora el icono va suelto, del color de la marca, y la tarjeta se ve
+ * como una sola cosa.
+ *
+ * `size` sigue existiendo porque reserva el ancho: es lo que mantiene alineados
+ * el rótulo y la cifra entre tarjetas, aunque un icono sea más angosto que otro.
+ */
 export function IconTile({
   icon,
   tone,
   size = 58,
 }: {
   icon: ReactNode;
-  /** Color de la tarjeta (el ícono va en ese color, más oscuro). */
+  /** Color del ícono. */
   tone: string;
   size?: number;
 }) {
   return (
     <span
       className="relative grid shrink-0 place-items-center"
-      style={{
-        height: size,
-        width: size,
-        borderRadius: Math.round(size * 0.32),
-        background: `linear-gradient(145deg, ${tone}2E, ${tone}12)`,
-        color: tone,
-      }}
+      style={{ height: size, width: size, color: tone }}
     >
       {icon}
     </span>

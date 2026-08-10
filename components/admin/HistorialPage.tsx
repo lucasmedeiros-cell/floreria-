@@ -122,7 +122,7 @@ export function HistorialPage() {
             style={{ borderColor: "#FEBB0355" }}
           >
             <Sparkles size={15} className="absolute right-3 top-2.5 text-pink" />
-            <IconTile icon={<Receipt size={26} />} tone="#C88600" size={54} />
+            <IconTile icon={<Receipt size={34} />} tone={TONO_TARJETA} size={54} />
             <span>
               <span className="block text-[11px] font-bold uppercase tracking-[2px] text-ink2">
                 Facturado
@@ -152,9 +152,9 @@ export function HistorialPage() {
 
         {/* Cuántos comprobantes hay de cada tipo. */}
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <ConteoCard icon={<FileText size={30} />} tone={TONO_TARJETA} label="Facturas" n={nFacturas} />
-          <ConteoCard icon={<FileText size={30} />} tone={TONO_TARJETA} label="Proformas" n={nProformas} />
-          <ConteoCard icon={<XCircle size={30} />} tone={TONO_TARJETA} label="Anuladas" n={nAnuladas} />
+          <ConteoCard icon={<FileText size={38} />} tone={TONO_TARJETA} label="Facturas" n={nFacturas} />
+          <ConteoCard icon={<FileText size={38} />} tone={TONO_TARJETA} label="Proformas" n={nProformas} />
+          <ConteoCard icon={<XCircle size={38} />} tone={TONO_TARJETA} label="Anuladas" n={nAnuladas} />
         </div>
 
       {err && (

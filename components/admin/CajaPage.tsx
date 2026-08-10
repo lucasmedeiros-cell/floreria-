@@ -7,7 +7,7 @@ import { Banknote, Coins, Info, Lock, QrCode, Scale, Wallet } from "lucide-react
 import { bs2 } from "@/lib/products";
 import { useToast } from "@/context/StoreProvider";
 import { apiCashShift, apiCloseCash, type CashShift } from "@/lib/cashClient";
-import { IconTile } from "./kit";
+import { IconTile, LINEA_TARJETA, TONO_TARJETA } from "./kit";
 
 function fmt(iso: string | null): string {
   if (!iso) return "el inicio del día";
@@ -96,26 +96,26 @@ export function CajaPage() {
           <>
             <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <CajaCard
-                icon={<Wallet size={28} />}
-                tone="#F5A800"
+                icon={<Wallet size={38} />}
+                tone={TONO_TARJETA}
                 value={bs2(turno.totalVentas)}
                 label="Total vendido"
               />
               <CajaCard
-                icon={<Banknote size={28} />}
-                tone="#2EA66B"
+                icon={<Banknote size={38} />}
+                tone={TONO_TARJETA}
                 value={bs2(turno.totalEfectivo)}
                 label="Efectivo"
               />
               <CajaCard
-                icon={<QrCode size={28} />}
-                tone="#3B6FD4"
+                icon={<QrCode size={38} />}
+                tone={TONO_TARJETA}
                 value={bs2(turno.totalQr)}
                 label="QR / Transferencia"
               />
               <CajaCard
-                icon={<Coins size={28} />}
-                tone="#7C6BE0"
+                icon={<Coins size={38} />}
+                tone={TONO_TARJETA}
                 value={bs2(turno.totalOtros)}
                 label="Otros medios"
               />
@@ -125,7 +125,7 @@ export function CajaPage() {
             <div className="relative mt-4 max-w-[540px] overflow-hidden rounded-[18px] border border-line bg-surface p-6 shadow-card">
               <Puntos className="-bottom-2 left-4 h-[60px] w-[110px]" />
               <div className="relative flex items-center gap-3">
-                <IconTile icon={<Scale size={26} />} tone="#C88600" size={52} />
+                <IconTile icon={<Scale size={34} />} tone={TONO_TARJETA} size={52} />
                 <h2 className="text-[19px] font-extrabold text-ink">Arqueo</h2>
               </div>
               <p className="relative mt-3 text-[13px] text-ink2">

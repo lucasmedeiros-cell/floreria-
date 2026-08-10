@@ -66,10 +66,10 @@ export function ReportesPage() {
 
       {/* KPIs */}
       <div className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Kpi icon={<DollarSign size={28} />} label="Ventas acumuladas" value={loading ? "—" : bs2(rep?.totalVentas ?? 0)} />
-        <Kpi icon={<ReceiptText size={28} />} label="N° de ventas" value={loading ? "—" : `${rep?.numVentas ?? 0}`} />
-        <Kpi icon={<TrendingUp size={28} />} label="Ganancia" value={loading ? "—" : bs2(rep?.ganancia ?? 0)} />
-        <Kpi icon={<AlertTriangle size={28} />} label="Stock bajo" value={loading ? "—" : `${rep?.stockBajo ?? 0}`} />
+        <Kpi icon={<DollarSign size={38} />} label="Ventas acumuladas" value={loading ? "—" : bs2(rep?.totalVentas ?? 0)} />
+        <Kpi icon={<ReceiptText size={38} />} label="N° de ventas" value={loading ? "—" : `${rep?.numVentas ?? 0}`} />
+        <Kpi icon={<TrendingUp size={38} />} label="Ganancia" value={loading ? "—" : bs2(rep?.ganancia ?? 0)} />
+        <Kpi icon={<AlertTriangle size={38} />} label="Stock bajo" value={loading ? "—" : `${rep?.stockBajo ?? 0}`} />
       </div>
 
       {/* Ventas por mes (datos reales) */}
