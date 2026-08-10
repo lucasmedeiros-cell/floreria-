@@ -208,7 +208,10 @@ export function AdminShell({ adminIntro = true }: { adminIntro?: boolean }) {
         <div className="flex-1 overflow-hidden">{page()}</div>
       </div>
 
-      <DebugReporter surface="crm" />
+      {/* En Ventas no: abajo a la derecha está el botón de cobrar, y ese no se
+          puede tapar por nada. En el resto de las secciones la esquina no tiene
+          nada debajo. */}
+      {seccion !== "venta" && <DebugReporter surface="crm" />}
     </div>
   );
 }
