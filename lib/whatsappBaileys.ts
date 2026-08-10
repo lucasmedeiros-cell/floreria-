@@ -29,6 +29,15 @@ const AUTH_ROOT = join(process.env.WA_AUTH_DIR || process.cwd(), ".wa-auth");
 const SLUG_UNICO = "default";
 
 /**
+ * Tope de reintentos de reconexión (~20 min con la espera creciente).
+ *
+ * Sin tope, una sesión caída seguía golpeando a WhatsApp cada 60 s para siempre
+ * —se llegó a 1550 intentos en un día— y eso no reconecta nada: refuerza el
+ * patrón de cliente automatizado que es justo lo que hace que bloqueen.
+ */
+const MAX_REINTENTOS = 20;
+
+/**
  * ¿Estamos en un entorno serverless con filesystem de solo lectura (Netlify /
  * AWS Lambda)? Ahí Baileys NO puede correr (no puede persistir la sesión ni
  * mantener el socket). Se detecta y se deshabilita limpiamente.
@@ -260,8 +269,25 @@ class BaileysManager {
             // socket vivo) queda el rastro para entender qué pasó, y no se
             // pierde en silencio.
             await this.archivarSesion();
+          } else if (code === 403) {
+            // 403 = WhatsApp bloqueó el número (no es "se cerró la sesión": las
+            // credenciales siguen siendo válidas, el que no pasa es el número).
+            // Reintentar no lo desbloquea y solo confirma el patrón automatizado:
+            // el bot se rindió 1550 veces seguidas antes de que se detectara.
+            this.lastError =
+              "WhatsApp bloqueó este número (403). No se puede reconectar: hay que usar otro número, y conviene pasar al canal oficial de Meta.";
+            console.error(`[wa:baileys][${this.slug}] ${this.lastError} No reintento más.`);
+            this.reconnectAttempts = 0;
+            await this.archivarSesion();
           } else {
             this.reconnectAttempts += 1;
+            // Tope de reintentos: un número caído no se arregla insistiendo, y
+            // media hora de golpes contra WhatsApp empeora la situación.
+            if (this.reconnectAttempts > MAX_REINTENTOS) {
+              this.lastError = `No se pudo reconectar después de ${MAX_REINTENTOS} intentos (último código ${code ?? "n/a"}). Revisá el número y volvé a vincular.`;
+              console.error(`[wa:baileys][${this.slug}] ${this.lastError}`);
+              return;
+            }
             const delay = Math.min(60000, 3000 * 2 ** Math.min(this.reconnectAttempts - 1, 5));
             console.warn(`[wa:baileys][${this.slug}] conexión cerrada (code ${code ?? "n/a"}), reintento #${this.reconnectAttempts} en ${Math.round(delay / 1000)}s`);
             setTimeout(() => this.start().catch(() => {}), delay);
