@@ -93,15 +93,6 @@ export function CurvedHeader({
 /* ============================ Ícono de tarjeta ============================ */
 
 /**
- * El bloque de ícono de las tarjetas de dato del CRM (Resumen, Reportes, Corte
- * de caja, Historial).
- *
- * Es un cuadrado redondeado con un degradado suave del color de la tarjeta, sin
- * borde ni sombra propia: así el ícono se lee como PARTE de la tarjeta y no
- * como una pastilla pegada encima. Todas las pantallas usan este mismo bloque,
- * que es lo que hace que el panel se vea de una sola familia.
- */
-/**
  * Tono único de los iconos de las tarjetas de métrica (Resumen, Reportes,
  * Inventario, Historial). Antes cada pantalla elegía su color —verde, azul,
  * rojo— y las tarjetas no parecían de la misma familia. El amarillo es el de la
@@ -134,7 +125,10 @@ export function IconTile({
 }) {
   return (
     <span
-      className="relative grid shrink-0 place-items-center"
+      // El trazo más grueso va acá y no en cada llamada: con el 2 por defecto de
+      // lucide, un icono grande y sin recuadro se veía flaco al lado de la cifra
+      // en negrita.
+      className="relative grid shrink-0 place-items-center [&_svg]:stroke-[2.4]"
       style={{ height: size, width: size, color: tone }}
     >
       {icon}

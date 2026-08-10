@@ -122,7 +122,7 @@ export function HistorialPage() {
             style={{ borderColor: "#FEBB0355" }}
           >
             <Sparkles size={15} className="absolute right-3 top-2.5 text-pink" />
-            <IconTile icon={<Receipt size={34} />} tone={TONO_TARJETA} size={54} />
+            <IconTile icon={<Receipt size={38} />} tone={TONO_TARJETA} size={54} />
             <span>
               <span className="block text-[11px] font-bold uppercase tracking-[2px] text-ink2">
                 Facturado
@@ -152,9 +152,9 @@ export function HistorialPage() {
 
         {/* Cuántos comprobantes hay de cada tipo. */}
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <ConteoCard icon={<FileText size={38} />} tone={TONO_TARJETA} label="Facturas" n={nFacturas} />
-          <ConteoCard icon={<FileText size={38} />} tone={TONO_TARJETA} label="Proformas" n={nProformas} />
-          <ConteoCard icon={<XCircle size={38} />} tone={TONO_TARJETA} label="Anuladas" n={nAnuladas} />
+          <ConteoCard icon={<FileText size={44} />} tone={TONO_TARJETA} label="Facturas" n={nFacturas} />
+          <ConteoCard icon={<FileText size={44} />} tone={TONO_TARJETA} label="Proformas" n={nProformas} />
+          <ConteoCard icon={<XCircle size={44} />} tone={TONO_TARJETA} label="Anuladas" n={nAnuladas} />
         </div>
 
       {err && (
@@ -376,8 +376,8 @@ function ConteoCard({
         <IconTile icon={icon} tone={tone} size={62} />
       </span>
       <span className="relative">
-        <span className="block text-[12.5px] text-ink2">{label}</span>
-        <span className="mt-1 block text-[24px] font-extrabold leading-none text-ink">{n}</span>
+        <span className="block text-[12.5px] font-semibold text-ink2">{label}</span>
+        <span className="mt-1 block text-[27px] font-extrabold leading-none text-ink">{n}</span>
       </span>
     </div>
   );

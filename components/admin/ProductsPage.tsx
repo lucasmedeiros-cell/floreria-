@@ -149,20 +149,20 @@ export function ProductsPage({ onGo }: { onGo?: (s: "proveedor") => void }) {
         {/* ---------- Vistazo del inventario ---------- */}
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           <InvCard
-            icon={<Bell size={38} />}
+            icon={<Bell size={44} />}
             tone={TONO_TARJETA}
             label="Alerta de stock"
             value={alertaStock}
           />
           <InvCard
-            icon={<ArrowLeftRight size={38} />}
+            icon={<ArrowLeftRight size={44} />}
             tone={TONO_TARJETA}
             label="Solicitudes de stock"
             value={solicitudes}
             onClick={() => onGo?.("proveedor")}
           />
           <InvCard
-            icon={<TrendingUp size={38} />}
+            icon={<TrendingUp size={44} />}
             tone={TONO_TARJETA}
             label="Productos activos"
             value={activos}

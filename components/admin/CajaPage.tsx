@@ -96,25 +96,25 @@ export function CajaPage() {
           <>
             <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <CajaCard
-                icon={<Wallet size={38} />}
+                icon={<Wallet size={44} />}
                 tone={TONO_TARJETA}
                 value={bs2(turno.totalVentas)}
                 label="Total vendido"
               />
               <CajaCard
-                icon={<Banknote size={38} />}
+                icon={<Banknote size={44} />}
                 tone={TONO_TARJETA}
                 value={bs2(turno.totalEfectivo)}
                 label="Efectivo"
               />
               <CajaCard
-                icon={<QrCode size={38} />}
+                icon={<QrCode size={44} />}
                 tone={TONO_TARJETA}
                 value={bs2(turno.totalQr)}
                 label="QR / Transferencia"
               />
               <CajaCard
-                icon={<Coins size={38} />}
+                icon={<Coins size={44} />}
                 tone={TONO_TARJETA}
                 value={bs2(turno.totalOtros)}
                 label="Otros medios"
@@ -125,7 +125,7 @@ export function CajaPage() {
             <div className="relative mt-4 max-w-[540px] overflow-hidden rounded-[18px] border border-line bg-surface p-6 shadow-card">
               <Puntos className="-bottom-2 left-4 h-[60px] w-[110px]" />
               <div className="relative flex items-center gap-3">
-                <IconTile icon={<Scale size={34} />} tone={TONO_TARJETA} size={52} />
+                <IconTile icon={<Scale size={38} />} tone={TONO_TARJETA} size={52} />
                 <h2 className="text-[19px] font-extrabold text-ink">Arqueo</h2>
               </div>
               <p className="relative mt-3 text-[13px] text-ink2">
@@ -214,10 +214,10 @@ function CajaCard({
       <span className="relative block">
         <IconTile icon={icon} tone={tone} size={62} />
       </span>
-      <p className="relative mt-4 truncate text-[25px] font-extrabold leading-none text-ink">
+      <p className="relative mt-4 truncate text-[27px] font-extrabold leading-none text-ink">
         {value}
       </p>
-      <p className="relative mt-2 truncate text-[12.5px] text-ink2">{label}</p>
+      <p className="relative mt-2 truncate text-[12.5px] font-semibold text-ink2">{label}</p>
     </div>
   );
 }

@@ -341,7 +341,7 @@ export function InicioScreen({
         {/* ---------- Vistazo ---------- */}
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
-            icon={<TrendingUp size={38} />}
+            icon={<TrendingUp size={44} />}
             tone={TONO_TARJETA}
             label={`Ventas ${SUFIJO[periodo]}`}
             value={dato(bs2(ventas))}
@@ -350,7 +350,7 @@ export function InicioScreen({
             onClick={() => onGo("historial")}
           />
           <KpiCard
-            icon={<Wallet size={38} />}
+            icon={<Wallet size={44} />}
             tone={TONO_TARJETA}
             label={`Utilidad ${SUFIJO[periodo]}`}
             value={dato(bs2(utilidad))}
@@ -361,7 +361,7 @@ export function InicioScreen({
             onClick={() => onGo("reportes")}
           />
           <KpiCard
-            icon={<ShoppingBag size={38} />}
+            icon={<ShoppingBag size={44} />}
             tone={TONO_TARJETA}
             label="Productos vendidos"
             value={dato(`${unidades}`)}
@@ -371,7 +371,7 @@ export function InicioScreen({
             onClick={() => onGo("reportes")}
           />
           <KpiCard
-            icon={<AlertTriangle size={38} />}
+            icon={<AlertTriangle size={44} />}
             tone={TONO_TARJETA}
             label="Stock crítico"
             value={dato(`${stockBajo}`)}
