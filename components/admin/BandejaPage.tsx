@@ -160,9 +160,10 @@ export function BandejaPage() {
   return (
     <div className="flex h-full min-h-0 flex-col px-7 pb-6 pt-6">
       <div className="shrink-0">
-        <h1 className={tituloSeccion}>Conversaciones</h1>
+        <h1 className={tituloSeccion}>Vendedor 24/7</h1>
         <p className="mt-1 text-[13px] text-ink2">
-          Lo que atiende el Vendedor 24/7. Podés tomar el control de una charla y seguir vos.
+          Las conversaciones de WhatsApp que atiende el bot. Podés tomar el control de una
+          charla y seguir vos.
         </p>
       </div>
 
