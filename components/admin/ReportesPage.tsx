@@ -1,5 +1,7 @@
 "use client";
 
+import { tituloSeccion } from "@/components/ui";
+
 import { useEffect, useState } from "react";
 import { DollarSign, ReceiptText, TrendingUp, AlertTriangle } from "lucide-react";
 import { IconTile } from "./kit";
@@ -51,7 +53,7 @@ export function ReportesPage() {
 
   return (
     <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
-      <h1 className="text-[27px] font-extrabold leading-none tracking-[-0.4px] text-ink">
+      <h1 className={tituloSeccion}>
         Reportes
       </h1>
       <p className="mt-1 text-[13px] text-ink2">Ventas facturadas, ganancia y productos más vendidos</p>

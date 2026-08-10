@@ -1,5 +1,7 @@
 "use client";
 
+import { tituloSeccion } from "@/components/ui";
+
 import { useState } from "react";
 import { Bike, CalendarCheck, MapPin } from "lucide-react";
 import { fmtDate } from "@/lib/adminData";
@@ -28,7 +30,7 @@ export function AgendaPage() {
 
   return (
     <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
-      <h1 className="text-[30px] font-semibold text-ink">Agenda</h1>
+      <h1 className={tituloSeccion}>Agenda</h1>
       <p className="mt-1 text-[13px] text-ink2">Calendario de entregas del día por repartidor</p>
 
       {/* Selector de días */}

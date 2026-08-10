@@ -1,5 +1,7 @@
 "use client";
 
+import { tituloSeccion } from "@/components/ui";
+
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeftRight,
@@ -107,7 +109,7 @@ export function ProductsPage({ onGo }: { onGo?: (s: "proveedor") => void }) {
       <div className="mx-auto w-full max-w-[1500px] px-5 pb-10 pt-6 sm:px-8">
         {/* ---------- Título y acciones ---------- */}
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="mr-auto text-[27px] font-extrabold leading-none tracking-[-0.4px] text-ink">
+          <h1 className={`mr-auto ${tituloSeccion}`}>
             Inventario
           </h1>
           <BarButton

@@ -1,5 +1,7 @@
 "use client";
 
+import { tituloSeccion } from "@/components/ui";
+
 import { useEffect, useState } from "react";
 import { Banknote, Coins, Info, Lock, QrCode, Scale, Wallet } from "lucide-react";
 import { bs2 } from "@/lib/products";
@@ -73,7 +75,7 @@ export function CajaPage() {
       <Puntos className="bottom-[18%] right-[6%] h-[80px] w-[120px]" />
 
       <div className="relative mx-auto w-full max-w-[1500px] px-5 pb-10 pt-6 sm:px-8">
-        <h1 className="text-[27px] font-extrabold leading-none tracking-[-0.4px] text-ink">
+        <h1 className={tituloSeccion}>
           Corte de caja
         </h1>
         <p className="mt-1.5 text-[13px] text-ink2">

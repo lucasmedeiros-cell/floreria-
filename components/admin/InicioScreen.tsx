@@ -1,5 +1,7 @@
 "use client";
 
+import { tituloSeccion } from "@/components/ui";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
@@ -280,7 +282,7 @@ export function InicioScreen({
         {/* ---------- Saludo y controles del período ---------- */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-[30px] font-extrabold leading-none tracking-[-0.6px] text-ink">
+            <h1 className={tituloSeccion}>
               {saludo}
             </h1>
             <p className="mt-2 text-[13px] text-ink2">

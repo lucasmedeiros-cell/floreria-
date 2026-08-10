@@ -1,5 +1,7 @@
 "use client";
 
+import { tituloSeccion } from "@/components/ui";
+
 import React from "react";
 
 export function PlaceholderPage({
@@ -14,7 +16,7 @@ export function PlaceholderPage({
   return (
     <div className="flex h-full flex-col">
       <div className="px-7 pt-6">
-        <h1 className="text-[30px] font-semibold text-ink">{title}</h1>
+        <h1 className={tituloSeccion}>{title}</h1>
       </div>
       <div className="flex flex-1 items-center justify-center px-6">
         <div className="max-w-[360px] text-center">

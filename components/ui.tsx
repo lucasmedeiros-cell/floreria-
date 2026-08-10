@@ -5,6 +5,17 @@ import React from "react";
 import { EASYPOS_COLORS } from "@/lib/business";
 
 /** Botón primario de easy pos: fondo amarillo, texto negro. */
+/**
+ * Tipografía del título de cada sección del CRM.
+ *
+ * Estaba en tres estilos distintos según la pantalla —serif en Compras y
+ * Configuración, semibold de 30px en Clientes, extrabold de 27px en
+ * Inventario—. Se unifica en el de Inventario, que es el elegido, y vive acá
+ * para que la próxima pantalla no vuelva a inventar el suyo.
+ */
+export const tituloSeccion =
+  "text-[27px] font-extrabold leading-none tracking-[-0.4px] text-ink";
+
 export function PrimaryButton({
   label,
   onClick,

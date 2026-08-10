@@ -1,5 +1,7 @@
 "use client";
 
+import { tituloSeccion } from "@/components/ui";
+
 import { useState } from "react";
 import {
   Bike,
@@ -82,7 +84,7 @@ export function OrdersPage({ onNew }: { onNew: () => void }) {
     <div className="h-full overflow-y-auto px-6 pb-10 pt-6">
       <div className="flex items-start">
         <div className="flex-1">
-          <h1 className="text-[30px] font-semibold text-ink">
+          <h1 className={tituloSeccion}>
             Notas de venta
           </h1>
           <p className="mt-1 text-[13px] text-ink2">{all.length} notas en total</p>

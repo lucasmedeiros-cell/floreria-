@@ -1,5 +1,7 @@
 "use client";
 
+import { tituloSeccion } from "@/components/ui";
+
 import { apiUrl } from "@/lib/apiBase";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, Loader2, Send, UserRound } from "lucide-react";
@@ -38,6 +40,20 @@ interface Pedido {
   total: number | null;
 }
 
+/**
+ * Colores de WhatsApp, para que la bandeja se lea como el WhatsApp de siempre y
+ * nadie tenga que aprender otra pantalla: fondo beige, burbuja verde para lo que
+ * sale y blanca para lo que entra.
+ */
+const WA = {
+  fondoChat: "#efeae2",
+  saliente: "#d9fdd3",
+  entrante: "#ffffff",
+  cabecera: "#f0f2f5",
+  verde: "#25d366",
+  hora: "#667781",
+};
+
 const hora = (iso: string) =>
   new Date(iso).toLocaleString("es-BO", {
     day: "2-digit",
@@ -45,6 +61,10 @@ const hora = (iso: string) =>
     hour: "2-digit",
     minute: "2-digit",
   });
+
+/** Solo la hora, que es lo que WhatsApp muestra dentro de la burbuja. */
+const soloHora = (iso: string) =>
+  new Date(iso).toLocaleTimeString("es-BO", { hour: "2-digit", minute: "2-digit" });
 
 export function BandejaPage() {
   const { showToast } = useToast();
@@ -140,7 +160,7 @@ export function BandejaPage() {
   return (
     <div className="flex h-full min-h-0 flex-col px-7 pb-6 pt-6">
       <div className="shrink-0">
-        <h1 className="font-serif text-[30px] font-semibold text-ink">Conversaciones</h1>
+        <h1 className={tituloSeccion}>Conversaciones</h1>
         <p className="mt-1 text-[13px] text-ink2">
           Lo que atiende el Vendedor 24/7. Podés tomar el control de una charla y seguir vos.
         </p>
@@ -198,12 +218,25 @@ export function BandejaPage() {
             <p className="p-5 text-[13px] text-ink2">Elegí una conversación de la izquierda.</p>
           ) : (
             <>
-              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-[14px] font-semibold text-ink">
-                    {detalle?.name || elegida}
-                  </p>
-                  <p className="text-[11.5px] text-faint">{elegida}</p>
+              <div
+                className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-black/5 px-4 py-2.5"
+                style={{ background: WA.cabecera }}
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[15px] font-bold text-white"
+                    style={{ background: "#9fb2bf" }}
+                  >
+                    {(detalle?.name || elegida || "?").trim().charAt(0).toUpperCase()}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-[15px] font-semibold text-[#111b21]">
+                      {detalle?.name || elegida}
+                    </p>
+                    <p className="text-[12px]" style={{ color: WA.hora }}>
+                      {elegida}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <span
@@ -253,28 +286,34 @@ export function BandejaPage() {
                 </div>
               )}
 
-              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+              <div
+                className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-8"
+                style={{ background: WA.fondoChat }}
+              >
                 {mensajes.map((m, i) => {
                   const mio = m.direction === "out";
                   return (
-                    <div key={i} className={`mb-2.5 flex ${mio ? "justify-end" : "justify-start"}`}>
+                    <div key={i} className={`mb-2 flex ${mio ? "justify-end" : "justify-start"}`}>
                       <div
-                        className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 text-[13.5px] ${
-                          mio
-                            ? m.fromBot
-                              ? "bg-pinkSoft text-ink"
-                              : "bg-ink text-surface"
-                            : "bg-surface2 text-ink"
-                        }`}
+                        className="relative max-w-[75%] px-2.5 py-1.5 text-[14.2px] leading-[19px] text-[#111b21] shadow-[0_1px_0.5px_rgba(11,20,26,.13)]"
+                        style={{
+                          background: mio ? WA.saliente : WA.entrante,
+                          // La esquina "puntuda" del lado de quien habla, como WhatsApp.
+                          borderRadius: mio ? "8px 8px 2px 8px" : "8px 8px 8px 2px",
+                        }}
                       >
-                        <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                        <p
-                          className={`mt-1 text-[10px] ${
-                            mio && !m.fromBot ? "text-surface/60" : "text-faint"
-                          }`}
-                        >
-                          {hora(m.createdAt)}
-                          {mio && (m.fromBot ? " · bot" : " · vos")}
+                        {/* La hora va FLOTADA, no posicionada: así el texto la
+                            rodea y nunca se le monta encima, que es lo que pasa
+                            con los mensajes de una sola línea. */}
+                        <p className="whitespace-pre-wrap break-words">
+                          {m.body}
+                          <span
+                            className="float-right ml-2 mt-[6px] text-[11px] leading-none"
+                            style={{ color: WA.hora }}
+                          >
+                            {soloHora(m.createdAt)}
+                            {mio && (m.fromBot ? " · bot" : " · vos")}
+                          </span>
                         </p>
                       </div>
                     </div>
@@ -283,7 +322,10 @@ export function BandejaPage() {
                 <div ref={finRef} />
               </div>
 
-              <div className="shrink-0 border-t border-line px-4 py-3">
+              <div
+                className="shrink-0 border-t border-black/5 px-4 py-2.5"
+                style={{ background: WA.cabecera }}
+              >
                 {detalle?.botActive && (
                   <p className="mb-2 text-[11.5px] text-faint">
                     El bot está atendiendo. Si escribís acá, el mensaje sale igual, pero conviene
@@ -295,13 +337,14 @@ export function BandejaPage() {
                     value={texto}
                     onChange={(e) => setTexto(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && !enviando && enviar()}
-                    placeholder="Escribí tu respuesta…"
-                    className="flex-1 rounded-xl border border-line bg-surface2 px-3.5 py-2.5 text-[13.5px] text-ink outline-none placeholder:text-faint focus:border-pink"
+                    placeholder="Escribí un mensaje"
+                    className="flex-1 rounded-[8px] border-0 bg-white px-4 py-2.5 text-[14.2px] text-[#111b21] outline-none placeholder:text-[#8696a0]"
                   />
                   <button
                     onClick={enviar}
                     disabled={enviando || !texto.trim()}
-                    className="inline-flex items-center gap-2 rounded-xl bg-pink px-4 py-2.5 text-[13px] font-semibold text-onAccent disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[13px] font-semibold text-white disabled:opacity-50"
+                    style={{ background: WA.verde }}
                   >
                     {enviando ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                     Enviar

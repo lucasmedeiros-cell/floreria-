@@ -1,5 +1,7 @@
 "use client";
 
+import { tituloSeccion } from "@/components/ui";
+
 import { useState } from "react";
 import { MapPin, Plus, Search, Users, X } from "lucide-react";
 import type { Client } from "@/lib/adminData";
@@ -24,7 +26,7 @@ export function ClientsPage({ nuevo = false }: { nuevo?: boolean }) {
     <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
       <div className="flex items-start">
         <div className="flex-1">
-          <h1 className="text-[30px] font-semibold text-ink">Clientes</h1>
+          <h1 className={tituloSeccion}>Clientes</h1>
           <p className="mt-1 text-[13px] text-ink2">
             {loading ? "Cargando…" : `${clients.length} clientes registrados`}
           </p>

@@ -1,5 +1,7 @@
 "use client";
 
+import { tituloSeccion } from "@/components/ui";
+
 import { NegocioEditor } from "./NegocioEditor";
 import { PromoEditor } from "./PromoEditor";
 import { EducarVendedorEditor } from "./EducarVendedorEditor";
@@ -19,7 +21,7 @@ export function ConfiguracionPage() {
   return (
     <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
       <div>
-        <h1 className="font-serif text-[30px] font-semibold text-ink">Configuración</h1>
+        <h1 className={tituloSeccion}>Configuración</h1>
         <p className="mt-1 text-[13px] text-ink2">
           Tu negocio (nombre, logo, contacto) y tu página promocional.
         </p>

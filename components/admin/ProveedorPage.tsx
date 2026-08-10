@@ -1,5 +1,7 @@
 "use client";
 
+import { tituloSeccion } from "@/components/ui";
+
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Truck, Check, X, Search } from "lucide-react";
 import { bs2 } from "@/lib/products";
@@ -75,7 +77,7 @@ export function ProveedorPage({ nuevo = false }: { nuevo?: boolean }) {
     <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-serif text-[30px] font-semibold text-ink">Compras</h1>
+          <h1 className={tituloSeccion}>Compras</h1>
           <p className="mt-1 text-[13px] text-ink2">Reposición de inventario. Al recibir, sube el stock.</p>
         </div>
         <button

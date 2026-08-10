@@ -1,5 +1,7 @@
 "use client";
 
+import { tituloSeccion } from "@/components/ui";
+
 import { useMemo, useRef, useState } from "react";
 import {
   BadgeDollarSign,
@@ -172,7 +174,7 @@ export function VentasScreen() {
       <div className="flex min-h-0 flex-1 flex-col rounded-[18px] border border-line bg-surface p-6 shadow-card">
         <div className="flex flex-wrap items-start gap-3">
           <div className="min-w-0 flex-1">
-            <h1 className="text-[30px] font-extrabold leading-none tracking-[-0.5px] text-ink">
+            <h1 className={tituloSeccion}>
               Ventas
             </h1>
             <p className="mt-2 text-[13px] text-ink2">

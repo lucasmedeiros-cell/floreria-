@@ -1,5 +1,7 @@
 "use client";
 
+import { tituloSeccion } from "@/components/ui";
+
 import { Bike, MapPin, Phone, Truck, PackageCheck, Navigation } from "lucide-react";
 import { fmtDate, orderTotal, statusColor, statusLabel } from "@/lib/adminData";
 import { bs2 } from "@/lib/products";
@@ -30,7 +32,7 @@ export function EntregasPage() {
 
   return (
     <div className="h-full overflow-y-auto px-7 pb-10 pt-6">
-      <h1 className="text-[30px] font-semibold text-ink">Entregas</h1>
+      <h1 className={tituloSeccion}>Entregas</h1>
       <p className="mt-1 text-[13px] text-ink2">Seguimiento de entregas en curso y rutas de los repartidores</p>
 
       {/* Resumen */}

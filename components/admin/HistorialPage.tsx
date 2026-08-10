@@ -1,5 +1,7 @@
 "use client";
 
+import { tituloSeccion } from "@/components/ui";
+
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -107,7 +109,7 @@ export function HistorialPage() {
       <div className="mx-auto w-full max-w-[1500px] px-5 pb-10 pt-6 sm:px-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-[27px] font-extrabold leading-none tracking-[-0.4px] text-ink">
+            <h1 className={tituloSeccion}>
               Historial
             </h1>
             <p className="mt-1.5 text-[13px] text-ink2">
