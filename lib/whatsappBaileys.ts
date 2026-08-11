@@ -186,6 +186,19 @@ class BaileysManager {
     }
   }
 
+  /** Baja el socket SIN tocar las credenciales (para mover la carpeta). */
+  async detener(): Promise<void> {
+    try {
+      this.sock?.ev?.removeAllListeners?.();
+      this.sock?.end?.(undefined);
+    } catch {
+      /* ya estaba caído */
+    }
+    this.sock = null;
+    this.status = "idle";
+    this.qrDataUrl = null;
+  }
+
   /** Cierra la sesión y borra credenciales (fuerza un QR nuevo). */
   async logout() {
     try {
@@ -435,6 +448,31 @@ export function baileys(slug?: string | null): BaileysManager {
     mapa.set(clave, m);
   }
   return m;
+}
+
+/**
+ * Mueve la sesión de un negocio cuando cambia su slug (al renombrarlo).
+ *
+ * La sesión vive en `.wa-auth/<slug>`: sin mover la carpeta, al reiniciar el bot
+ * no encuentra la del negocio y este queda sin vendedor sin que nadie se entere.
+ *
+ * Antes de mover se CIERRA el socket: copiar o mover la carpeta con la conexión
+ * viva deja las credenciales a medias y WhatsApp revoca el dispositivo (ya pasó
+ * una vez). Después se reconecta con la carpeta nueva.
+ */
+export async function renombrarSesion(viejo: string, nuevo: string): Promise<void> {
+  if (serverlessReadOnly() || viejo === nuevo) return;
+  const origen = join(AUTH_ROOT, viejo);
+  if (!existsSync(join(origen, "creds.json"))) return;
+
+  const mapa = (g.__waBaileysPorNegocio ??= new Map<string, BaileysManager>());
+  const anterior = mapa.get(viejo);
+  await anterior?.detener();
+  mapa.delete(viejo);
+
+  await rename(origen, join(AUTH_ROOT, nuevo));
+  console.log(`[wa:baileys] sesión movida de ${viejo} a ${nuevo}; reconectando`);
+  await baileys(nuevo).start();
 }
 
 /**

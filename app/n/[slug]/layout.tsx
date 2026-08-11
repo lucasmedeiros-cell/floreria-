@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { estaActivo, negocioBySlug } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +18,13 @@ export default async function NegocioLayout({
 }) {
   const negocio = await negocioBySlug(params.slug);
   if (!negocio) notFound();
+
+  // Entró por una dirección vieja (el negocio se renombró): se manda a la actual
+  // en vez de servirla en dos URLs. Así lo ya compartido —una landing mandada
+  // por WhatsApp, un QR impreso— sigue funcionando y de paso se corrige solo.
+  if (negocio.slug !== params.slug) {
+    redirect(`/n/${negocio.slug}`);
+  }
 
   // Suspendido o dado de baja: la web no atiende, pero se dice por qué (una
   // pantalla en blanco haría que el comercio crea que se le rompió el sitio).

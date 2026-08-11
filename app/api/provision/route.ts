@@ -225,6 +225,35 @@ export async function POST(req: NextRequest) {
       }
       if (!Object.keys(campos).length)
         return NextResponse.json({ error: "Nada para actualizar." }, { status: 400 });
+
+      // Renombrar cambia también la DIRECCIÓN pública: quedarse con el slug del
+      // nombre viejo deja al negocio con enlaces que ya no lo representan. La
+      // dirección anterior se guarda y se sigue resolviendo (redirige a la
+      // nueva), así lo ya compartido no muere.
+      // El nombre de la BASE no se toca: es interno, y renombrarlo obligaría a
+      // cerrar todas las conexiones abiertas.
+      let slugNuevo: string | null = null;
+      if (typeof campos.nombre === "string" && campos.nombre) {
+        const propuesto = cleanSlug(campos.nombre);
+        if (propuesto && propuesto !== slug && propuesto.length <= 50) {
+          const tomado = await withPool(centralUrl(), (p) =>
+            p.query(
+              `SELECT 1 FROM negocio WHERE (slug = $1 OR $1 = ANY(slugs_anteriores)) AND slug <> $2`,
+              [propuesto, slug]
+            ).then((r) => r.rowCount)
+          );
+          if (tomado) {
+            return NextResponse.json(
+              { error: `La dirección "${propuesto}" ya la usa otro negocio. Cambiá el nombre.` },
+              { status: 409 }
+            );
+          }
+          slugNuevo = propuesto;
+        }
+      }
+      if (slugNuevo) {
+        campos.slug = slugNuevo;
+      }
       const sets = Object.keys(campos).map((k, i) => `${k} = $${i + 2}`);
       const neg = await withPool(centralUrl(), (p) =>
         p.query(
@@ -235,6 +264,26 @@ export async function POST(req: NextRequest) {
         ).then((r) => r.rows[0])
       );
       if (!neg) return NextResponse.json({ error: "Negocio no encontrado." }, { status: 404 });
+
+      if (slugNuevo) {
+        await withPool(centralUrl(), (p) =>
+          p.query(
+            `UPDATE negocio
+                SET slugs_anteriores = array_append(array_remove(slugs_anteriores, $2), $2)
+              WHERE id = $1`,
+            [neg.id, slug]
+          )
+        );
+        // La sesión de WhatsApp se guarda por slug: si no se renombra la
+        // carpeta, al reiniciar el bot no encuentra la suya y el negocio queda
+        // sin vendedor sin que nadie se entere.
+        try {
+          const { renombrarSesion } = await import("@/lib/whatsappBaileys");
+          await renombrarSesion(slug, slugNuevo);
+        } catch (e) {
+          console.warn(`[panel] no se pudo mover la sesión de WhatsApp: ${e}`);
+        }
+      }
       logActividad(who, "editar-negocio", neg.id, campos);
 
       // El teléfono del panel es el WhatsApp con el que sale a la calle la
@@ -258,6 +307,27 @@ export async function POST(req: NextRequest) {
           // El alta en la central ya quedó guardada: que falle la copia (base
           // del negocio caída, por ejemplo) no debe tumbar la edición.
           console.warn("[panel] no se pudo copiar el teléfono al negocio:", error);
+        }
+      }
+
+      // El NOMBRE también baja al negocio: es el que se ve en su tienda, en su
+      // CRM, en la landing y en el saludo del bot. Sin esta copia, renombrar en
+      // el panel dejaba al negocio anunciándose con el nombre viejo por todos
+      // lados.
+      if ("nombre" in campos && campos.nombre && neg.db_name) {
+        try {
+          await withPool(urlForDb(neg.db_name), (p) =>
+            p.query(
+              `INSERT INTO settings (key, value, updated_at)
+                 VALUES ('business', jsonb_build_object('name', $1::text), now())
+               ON CONFLICT (key) DO UPDATE
+                 SET value = settings.value || jsonb_build_object('name', $1::text),
+                     updated_at = now()`,
+              [campos.nombre]
+            )
+          );
+        } catch (error) {
+          console.warn("[panel] no se pudo copiar el nombre al negocio:", error);
         }
       }
 

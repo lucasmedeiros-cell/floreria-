@@ -631,7 +631,18 @@ function AltaNegocio({ onDone, onCancel }: { onDone: (slug: string) => void; onC
 
 // ---------- Ficha de un negocio ----------
 
-function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () => void; onChanged: () => void }) {
+function FichaNegocio({
+  slug,
+  onBack,
+  onChanged,
+  onSlug,
+}: {
+  slug: string;
+  onBack: () => void;
+  onChanged: () => void;
+  /** El negocio se renombró y cambió su dirección: la ficha se muda a la nueva. */
+  onSlug: (nuevo: string) => void;
+}) {
   const [neg, setNeg] = useState<NegocioRow | null>(null);
   const [devices, setDevices] = useState<DeviceRow[]>([]);
   const [emps, setEmps] = useState<EmployeeRow[]>([]);
@@ -843,8 +854,8 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
             onClick={() =>
               accion(
                 "datos",
-                () =>
-                  api("updateNegocio", {
+                async () => {
+                  const r = await api<{ business: NegocioRow }>("updateNegocio", {
                     slug,
                     nombre: edit.nombre,
                     rubro: edit.rubro,
@@ -853,7 +864,11 @@ function FichaNegocio({ slug, onBack, onChanged }: { slug: string; onBack: () =>
                     email: edit.email ?? "",
                     direccion: edit.direccion ?? "",
                     ciudad: edit.ciudad ?? "",
-                  }),
+                  });
+                  // Cambiar el nombre cambia la dirección: sin esto la ficha
+                  // seguiría abierta en la vieja y mostrando enlaces que ya no son.
+                  if (r.business?.slug && r.business.slug !== slug) onSlug(r.business.slug);
+                },
                 "Datos guardados."
               )
             }
@@ -2676,7 +2691,12 @@ export function PanelApp() {
 
           {sec === "negocios" &&
             (vista.t === "ficha" ? (
-              <FichaNegocio slug={vista.slug} onBack={() => setVista({ t: "lista" })} onChanged={cargarLista} />
+              <FichaNegocio
+                slug={vista.slug}
+                onBack={() => setVista({ t: "lista" })}
+                onChanged={cargarLista}
+                onSlug={(nuevo) => setVista({ t: "ficha", slug: nuevo })}
+              />
             ) : vista.t === "alta" ? (
               <AltaNegocio onDone={(slug) => { cargarLista(); setVista({ t: "ficha", slug }); }} onCancel={() => setVista({ t: "lista" })} />
             ) : (

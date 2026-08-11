@@ -197,10 +197,15 @@ export async function negocioBySlug(slug: string): Promise<Negocio | null> {
   const cached = cacheGet(key);
   if (cached !== undefined) return cached;
 
+  // También por las direcciones ANTERIORES: al renombrar un negocio cambia su
+  // slug, y lo ya compartido (landings por WhatsApp, un QR impreso) seguiría
+  // apuntando al viejo. Se resuelve igual y las páginas redirigen al nuevo.
   const { rows } = await centralPool().query<NegocioRow>(
     `SELECT id, nombre, slug, db_name, estado, rubro, telefono
        FROM negocio
-      WHERE slug = $1`,
+      WHERE slug = $1 OR $1 = ANY(slugs_anteriores)
+      ORDER BY (slug = $1) DESC
+      LIMIT 1`,
     [slug]
   );
   const negocio = rows[0] ? toNegocio(rows[0]) : null;
